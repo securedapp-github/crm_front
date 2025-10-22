@@ -7,6 +7,14 @@ const Lead = sequelize.define('Lead', {
     primaryKey: true,
     autoIncrement: true
   },
+  firstName: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
+  lastName: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
   name: {
     type: DataTypes.STRING,
     allowNull: false
@@ -45,8 +53,8 @@ const Lead = sequelize.define('Lead', {
     allowNull: true
   },
   status: {
-    type: DataTypes.ENUM('New', 'Contacted', 'Qualified', 'Converted', 'Lost'),
-    defaultValue: 'New'
+    type: DataTypes.STRING,
+    allowNull: true
   },
   score: {
     type: DataTypes.INTEGER,
@@ -57,6 +65,10 @@ const Lead = sequelize.define('Lead', {
     allowNull: true
   },
   isHot: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  autoAssignRequested: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
   },

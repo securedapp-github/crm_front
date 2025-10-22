@@ -13,8 +13,8 @@ coverage/
 .cache/
 
 # Environment variables
-.env
-.env.*
+# .env
+# .env.*
 
 # Logs
 *.log

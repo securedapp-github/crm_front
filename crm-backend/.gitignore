@@ -25,8 +25,8 @@ dist/
 .cache/
 
 # Environment variables
-.env
-.env.*
+# .env
+# .env.*
 
 # OS / IDE
 .DS_Store

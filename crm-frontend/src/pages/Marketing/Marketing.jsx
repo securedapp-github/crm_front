@@ -1,48 +1,55 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import CampaignList from './CampaignList'
-import LeadList from './LeadList'
 import LeadAnalytics from './LeadAnalytics'
 import LeadScoring from './LeadScoring'
-import LeadNurture from './LeadNurture'
 import LeadConversion from './LeadConversion'
 
 export default function Marketing() {
   const [tab, setTab] = useState('capture')
+  const tabs = useMemo(() => ([
+    { id: 'capture', label: 'Capture', description: 'Campaigns & lead intake' },
+    { id: 'scoring', label: 'Scoring', description: 'Grades & prioritisation' },
+    { id: 'conversion', label: 'Conversion', description: 'Win deals, close loops' },
+    { id: 'analytics', label: 'Analytics', description: 'Insights & trends' },
+  ]), [])
 
   return (
-    <main className="max-w-6xl mx-auto p-4 md:p-6 lg:p-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Marketing & Lead Management</h1>
-        <div className="hidden md:flex items-center gap-2">
-          <button onClick={()=>setTab('capture')} className={`px-3 py-2 rounded-md border ${tab==='capture'?'bg-slate-900 text-white border-slate-900':'bg-white text-slate-900'}`}>Capture</button>
-          <button onClick={()=>setTab('scoring')} className={`px-3 py-2 rounded-md border ${tab==='scoring'?'bg-slate-900 text-white border-slate-900':'bg-white text-slate-900'}`}>Scoring</button>
-          <button onClick={()=>setTab('nurture')} className={`px-3 py-2 rounded-md border ${tab==='nurture'?'bg-slate-900 text-white border-slate-900':'bg-white text-slate-900'}`}>Nurturing</button>
-          <button onClick={()=>setTab('conversion')} className={`px-3 py-2 rounded-md border ${tab==='conversion'?'bg-slate-900 text-white border-slate-900':'bg-white text-slate-900'}`}>Conversion</button>
-          <button onClick={()=>setTab('analytics')} className={`px-3 py-2 rounded-md border ${tab==='analytics'?'bg-slate-900 text-white border-slate-900':'bg-white text-slate-900'}`}>Analytics</button>
-        </div>
-      </div>
-
-      <div className="md:hidden mt-3">
-        <select className="w-full px-3 py-2 border rounded-md" value={tab} onChange={(e)=>setTab(e.target.value)}>
-          <option value="capture">Capture</option>
-          <option value="scoring">Scoring</option>
-          <option value="nurture">Nurturing</option>
-          <option value="conversion">Conversion</option>
-          <option value="analytics">Analytics</option>
-        </select>
-      </div>
-
-      <div className="mt-6">
-        {tab === 'capture' && (
-          <div className="space-y-6">
-            <CampaignList />
-            <LeadList />
+    <main className="min-h-[calc(100vh-112px)] bg-slate-50">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-12 pt-10 md:px-8">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="space-y-3">
+            <h1 className="text-3xl font-semibold text-slate-900 md:text-4xl">Marketing & Lead Management</h1>
+            <p className="max-w-3xl text-sm text-slate-600 md:text-base">
+              Manage campaigns, track lead quality, and coordinate nurturing workflows. Choose a focus area below to review data and actions for that part of the funnel.
+            </p>
           </div>
-        )}
-        {tab === 'scoring' && <LeadScoring />}
-        {tab === 'nurture' && <LeadNurture />}
-        {tab === 'conversion' && <LeadConversion />}
-        {tab === 'analytics' && <LeadAnalytics />}
+        </section>
+
+        <nav className="flex flex-wrap gap-3">
+          {tabs.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setTab(item.id)}
+              className={`group flex min-w-[160px] flex-1 items-start gap-3 rounded-xl border px-4 py-3 text-left transition-all duration-200 sm:flex-none ${
+                tab === item.id
+                  ? 'border-indigo-500 bg-white shadow-sm'
+                  : 'border-slate-200 bg-white hover:border-indigo-300'
+              }`}
+            >
+              <span>
+                <span className={`block text-base font-semibold ${tab === item.id ? 'text-slate-900' : 'text-slate-700'}`}>{item.label}</span>
+                <span className="mt-1 block text-xs text-slate-500 sm:text-sm">{item.description}</span>
+              </span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          {tab === 'capture' && <CampaignList />}
+          {tab === 'scoring' && <LeadScoring />}
+          {tab === 'conversion' && <LeadConversion />}
+          {tab === 'analytics' && <LeadAnalytics />}
+        </div>
       </div>
     </main>
   )

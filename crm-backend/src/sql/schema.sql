@@ -32,14 +32,43 @@ CREATE TABLE IF NOT EXISTS contacts (
 -- Leads table (matches: src/models/Lead.js)
 CREATE TABLE IF NOT EXISTS leads (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  firstName VARCHAR(100) NULL,
+  lastName VARCHAR(100) NULL,
   name VARCHAR(255) NOT NULL,
-  source VARCHAR(255) NULL,
-  status ENUM('new','contacted','qualified','lost') NOT NULL DEFAULT 'new',
+  email VARCHAR(255) NULL,
+  phone VARCHAR(50) NULL,
+  company VARCHAR(255) NULL,
+  jobTitle VARCHAR(255) NULL,
+  source ENUM('Website','Social Media','Email','Referral','Event') NULL,
+  industry VARCHAR(150) NULL,
+  region VARCHAR(150) NULL,
+  campaignId INT NULL,
+  status ENUM('New','Contacted','Qualified','Converted','Lost') NOT NULL DEFAULT 'New',
+  score INT NOT NULL DEFAULT 10,
+  grade ENUM('A','B','C') NULL,
+  isHot TINYINT(1) NOT NULL DEFAULT 0,
+  autoAssignRequested TINYINT(1) NOT NULL DEFAULT 0,
   assignedTo INT NULL,
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_leads_assignedTo (assignedTo),
-  CONSTRAINT fk_leads_assignedTo_users FOREIGN KEY (assignedTo) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
+  INDEX idx_leads_campaignId (campaignId),
+  CONSTRAINT fk_leads_assignedTo_users FOREIGN KEY (assignedTo) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_leads_campaign FOREIGN KEY (campaignId) REFERENCES campaigns(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Activities table (matches: src/models/Activity.js)
+CREATE TABLE IF NOT EXISTS activities (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  leadId INT NOT NULL,
+  type ENUM('email_open','link_click','webinar_attend','inactive') NOT NULL,
+  points INT NOT NULL DEFAULT 0,
+  meta JSON NULL,
+  occurredAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_activities_leadId (leadId),
+  CONSTRAINT fk_activities_lead FOREIGN KEY (leadId) REFERENCES leads(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Deals table (matches: src/models/Deal.js)
@@ -80,13 +109,33 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE TABLE IF NOT EXISTS campaigns (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
+  code VARCHAR(64) NULL,
   startDate DATE NULL,
   endDate DATE NULL,
   budget DECIMAL(12,2) NULL,
+  currency CHAR(3) NULL DEFAULT 'USD',
+  expectedSpend DECIMAL(12,2) NULL,
+  plannedLeads INT NULL,
   status ENUM('Planned','Active','Paused','Completed') NOT NULL DEFAULT 'Planned',
+  priority ENUM('Low','Medium','High') NOT NULL DEFAULT 'Medium',
+  objective VARCHAR(255) NULL,
+  description TEXT NULL,
+  channel VARCHAR(100) NULL,
+  audienceSegment VARCHAR(255) NULL,
+  productLine VARCHAR(255) NULL,
+  campaignOwnerId INT NULL,
+  externalCampaignId VARCHAR(100) NULL,
+  utmSource VARCHAR(100) NULL,
+  utmMedium VARCHAR(100) NULL,
+  utmCampaign VARCHAR(100) NULL,
+  complianceChecklist TEXT NULL,
+  actualSpend DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   leadsGenerated INT NOT NULL DEFAULT 0,
+  wonDeals INT NOT NULL DEFAULT 0,
+  revenueAttributed DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_campaigns_owner FOREIGN KEY (campaignOwnerId) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tickets table (matches: src/models/Ticket.js)
@@ -116,15 +165,3 @@ CREATE TABLE IF NOT EXISTS notes (
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_notes_entity (entityType, entityId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Alter Leads to new schema (matches: src/models/Lead.js)
-ALTER TABLE leads
-  ADD COLUMN IF NOT EXISTS email VARCHAR(255) NULL,
-  ADD COLUMN IF NOT EXISTS phone VARCHAR(50) NULL,
-  ADD COLUMN IF NOT EXISTS source ENUM('Website','Social Media','Email','Referral','Event') NULL,
-  ADD COLUMN IF NOT EXISTS campaignId INT NULL,
-  ADD COLUMN IF NOT EXISTS score INT NOT NULL DEFAULT 10,
-  ADD COLUMN IF NOT EXISTS isHot TINYINT(1) NOT NULL DEFAULT 0,
-  MODIFY COLUMN status ENUM('New','Contacted','Qualified','Converted','Lost') NOT NULL DEFAULT 'New',
-  ADD INDEX IF NOT EXISTS idx_leads_campaignId (campaignId),
-  ADD CONSTRAINT fk_leads_campaign FOREIGN KEY (campaignId) REFERENCES campaigns(id) ON DELETE SET NULL ON UPDATE CASCADE;

@@ -12,13 +12,13 @@ const models = require('./models');
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const contactRoutes = require('./routes/contactRoutes');
-const leadRoutes = require('./routes/leadRoutes');
 const dealRoutes = require('./routes/dealRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const campaignRoutes = require('./routes/campaignRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
 const noteRoutes = require('./routes/noteRoutes');
 const quoteRoutes = require('./routes/quoteRoutes');
+const accountRoutes = require('./routes/accountRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 
 // Initialize express app
@@ -62,7 +62,6 @@ app.use(session({
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/contacts', contactRoutes);
-app.use('/api/leads', leadRoutes);
 app.use('/api/deals', dealRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/campaigns', campaignRoutes);
@@ -70,6 +69,7 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/quotes', quoteRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/accounts', accountRoutes);
 
 // Error handling middleware (must be after all other middleware and routes)
 app.use(errorHandler);

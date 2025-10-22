@@ -1,8 +1,6 @@
 const User = require('./User');
 const Contact = require('./Contact');
-const Lead = require('./Lead');
 const Account = require('./Account');
-const Activity = require('./Activity');
 const Deal = require('./Deal');
 const Task = require('./Task');
 const Campaign = require('./Campaign');
@@ -15,8 +13,6 @@ const Quote = require('./Quote');
 User.hasMany(Contact, { foreignKey: 'assignedTo', as: 'contacts' });
 Contact.belongsTo(User, { foreignKey: 'assignedTo', as: 'assignee' });
 
-User.hasMany(Lead, { foreignKey: 'assignedTo', as: 'leads' });
-Lead.belongsTo(User, { foreignKey: 'assignedTo', as: 'assignee' });
 
 User.hasMany(Deal, { foreignKey: 'ownerId', as: 'deals' });
 Deal.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
@@ -42,13 +38,8 @@ Deal.hasMany(Task, { foreignKey: 'relatedDealId', as: 'tasks' });
 Deal.hasMany(Quote, { foreignKey: 'dealId', as: 'quotes' });
 Quote.belongsTo(Deal, { foreignKey: 'dealId', as: 'deal' });
 
-// Campaign
-Campaign.hasMany(Lead, { foreignKey: 'campaignId', as: 'leads' });
-Lead.belongsTo(Campaign, { foreignKey: 'campaignId', as: 'campaign' });
-
-// Activity
-Lead.hasMany(Activity, { foreignKey: 'leadId', as: 'activities' });
-Activity.belongsTo(Lead, { foreignKey: 'leadId', as: 'lead' });
+User.hasMany(Campaign, { foreignKey: 'campaignOwnerId', as: 'campaignsOwned' });
+Campaign.belongsTo(User, { foreignKey: 'campaignOwnerId', as: 'owner' });
 
 // Ticket
 User.hasMany(Ticket, { foreignKey: 'assignedTo', as: 'tickets' });
@@ -61,9 +52,7 @@ Ticket.belongsTo(Contact, { foreignKey: 'contactId', as: 'contact' });
 module.exports = {
   User,
   Contact,
-  Lead,
   Account,
-  Activity,
   Deal,
   Task,
   Campaign,

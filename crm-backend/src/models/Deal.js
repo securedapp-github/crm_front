@@ -30,6 +30,21 @@ const Deal = sequelize.define('Deal', {
   ownerId: {
     type: DataTypes.INTEGER,
     allowNull: true
+  },
+  // Scoring fields for qualification/prioritisation
+  score: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 10
+  },
+  grade: {
+    type: DataTypes.ENUM('A','B','C'),
+    allowNull: true
+  },
+  isHot: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
   }
 }, {
   timestamps: true

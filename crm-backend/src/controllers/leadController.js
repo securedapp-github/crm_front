@@ -1,41 +1,5 @@
-const { Lead, User, Contact, Deal, Campaign, Activity, Task, Account } = require('../models');
+const { Lead, User, Contact, Deal, Campaign, Task, Account } = require('../models');
 const { Op } = require('sequelize');
-
-// Scoring config
-const ACTIVITY_POINTS = {
-  email_open: 5,
-  link_click: 10,
-  webinar_attend: 15,
-  inactive: -10
-};
-
-// GET /api/leads/:id/timeline
-exports.listTimeline = async (req, res) => {
-  try {
-    const leadId = Number(req.params.id);
-    const lead = await Lead.findByPk(leadId);
-    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
-    const [activities, tasks] = await Promise.all([
-      Activity.findAll({ where: { leadId }, order: [['occurredAt', 'DESC']] }),
-      Task.findAll({ where: { leadId }, order: [['dueDate', 'DESC'], ['createdAt','DESC']] })
-    ]);
-    const timeline = [
-      ...activities.map(a => ({
-        type: 'activity',
-        when: a.occurredAt || a.createdAt,
-        data: a
-      })),
-      ...tasks.map(t => ({
-        type: 'task',
-        when: t.dueDate || t.createdAt,
-        data: t
-      }))
-    ].sort((a, b) => new Date(b.when) - new Date(a.when));
-    return res.json({ success: true, count: timeline.length, data: timeline });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Failed to fetch timeline' });
-  }
-};
 
 const computeGrade = (score) => {
   if (typeof score !== 'number') return null;
@@ -47,48 +11,16 @@ const computeGrade = (score) => {
 // GET /api/leads
 exports.getLeads = async (req, res) => {
   try {
-    const leads = await Lead.findAll({ order: [['createdAt', 'DESC']] });
+    const leads = await Lead.findAll({
+      order: [['createdAt', 'DESC']],
+      include: [
+        { model: Campaign, as: 'campaign', attributes: ['id', 'name', 'status'] },
+        { model: User, as: 'owner', attributes: ['id', 'name', 'email'] }
+      ]
+    });
     res.json({ success: true, count: leads.length, data: leads });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch leads' });
-  }
-};
-
-// GET /api/leads/:id/activities
-exports.listActivities = async (req, res) => {
-  try {
-    const leadId = Number(req.params.id);
-    const lead = await Lead.findByPk(leadId);
-    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
-    const activities = await Activity.findAll({ where: { leadId }, order: [['occurredAt', 'DESC']] });
-    return res.json({ success: true, count: activities.length, data: activities });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Failed to fetch activities' });
-  }
-};
-
-// POST /api/leads/:id/activities
-// Body: { type: 'email_open'|'link_click'|'webinar_attend'|'inactive', points?: number, meta?: any, occurredAt?: Date }
-exports.addActivity = async (req, res) => {
-  try {
-    const leadId = Number(req.params.id);
-    const lead = await Lead.findByPk(leadId);
-    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
-    const { type, points, meta, occurredAt } = req.body || {};
-    if (!['email_open','link_click','webinar_attend','inactive'].includes(type)) {
-      return res.status(400).json({ success: false, message: 'Invalid activity type' });
-    }
-    const delta = typeof points === 'number' ? points : (ACTIVITY_POINTS[type] ?? 0);
-    const activity = await Activity.create({ leadId, type, points: delta, meta: meta || null, occurredAt: occurredAt ? new Date(occurredAt) : new Date() });
-
-    // Update lead score/grade/isHot
-    const newScore = Math.max(0, (lead.score || 0) + delta);
-    const grade = computeGrade(newScore);
-    const isHot = newScore > 70;
-    await lead.update({ score: newScore, grade, isHot });
-    return res.status(201).json({ success: true, data: { activity, lead } });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Failed to add activity' });
   }
 };
 
@@ -106,7 +38,7 @@ exports.importLeads = async (req, res) => {
 
     for (const raw of leads) {
       try {
-        const name = raw.name?.trim();
+        const name = raw.name?.trim() || [raw.firstName, raw.lastName].filter(Boolean).join(' ').trim();
         if (!name) { errors++; continue; }
         const email = raw.email && String(raw.email).trim() !== '' ? String(raw.email).trim() : null;
         const phone = raw.phone && String(raw.phone).trim() !== '' ? String(raw.phone).trim() : null;
@@ -117,6 +49,8 @@ exports.importLeads = async (req, res) => {
         const jobTitle = raw.jobTitle || null;
         const industry = raw.industry || null;
         const region = raw.region || null;
+        const firstName = raw.firstName || null;
+        const lastName = raw.lastName || null;
 
         // dup check
         const dupWhere = [];
@@ -130,9 +64,27 @@ exports.importLeads = async (req, res) => {
         let baseScore = 10;
         if (status === 'Contacted') baseScore += 20;
         if (status === 'Qualified') baseScore += 30;
+        const grade = computeGrade(baseScore);
         const isHot = baseScore > 70;
 
-        let lead = await Lead.create({ name, email, phone, source, campaignId, status, score: baseScore, isHot, company, jobTitle, industry, region });
+        let lead = await Lead.create({
+          name,
+          firstName,
+          lastName,
+          email,
+          phone,
+          source,
+          campaignId,
+          status,
+          score: baseScore,
+          grade,
+          isHot,
+          company,
+          jobTitle,
+          industry,
+          region,
+          autoAssignRequested: Boolean(autoAssign)
+        });
         if (campaignId) { try { await Campaign.increment('leadsGenerated', { by: 1, where: { id: campaignId } }); } catch {} }
         if (autoAssign && !lead.assignedTo) {
           const users = await User.findAll({ where: { role: 'user' }, order: [['id', 'ASC']] });
@@ -140,7 +92,7 @@ exports.importLeads = async (req, res) => {
             const counts = await Promise.all(users.map(async (u) => ({ user: u, count: await Lead.count({ where: { assignedTo: u.id } }) })));
             counts.sort((a, b) => a.count - b.count);
             const assignee = counts[0].user;
-            await lead.update({ assignedTo: assignee.id });
+            await lead.update({ assignedTo: assignee.id, autoAssignRequested: true });
           }
         }
         created++;
@@ -159,8 +111,9 @@ exports.importLeads = async (req, res) => {
 // POST /api/leads
 exports.createLead = async (req, res) => {
   try {
-    const { name, email, phone, source, campaignId, status = 'New', assignedTo, company, jobTitle, industry, region, autoAssign } = req.body;
-    if (!name) return res.status(400).json({ success: false, message: 'Name is required' });
+    const { name: bodyName, firstName, lastName, email, phone, source, campaignId, status = 'New', assignedTo, company, jobTitle, industry, region, autoAssign } = req.body;
+    const resolvedName = (bodyName && String(bodyName).trim() !== '') ? String(bodyName).trim() : [firstName, lastName].filter(Boolean).join(' ').trim();
+    if (!resolvedName) return res.status(400).json({ success: false, message: 'Name is required' });
     if (status && !['New','Contacted','Qualified','Converted','Lost'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
@@ -181,7 +134,25 @@ exports.createLead = async (req, res) => {
     const grade = computeGrade(baseScore);
     const sanitizedEmail = email && String(email).trim() !== '' ? String(email).trim() : null;
     const sanitizedPhone = phone && String(phone).trim() !== '' ? String(phone).trim() : null;
-    let lead = await Lead.create({ name, email: sanitizedEmail, phone: sanitizedPhone, source, campaignId, status, score: baseScore, grade, isHot, assignedTo, company, jobTitle, industry, region });
+    const lead = await Lead.create({
+      name: resolvedName,
+      firstName: firstName || null,
+      lastName: lastName || null,
+      email: sanitizedEmail,
+      phone: sanitizedPhone,
+      source,
+      campaignId,
+      status,
+      score: baseScore,
+      grade,
+      isHot,
+      assignedTo,
+      company,
+      jobTitle,
+      industry,
+      region,
+      autoAssignRequested: Boolean(autoAssign)
+    });
     if (campaignId) {
       try { await Campaign.increment('leadsGenerated', { by: 1, where: { id: campaignId } }); } catch {}
     }
@@ -192,7 +163,7 @@ exports.createLead = async (req, res) => {
         const counts = await Promise.all(users.map(async (u) => ({ user: u, count: await Lead.count({ where: { assignedTo: u.id } }) })));
         counts.sort((a, b) => a.count - b.count);
         const assignee = counts[0].user;
-        await lead.update({ assignedTo: assignee.id });
+        await lead.update({ assignedTo: assignee.id, autoAssignRequested: true });
       }
     }
     res.status(201).json({ success: true, data: lead });
@@ -210,7 +181,7 @@ exports.updateLead = async (req, res) => {
   try {
     const lead = await Lead.findByPk(req.params.id);
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
-    const { name, email, phone, source, campaignId, status, assignedTo, score, company, jobTitle, industry, region } = req.body;
+    const { name, firstName, lastName, email, phone, source, campaignId, status, assignedTo, score, company, jobTitle, industry, region, autoAssignRequested } = req.body;
     if (status && !['New','Contacted','Qualified','Converted','Lost'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
@@ -227,7 +198,34 @@ exports.updateLead = async (req, res) => {
     const sanitizedEmail = (email !== undefined) ? (email && String(email).trim() !== '' ? email : null) : lead.email;
     const sanitizedPhone = (phone !== undefined) ? (phone && String(phone).trim() !== '' ? phone : null) : lead.phone;
 
-    await lead.update({ name, email: sanitizedEmail, phone: sanitizedPhone, source, campaignId, status, assignedTo, score: newScore, grade, isHot, company, jobTitle, industry, region });
+    const updatedData = {
+      email: sanitizedEmail,
+      phone: sanitizedPhone,
+      source,
+      campaignId,
+      status,
+      assignedTo,
+      score: newScore,
+      grade,
+      isHot,
+      company,
+      jobTitle,
+      industry,
+      region
+    };
+    if (firstName !== undefined) updatedData.firstName = firstName || null;
+    if (lastName !== undefined) updatedData.lastName = lastName || null;
+    if (autoAssignRequested !== undefined) updatedData.autoAssignRequested = Boolean(autoAssignRequested);
+    if (name !== undefined && name && String(name).trim() !== '') {
+      updatedData.name = String(name).trim();
+    } else if ((firstName !== undefined || lastName !== undefined)) {
+      const composite = [
+        firstName !== undefined ? (firstName || '') : (lead.firstName || ''),
+        lastName !== undefined ? (lastName || '') : (lead.lastName || '')
+      ].filter(part => part && part.trim() !== '').join(' ').trim();
+      if (composite) updatedData.name = composite;
+    }
+    await lead.update(updatedData);
     res.json({ success: true, data: lead });
   } catch (err) {
     if (err && (err.name === 'SequelizeValidationError' || err.name === 'SequelizeUniqueConstraintError')) {
@@ -268,7 +266,7 @@ exports.assignLead = async (req, res) => {
     counts.sort((a, b) => a.count - b.count);
     const assignee = counts[0].user;
 
-    await lead.update({ assignedTo: assignee.id });
+    await lead.update({ assignedTo: assignee.id, autoAssignRequested: true });
     res.json({ success: true, data: { lead, assignee } });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to assign lead' });
