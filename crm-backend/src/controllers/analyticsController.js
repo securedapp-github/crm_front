@@ -1,4 +1,4 @@
-const { Lead, Deal, Campaign, Activity, Task, User } = require('../models');
+const { Lead, Deal, Campaign, Activity, Task, User, Salesperson } = require('../models');
 const { Op } = require('sequelize');
 
 // GET /api/analytics/summary
@@ -92,13 +92,36 @@ exports.getSummary = async (req, res) => {
     const wonLast30 = deals.filter(d => d.stage === 'Closed Won' && d.updatedAt && new Date(d.updatedAt) >= last30)
       .reduce((sum, d) => sum + Number(d.value || 0), 0);
 
+    // Salesperson metrics
+    const people = await Salesperson.findAll();
+    const leadsPerSalesperson = people.map(p => ({ id: p.id, name: p.name, leads: leads.filter(l => l.assignedTo === p.id).length }));
+    const conversionsBySalesperson = people.map(p => ({ id: p.id, name: p.name, converted: leads.filter(l => l.assignedTo === p.id && l.status === 'Converted').length }));
+    const conversionRatePerSalesperson = conversionsBySalesperson.map(c => {
+      const total = leadsPerSalesperson.find(x => x.id === c.id)?.leads || 0;
+      return { id: c.id, name: c.name, rate: total ? Math.round((c.converted / total) * 100) : 0 };
+    });
+    const dealsBySalesperson = people.map(p => ({ id: p.id, name: p.name, deals: deals.filter(d => d.assignedTo === p.id).length, won: deals.filter(d => d.assignedTo === p.id && d.stage === 'Closed Won').length }));
+    const topSalespersonByDeals = dealsBySalesperson.slice().sort((a,b)=> b.won - a.won || b.deals - a.deals)[0] || null;
+
+    // Pipeline overview (map legacy -> new pipeline stages)
+    const mapToPipeline = (s) => {
+      if (s === 'Proposal Sent') return 'Proposal';
+      if (s === 'Negotiation') return 'In Progress';
+      if (s === 'Closed Won') return 'Won';
+      if (s === 'Closed Lost') return 'Lost';
+      return 'New';
+    };
+    const pipelineStages = ['New','In Progress','Proposal','Won','Lost'];
+    const pipelineOverview = pipelineStages.map(st => ({ stage: st, count: deals.filter(d => mapToPipeline(d.stage) === st).length }));
+
     const summary = {
       kpis: { totalLeads, hotLeads, convertedLeads, conversionRate, revenueWon: revenueByStage.won || 0 },
       funnel: { leadFunnel, dealStages },
       campaigns: { topCampaignsByLeads },
       team,
       engagement,
-      forecast: { next30daysRevenue: wonLast30 }
+      forecast: { next30daysRevenue: wonLast30 },
+      sales: { leadsPerSalesperson, conversionRatePerSalesperson, topSalespersonByDeals, pipelineOverview }
     };
 
     return res.json({ success: true, data: summary });

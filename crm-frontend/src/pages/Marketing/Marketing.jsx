@@ -1,16 +1,12 @@
 import { useMemo, useState } from 'react'
 import CampaignList from './CampaignList'
-import LeadAnalytics from './LeadAnalytics'
 import LeadScoring from './LeadScoring'
-import LeadConversion from './LeadConversion'
 
 export default function Marketing() {
   const [tab, setTab] = useState('capture')
   const tabs = useMemo(() => ([
     { id: 'capture', label: 'Capture', description: 'Campaigns & lead intake' },
-    { id: 'scoring', label: 'Scoring', description: 'Grades & prioritisation' },
-    { id: 'conversion', label: 'Conversion', description: 'Win deals, close loops' },
-    { id: 'analytics', label: 'Analytics', description: 'Insights & trends' },
+    { id: 'scoring', label: 'Scoring', description: 'Grades & prioritisation' }
   ]), [])
 
   return (
@@ -47,8 +43,6 @@ export default function Marketing() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           {tab === 'capture' && <CampaignList />}
           {tab === 'scoring' && <LeadScoring />}
-          {tab === 'conversion' && <LeadConversion />}
-          {tab === 'analytics' && <LeadAnalytics />}
         </div>
       </div>
     </main>

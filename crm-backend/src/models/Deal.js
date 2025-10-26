@@ -19,6 +19,10 @@ const Deal = sequelize.define('Deal', {
     type: DataTypes.ENUM('New', 'Proposal Sent', 'Negotiation', 'Closed Won', 'Closed Lost'),
     defaultValue: 'New'
   },
+  assignedTo: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
   accountId: {
     type: DataTypes.INTEGER,
     allowNull: true

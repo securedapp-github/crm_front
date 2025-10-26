@@ -8,6 +8,7 @@ export default function LeadAnalytics() {
   const [summary, setSummary] = useState(null)
   const [campaigns, setCampaigns] = useState([])
   const [filters, setFilters] = useState({ from: '', to: '', ownerId: '', campaignId: '' })
+  const [seeding, setSeeding] = useState(false)
 
   const fetchSummary = async (params = {}) => {
     setLoading(true)
@@ -26,20 +27,40 @@ export default function LeadAnalytics() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const applyFilters = async () => {
-    const params = {}
-    if (filters.from) params.from = filters.from
-    if (filters.to) params.to = filters.to
-    if (filters.ownerId) params.ownerId = filters.ownerId
-    if (filters.campaignId) params.campaignId = filters.campaignId
-    await fetchSummary(params)
+  // Auto-apply filters with debounce
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const params = {}
+      if (filters.from) params.from = filters.from
+      if (filters.to) params.to = filters.to
+      if (filters.ownerId) params.ownerId = filters.ownerId
+      if (filters.campaignId) params.campaignId = filters.campaignId
+      fetchSummary(params)
+    }, 350)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.from, filters.to, filters.ownerId, filters.campaignId])
+
+  const seedDemo = async () => {
+    setSeeding(true)
+    try {
+      await api.post('/dev/seed')
+      await fetchSummary()
+    } finally { setSeeding(false) }
   }
 
   const ownerOptions = useMemo(() => (summary?.team || []).map(t => ({ id: t.userId, name: t.name })), [summary])
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold text-slate-900">Analytics</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-slate-900">Analytics</h2>
+        {!loading && (!summary || ((summary?.kpis?.totalLeads || 0) === 0 && (summary?.funnel?.dealStages || []).every(x=>x.count===0))) && (
+          <button className="px-3 py-2 rounded bg-emerald-600 text-white text-sm" onClick={seedDemo} disabled={seeding}>
+            {seeding ? 'Generating…' : 'Generate demo data'}
+          </button>
+        )}
+      </div>
 
       <div className="rounded-lg border bg-white p-3">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
@@ -65,10 +86,7 @@ export default function LeadAnalytics() {
               {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-          <div className="flex gap-2">
-            <button className="px-3 py-2 rounded bg-indigo-600 text-white" onClick={applyFilters}>Apply</button>
-            <button className="px-3 py-2 rounded border" onClick={()=>{ setFilters({ from:'', to:'', ownerId:'', campaignId:'' }); fetchSummary() }}>Reset</button>
-          </div>
+          <div className="text-xs text-slate-500">Filters auto-apply</div>
         </div>
       </div>
 
@@ -180,6 +198,57 @@ export default function LeadAnalytics() {
               </ul>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="rounded-lg border bg-white lg:col-span-2">
+          <div className="p-4 border-b font-semibold text-slate-900">Leads per Salesperson</div>
+          <div className="p-4 min-h-[280px]">
+            {loading ? 'Loading…' : (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={(summary?.sales?.leadsPerSalesperson || []).map(x=>({ name: x.name, leads: x.leads }))}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="leads" name="Leads" fill="#6366f1" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+        <div className="rounded-lg border bg-white">
+          <div className="p-4 border-b font-semibold text-slate-900">Top Performing Salesperson</div>
+          <div className="p-4">
+            {loading ? 'Loading…' : !summary?.sales?.topSalespersonByDeals ? (
+              <div className="text-slate-500 text-sm">No data</div>
+            ) : (
+              <div className="text-sm text-slate-800">
+                <div className="font-semibold">{summary.sales.topSalespersonByDeals.name}</div>
+                <div className="text-xs text-slate-600">Won deals: {summary.sales.topSalespersonByDeals.won} • Total deals: {summary.sales.topSalespersonByDeals.deals}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border bg-white">
+        <div className="p-4 border-b font-semibold text-slate-900">Deal Value by Stage</div>
+        <div className="p-4 min-h-[280px]">
+          {loading ? 'Loading…' : (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={(summary?.sales?.pipelineOverview || []).map(x=>({ name: x.stage, count: x.count }))}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" name="Deals" fill="#f59e0b" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 

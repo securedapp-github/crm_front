@@ -1,5 +1,6 @@
 const { Campaign, Contact, Account, Deal, Task, User } = require('../models');
 const { computeCompanyScoreFromHeuristics, applyDealScoreFromCompany } = require('../services/scoring');
+const { computeCampaignStrength } = require('../services/campaignScoring');
 
 const CAMPAIGN_FIELDS = [
   'name',
@@ -65,6 +66,24 @@ exports.createCampaign = async (req, res) => {
     }, {});
     const t = await Campaign.sequelize.transaction();
     const campaign = await Campaign.create(payload, { transaction: t });
+
+    const scoringInputs = {
+      channel: req.body.channel,
+      objective: req.body.objective,
+      audienceSegment: req.body.audienceSegment,
+      budget: req.body.budget,
+      expectedSpend: req.body.expectedSpend,
+      priority: req.body.priority,
+      campaignStage: req.body.campaignStage,
+      status: req.body.status,
+      externalCampaignId: req.body.externalCampaignId,
+      utmSource: req.body.utmSource,
+      utmMedium: req.body.utmMedium,
+      utmCampaign: req.body.utmCampaign,
+      complianceChecklist: req.body.complianceChecklist,
+      linkedCompanyDomain: req.body.linkedCompanyDomain,
+    };
+    const scoreResult = computeCampaignStrength(scoringInputs);
 
     // Auto-create initial placeholder lead as Contact + Deal + Task, then auto-assign
     const placeholderName = `Campaign Lead - ${campaign.name}`;
@@ -145,7 +164,17 @@ exports.createCampaign = async (req, res) => {
     try { await Campaign.increment('leadsGenerated', { by: 1, where: { id: campaign.id }, transaction: t }); } catch {}
 
     await t.commit();
-    res.status(201).json({ success: true, data: campaign });
+    res.status(201).json({
+      success: true,
+      data: campaign,
+      scoring: {
+        campaign_name: campaign.name,
+        total_score: scoreResult.total,
+        grade: scoreResult.grade,
+        status: scoreResult.strength,
+        recommendation: scoreResult.recommendation
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to create campaign' });
   }
@@ -177,7 +206,36 @@ exports.updateCampaign = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No fields provided for update' });
     }
     await campaign.update(updates);
-    res.json({ success: true, data: campaign });
+
+    const scoringInputs = {
+      channel: req.body.channel ?? campaign.channel,
+      objective: req.body.objective ?? campaign.objective,
+      audienceSegment: req.body.audienceSegment ?? campaign.audienceSegment,
+      budget: req.body.budget ?? campaign.budget,
+      expectedSpend: req.body.expectedSpend ?? campaign.expectedSpend,
+      priority: req.body.priority ?? campaign.priority,
+      campaignStage: req.body.campaignStage,
+      status: req.body.status ?? campaign.status,
+      externalCampaignId: req.body.externalCampaignId ?? campaign.externalCampaignId,
+      utmSource: req.body.utmSource ?? campaign.utmSource,
+      utmMedium: req.body.utmMedium ?? campaign.utmMedium,
+      utmCampaign: req.body.utmCampaign ?? campaign.utmCampaign,
+      complianceChecklist: req.body.complianceChecklist ?? campaign.complianceChecklist,
+      linkedCompanyDomain: req.body.linkedCompanyDomain,
+    };
+    const scoreResult = computeCampaignStrength(scoringInputs);
+
+    res.json({
+      success: true,
+      data: campaign,
+      scoring: {
+        campaign_name: campaign.name,
+        total_score: scoreResult.total,
+        grade: scoreResult.grade,
+        status: scoreResult.strength,
+        recommendation: scoreResult.recommendation
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to update campaign' });
   }
@@ -187,6 +245,42 @@ exports.updateCampaign = async (req, res) => {
 // Leads have been removed from the system. Keep endpoint but return 410.
 exports.getCampaignLeads = async (_req, res) => {
   return res.status(410).json({ success: false, message: 'Lead resources were removed. Use contacts/deals created via capture.' });
+};
+
+// GET /api/campaigns/:id/scoring
+exports.getCampaignScoring = async (req, res) => {
+  try {
+    const campaign = await Campaign.findByPk(req.params.id);
+    if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
+    const inputs = {
+      channel: campaign.channel,
+      objective: campaign.objective,
+      audienceSegment: campaign.audienceSegment,
+      budget: campaign.budget,
+      expectedSpend: campaign.expectedSpend,
+      priority: campaign.priority,
+      status: campaign.status,
+      externalCampaignId: campaign.externalCampaignId,
+      utmSource: campaign.utmSource,
+      utmMedium: campaign.utmMedium,
+      utmCampaign: campaign.utmCampaign,
+      complianceChecklist: campaign.complianceChecklist,
+      linkedCompanyDomain: null,
+    };
+    const scoreResult = computeCampaignStrength(inputs);
+    return res.json({
+      success: true,
+      scoring: {
+        campaign_name: campaign.name,
+        total_score: scoreResult.total,
+        grade: scoreResult.grade,
+        status: scoreResult.strength,
+        recommendation: scoreResult.recommendation
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to compute campaign scoring' });
+  }
 };
 
 // POST /api/campaigns/:id/capture

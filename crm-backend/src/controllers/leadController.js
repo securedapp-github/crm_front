@@ -1,4 +1,4 @@
-const { Lead, User, Contact, Deal, Campaign, Task, Account } = require('../models');
+const { Lead, User, Contact, Deal, Campaign, Task, Account, Salesperson } = require('../models');
 const { Op } = require('sequelize');
 
 const computeGrade = (score) => {
@@ -87,13 +87,19 @@ exports.importLeads = async (req, res) => {
         });
         if (campaignId) { try { await Campaign.increment('leadsGenerated', { by: 1, where: { id: campaignId } }); } catch {} }
         if (autoAssign && !lead.assignedTo) {
-          const users = await User.findAll({ where: { role: 'user' }, order: [['id', 'ASC']] });
-          if (users && users.length > 0) {
-            const counts = await Promise.all(users.map(async (u) => ({ user: u, count: await Lead.count({ where: { assignedTo: u.id } }) })));
-            counts.sort((a, b) => a.count - b.count);
-            const assignee = counts[0].user;
-            await lead.update({ assignedTo: assignee.id, autoAssignRequested: true });
+          // Salesperson round-robin by assignedLeadsCount
+          let people = await Salesperson.findAll({ order: [['assignedLeadsCount','ASC'], ['id','ASC']] });
+          if (!people || people.length === 0) {
+            people = await Salesperson.bulkCreate([
+              { name: 'Asha Verma', email: 'asha@example.com' },
+              { name: 'Rohit Menon', email: 'rohit@example.com' },
+              { name: 'Kiran Rao', email: 'kiran@example.com' },
+              { name: 'Leela Nair', email: 'leela@example.com' },
+            ], { returning: true });
           }
+          const chosen = people[0];
+          await lead.update({ assignedTo: chosen.id, autoAssignRequested: true });
+          await chosen.update({ assignedLeadsCount: (chosen.assignedLeadsCount || 0) + 1 });
         }
         created++;
         createdIds.push(lead.id);
@@ -156,15 +162,20 @@ exports.createLead = async (req, res) => {
     if (campaignId) {
       try { await Campaign.increment('leadsGenerated', { by: 1, where: { id: campaignId } }); } catch {}
     }
-    // Optional auto-assign on create
+    // Optional auto-assign on create (Salesperson round-robin)
     if (autoAssign && !lead.assignedTo) {
-      const users = await User.findAll({ where: { role: 'user' }, order: [['id', 'ASC']] });
-      if (users && users.length > 0) {
-        const counts = await Promise.all(users.map(async (u) => ({ user: u, count: await Lead.count({ where: { assignedTo: u.id } }) })));
-        counts.sort((a, b) => a.count - b.count);
-        const assignee = counts[0].user;
-        await lead.update({ assignedTo: assignee.id, autoAssignRequested: true });
+      let people = await Salesperson.findAll({ order: [['assignedLeadsCount','ASC'], ['id','ASC']] });
+      if (!people || people.length === 0) {
+        people = await Salesperson.bulkCreate([
+          { name: 'Asha Verma', email: 'asha@example.com' },
+          { name: 'Rohit Menon', email: 'rohit@example.com' },
+          { name: 'Kiran Rao', email: 'kiran@example.com' },
+          { name: 'Leela Nair', email: 'leela@example.com' },
+        ], { returning: true });
       }
+      const chosen = people[0];
+      await lead.update({ assignedTo: chosen.id, autoAssignRequested: true });
+      await chosen.update({ assignedLeadsCount: (chosen.assignedLeadsCount || 0) + 1 });
     }
     res.status(201).json({ success: true, data: lead });
   } catch (err) {
@@ -256,17 +267,19 @@ exports.assignLead = async (req, res) => {
     let lead = leadId ? await Lead.findByPk(leadId) : await Lead.findOne({ where: { assignedTo: null }, order: [['createdAt', 'DESC']] });
     if (!lead) return res.status(404).json({ success: false, message: 'No lead found to assign' });
 
-    const users = await User.findAll({ where: { role: 'user' }, order: [['id', 'ASC']] });
-    if (!users || users.length === 0) {
-      return res.status(400).json({ success: false, message: 'No sales users available for assignment' });
+    // Salesperson round-robin by assignedLeadsCount
+    let people = await Salesperson.findAll({ order: [['assignedLeadsCount','ASC'], ['id','ASC']] });
+    if (!people || people.length === 0) {
+      people = await Salesperson.bulkCreate([
+        { name: 'Asha Verma', email: 'asha@example.com' },
+        { name: 'Rohit Menon', email: 'rohit@example.com' },
+        { name: 'Kiran Rao', email: 'kiran@example.com' },
+        { name: 'Leela Nair', email: 'leela@example.com' },
+      ], { returning: true });
     }
-
-    // Simple round-robin by counting current lead assignments
-    const counts = await Promise.all(users.map(async (u) => ({ user: u, count: await Lead.count({ where: { assignedTo: u.id } }) })));
-    counts.sort((a, b) => a.count - b.count);
-    const assignee = counts[0].user;
-
+    const assignee = people[0];
     await lead.update({ assignedTo: assignee.id, autoAssignRequested: true });
+    await assignee.update({ assignedLeadsCount: (assignee.assignedLeadsCount || 0) + 1 });
     res.json({ success: true, data: { lead, assignee } });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to assign lead' });
@@ -310,7 +323,8 @@ exports.convertLead = async (req, res) => {
       stage: 'New',
       contactId: contact.id,
       accountId: account ? account.id : null,
-      ownerId: lead.assignedTo || req.user?.id
+      ownerId: req.user?.id,
+      assignedTo: lead.assignedTo || null
     }, { transaction: t });
 
     // Transfer lead-linked tasks to Deal

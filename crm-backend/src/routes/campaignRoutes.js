@@ -8,6 +8,7 @@ router.use(protect);
 router.get('/', campaignController.getCampaigns);
 router.post('/', campaignController.createCampaign);
 router.get('/:id', campaignController.getCampaignById);
+router.get('/:id/scoring', campaignController.getCampaignScoring);
 router.put('/:id', campaignController.updateCampaign);
 router.delete('/:id', campaignController.deleteCampaign);
 router.get('/:id/leads', campaignController.getCampaignLeads);

@@ -7,6 +7,7 @@ const Campaign = require('./Campaign');
 const Ticket = require('./Ticket');
 const Note = require('./Note');
 const Quote = require('./Quote');
+const Salesperson = require('./Salesperson');
 
 // Associations
 // User
@@ -34,6 +35,9 @@ Deal.belongsTo(Account, { foreignKey: 'accountId', as: 'account' });
 Task.belongsTo(Deal, { foreignKey: 'relatedDealId', as: 'deal' });
 Deal.hasMany(Task, { foreignKey: 'relatedDealId', as: 'tasks' });
 
+// Note: We intentionally avoid FK constraints to existing data for Salesperson linkage.
+// Leads and Deals have an integer field `assignedTo` storing Salesperson.id, but without FK constraints.
+
 // Quote
 Deal.hasMany(Quote, { foreignKey: 'dealId', as: 'quotes' });
 Quote.belongsTo(Deal, { foreignKey: 'dealId', as: 'deal' });
@@ -58,5 +62,6 @@ module.exports = {
   Campaign,
   Ticket,
   Note,
-  Quote
+  Quote,
+  Salesperson
 };

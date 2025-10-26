@@ -4,13 +4,14 @@ import Modal from '../components/Modal'
 import { useToast } from '../components/ToastProvider'
 import { createCampaign } from '../api/campaign'
 import { api } from '../api/auth'
+import { resolveAccount } from '../api/account'
 
 export default function Landing() {
   const navigate = useNavigate()
   const { show } = useToast()
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const channelOptions = ['Email', 'Paid Ads', 'Events', 'Social Media', 'Webinars', 'Content', 'Referral']
+  const channelOptions = ['Email', 'Social Media', 'Web', 'Event', 'Other']
   const currencyOptions = ['USD', 'INR', 'EUR', 'GBP', 'AUD']
   const priorityOptions = ['Low', 'Medium', 'High']
   const initialForm = () => ({
@@ -24,30 +25,32 @@ export default function Landing() {
     endDate: '',
     budget: '',
     expectedSpend: '',
-    plannedLeads: '',
     currency: 'USD',
     status: 'Planned',
     priority: 'Medium',
-    campaignOwnerId: '',
     description: '',
     complianceChecklist: '',
     externalCampaignId: '',
     utmSource: '',
     utmMedium: '',
-    utmCampaign: ''
+    utmCampaign: '',
+    accountCompany: '',
+    accountDomain: ''
   })
   const [form, setForm] = useState(() => initialForm())
   const [users, setUsers] = useState([])
+  const [verification, setVerification] = useState({ status: 'idle', exists: null })
+  const [domainError, setDomainError] = useState('')
   const stageDots = {
     Planned: 'bg-slate-400',
     Active: 'bg-emerald-500',
-    Paused: 'bg-amber-500',
+    'On Hold': 'bg-amber-500',
     Completed: 'bg-indigo-500',
   }
   const selectStageBg = {
     Planned: 'border-slate-300 text-slate-800 focus:border-slate-400 focus:ring-slate-200',
     Active: 'border-emerald-300 text-emerald-700 focus:border-emerald-500 focus:ring-emerald-200',
-    Paused: 'border-amber-300 text-amber-700 focus:border-amber-500 focus:ring-amber-200',
+    'On Hold': 'border-amber-300 text-amber-700 focus:border-amber-500 focus:ring-amber-200',
     Completed: 'border-indigo-300 text-indigo-700 focus:border-indigo-500 focus:ring-indigo-200',
   }
 
@@ -67,6 +70,31 @@ export default function Landing() {
       } catch {}
     })()
   }, [])
+
+  // Auto-verify company by domain with TLD restriction (.com, .io, .in)
+  useEffect(() => {
+    const raw = form.accountDomain || ''
+    if (!raw) { setVerification({ status: 'idle', exists: null }); setDomainError(''); return }
+    const normalized = String(raw).trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
+    const allowed = /\.(com|io|in)$/i.test(normalized)
+    if (!allowed) {
+      setDomainError('Only .com, .io, and .in domains are allowed')
+      setVerification({ status: 'idle', exists: null })
+      return
+    }
+    setDomainError('')
+    setVerification({ status: 'loading', exists: null })
+    const t = setTimeout(async () => {
+      try {
+        const res = await resolveAccount({ domain: normalized })
+        const exists = !!res.data?.data?.exists
+        setVerification({ status: 'done', exists })
+      } catch {
+        setVerification({ status: 'done', exists: false })
+      }
+    }, 400)
+    return () => clearTimeout(t)
+  }, [form.accountDomain])
 
   const handleSubmit = async () => {
     if (!form.name.trim()) {
@@ -89,24 +117,29 @@ export default function Landing() {
         priority: form.priority,
         budget: form.budget ? Number(form.budget) : null,
         expectedSpend: form.expectedSpend ? Number(form.expectedSpend) : null,
-        plannedLeads: form.plannedLeads ? Number(form.plannedLeads) : null,
         currency: form.currency ? form.currency.toUpperCase() : undefined,
-        campaignOwnerId: form.campaignOwnerId ? Number(form.campaignOwnerId) : undefined,
         description: form.description?.trim() || undefined,
         complianceChecklist: form.complianceChecklist?.trim() || undefined,
         externalCampaignId: form.externalCampaignId?.trim() || undefined,
         utmSource: form.utmSource?.trim() || undefined,
         utmMedium: form.utmMedium?.trim() || undefined,
-        utmCampaign: form.utmCampaign?.trim() || undefined
+        utmCampaign: form.utmCampaign?.trim() || undefined,
+        ...(form.accountCompany ? { accountCompany: form.accountCompany } : {}),
+        ...(form.accountDomain ? { accountDomain: form.accountDomain } : {}),
       }
       Object.keys(payload).forEach((key) => {
         if (payload[key] === undefined || payload[key] === null || payload[key] === '') delete payload[key]
       })
-      await createCampaign(payload)
+      const res = await createCampaign(payload)
+      const created = res.data?.data
       show('Campaign created successfully', 'success')
       resetForm()
       setOpen(false)
-      navigate('/dashboard/marketing')
+      if (created?.id) {
+        navigate(`/dashboard/marketing?expandId=${created.id}`)
+      } else {
+        navigate('/dashboard/marketing')
+      }
     } catch (error) {
       const message = error.response?.data?.message || 'Failed to create campaign'
       show(message, 'error')
@@ -196,8 +229,8 @@ export default function Landing() {
             </button>
             <button
               onClick={handleSubmit}
-              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
-              disabled={saving}
+              className={`rounded-md px-4 py-2 text-sm font-semibold text-white shadow disabled:cursor-not-allowed disabled:opacity-70 ${domainError ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+              disabled={saving || !!domainError}
             >
               {saving ? 'Saving...' : 'Save & View' }
             </button>
@@ -314,18 +347,6 @@ export default function Landing() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700">Planned leads</label>
-            <input
-              type="number"
-              min="0"
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              value={form.plannedLeads}
-              onChange={handleChange('plannedLeads')}
-              placeholder="250"
-              disabled={saving}
-            />
-          </div>
-          <div>
             <label className="block text-sm font-medium text-slate-700">Currency</label>
             <select
               className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
@@ -349,7 +370,7 @@ export default function Landing() {
               onChange={handleChange('status')}
               disabled={saving}
             >
-              {['Planned', 'Active', 'Paused', 'Completed'].map((status) => (
+              {['Planned', 'Active', 'Completed', 'On Hold'].map((status) => (
                 <option key={status} value={status}>{status}</option>
               ))}
             </select>
@@ -364,20 +385,6 @@ export default function Landing() {
             >
               {priorityOptions.map((option) => (
                 <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Campaign owner</label>
-            <select
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              value={form.campaignOwnerId}
-              onChange={handleChange('campaignOwnerId')}
-              disabled={saving}
-            >
-              <option value="">— Select owner —</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>{user.name}</option>
               ))}
             </select>
           </div>
@@ -442,6 +449,39 @@ export default function Landing() {
               placeholder="Legal review, consent copy, opt-out link"
               disabled={saving}
             />
+          </div>
+          <div className="sm:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
+            <p className="mb-2 text-sm font-semibold text-slate-800">Optional: Link an account for automatic scoring</p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Company name</label>
+                <input
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  value={form.accountCompany}
+                  onChange={handleChange('accountCompany')}
+                  placeholder="Acme Inc"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Company domain</label>
+                <input
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  value={form.accountDomain}
+                  onChange={handleChange('accountDomain')}
+                  placeholder="example.com"
+                  disabled={saving}
+                />
+                {form.accountDomain ? (
+                  <div className="mt-1 text-xs">
+                    {domainError && <div className="text-rose-600">{domainError}</div>}
+                    {verification.status === 'loading' && <span className="text-slate-500">Checking...</span>}
+                    {verification.status === 'done' && verification.exists === true && <span className="text-emerald-600">✅ Verified organization.</span>}
+                    {verification.status === 'done' && verification.exists === false && <span className="text-amber-600">⚠️ New company, not yet verified.</span>}
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       </Modal>

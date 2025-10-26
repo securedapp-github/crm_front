@@ -37,3 +37,23 @@ exports.scoreAccount = async (req, res) => {
     return res.status(500).json({ success:false, message:'Failed to score account' });
   }
 };
+
+// GET /api/accounts/resolve?domain=example.com&name=Acme
+// Returns whether an account exists by domain or name. No mutations.
+exports.resolveAccount = async (req, res) => {
+  try {
+    const rawDomain = req.query.domain ? String(req.query.domain).trim().toLowerCase() : null;
+    const rawName = req.query.name ? String(req.query.name).trim() : null;
+    if (!rawDomain && !rawName) {
+      return res.status(400).json({ success: false, message: 'Provide domain or name' });
+    }
+    const where = {};
+    if (rawDomain) where.domain = rawDomain;
+    if (rawName) where.name = rawName;
+    const acc = await Account.findOne({ where });
+    if (!acc) return res.json({ success: true, data: { exists: false } });
+    return res.json({ success: true, data: { exists: true, accountId: acc.id } });
+  } catch (e) {
+    return res.status(500).json({ success:false, message:'Failed to resolve account' });
+  }
+};

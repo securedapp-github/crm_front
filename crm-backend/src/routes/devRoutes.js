@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
-const scoring = require('../controllers/accountScoringController');
+const devController = require('../controllers/devController');
 
 router.use(protect);
 
-router.get('/resolve', scoring.resolveAccount);
-router.post('/:id/score', scoring.scoreAccount);
+router.post('/seed', devController.seed);
 
 module.exports = router;
