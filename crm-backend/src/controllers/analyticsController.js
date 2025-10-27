@@ -1,4 +1,4 @@
-const { Lead, Deal, Campaign, Activity, Task, User, Salesperson } = require('../models');
+const { Lead, Deal, Campaign, Activity, Task, User } = require('../models');
 const { Op } = require('sequelize');
 
 // GET /api/analytics/summary
@@ -93,7 +93,15 @@ exports.getSummary = async (req, res) => {
       .reduce((sum, d) => sum + Number(d.value || 0), 0);
 
     // Salesperson metrics
-    const people = await Salesperson.findAll();
+    let people = [];
+    try {
+      const { Salesperson } = require('../models');
+      if (Salesperson) {
+        people = await Salesperson.findAll();
+      }
+    } catch (err) {
+      people = [];
+    }
     const leadsPerSalesperson = people.map(p => ({ id: p.id, name: p.name, leads: leads.filter(l => l.assignedTo === p.id).length }));
     const conversionsBySalesperson = people.map(p => ({ id: p.id, name: p.name, converted: leads.filter(l => l.assignedTo === p.id && l.status === 'Converted').length }));
     const conversionRatePerSalesperson = conversionsBySalesperson.map(c => {

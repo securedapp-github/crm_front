@@ -118,20 +118,28 @@ export default function Pipeline() {
                   onDragOver={onDragOver}
                 >
                   <div className="min-h-[84px] space-y-2">
-                    {col.items.map(deal => (
-                      <div
-                        key={deal.id}
-                        className="rounded-lg border bg-white px-3 py-2 cursor-move hover:shadow-md transition-all"
-                        draggable
-                        onDragStart={(e) => onDragStart(e, deal)}
-                        title={deal.title}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium text-slate-900 text-sm truncate">{deal.title}</div>
-                          <div className="text-xs text-slate-600">₹{Number(deal.value || 0).toLocaleString()}</div>
+                    {col.items.map(deal => {
+                      const friendlyTitle = (() => {
+                        const pattern = /^Campaign Lead -\s*(.+?)\s*Opportunity$/i
+                        const match = typeof deal.title === 'string' ? deal.title.match(pattern) : null
+                        if (match && match[1]) return match[1]
+                        return deal.title
+                      })()
+                      return (
+                        <div
+                          key={deal.id}
+                          className="rounded-lg border bg-white px-3 py-2 cursor-move hover:shadow-md transition-all"
+                          draggable
+                          onDragStart={(e) => onDragStart(e, deal)}
+                          title={deal.title}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="font-medium text-slate-900 text-sm truncate">{friendlyTitle}</div>
+                            <div className="text-xs text-slate-600">₹{Number(deal.value || 0).toLocaleString()}</div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                     {col.items.length === 0 && (
                       <div className="text-xs text-slate-400 text-center py-5 italic">Drop here</div>
                     )}

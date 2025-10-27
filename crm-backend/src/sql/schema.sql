@@ -15,6 +15,17 @@ CREATE TABLE IF NOT EXISTS users (
   INDEX idx_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Salespeople table (matches: src/models/Salesperson.js)
+CREATE TABLE IF NOT EXISTS salespeople (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  assignedLeadsCount INT NOT NULL DEFAULT 0,
+  lastAssignedAt DATETIME NULL,
+  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Contacts table (matches: src/models/Contact.js)
 CREATE TABLE IF NOT EXISTS contacts (
   id INT AUTO_INCREMENT PRIMARY KEY,

@@ -1,6 +1,7 @@
 const { Campaign, Contact, Account, Deal, Task, User } = require('../models');
 const { computeCompanyScoreFromHeuristics, applyDealScoreFromCompany } = require('../services/scoring');
 const { computeCampaignStrength } = require('../services/campaignScoring');
+const { assignNextSalesperson } = require('../services/assignment');
 
 const CAMPAIGN_FIELDS = [
   'name',
@@ -151,28 +152,10 @@ exports.createCampaign = async (req, res) => {
     }, { transaction: t });
 
     // Auto-assign to least-loaded Salesperson by active deals; also set an internal user owner for visibility
-    const { Salesperson } = require('../models');
-    const { Op } = require('sequelize');
-    const activeStages = ['New','Proposal Sent','Negotiation'];
-    let people = await Salesperson.findAll({ order: [['id','ASC']], transaction: t });
-    if (!people || people.length === 0) {
-      people = await Salesperson.bulkCreate([
-        { name: 'Asha Verma', email: 'asha@example.com' },
-        { name: 'Rohit Menon', email: 'rohit@example.com' },
-        { name: 'Kiran Rao', email: 'kiran@example.com' },
-        { name: 'Leela Nair', email: 'leela@example.com' },
-      ], { returning: true, transaction: t });
-    }
-    if (people && people.length) {
-      const counts = [];
-      for (const sp of people) {
-        const count = await Deal.count({ where: { assignedTo: sp.id, stage: { [Op.in]: activeStages } }, transaction: t });
-        counts.push({ sp, count });
-      }
-      counts.sort((a, b) => (a.count - b.count) || (a.sp.id - b.sp.id));
-      const chosen = counts[0].sp;
-      await deal.update({ assignedTo: chosen.id }, { transaction: t });
-    }
+    try {
+      const rep = await assignNextSalesperson({ transaction: t });
+      await deal.update({ assignedTo: rep.id }, { transaction: t });
+    } catch {}
     // Keep owner assignment to least-loaded app user for task ownership (optional best-effort)
     const users = await User.findAll({ where: { role: 'user' }, order: [['id', 'ASC']], transaction: t });
     if (users && users.length) {
@@ -379,28 +362,10 @@ exports.captureLead = async (req, res) => {
     }, { transaction: t });
 
     // Auto-assign to a Salesperson (least-loaded on active deals) and also set app user owner
-    const { Salesperson } = require('../models');
-    const { Op } = require('sequelize');
-    const activeStages = ['New','Proposal Sent','Negotiation'];
-    let reps = await Salesperson.findAll({ order: [['id','ASC']], transaction: t });
-    if (!reps || reps.length === 0) {
-      reps = await Salesperson.bulkCreate([
-        { name: 'Asha Verma', email: 'asha@example.com' },
-        { name: 'Rohit Menon', email: 'rohit@example.com' },
-        { name: 'Kiran Rao', email: 'kiran@example.com' },
-        { name: 'Leela Nair', email: 'leela@example.com' },
-      ], { returning: true, transaction: t });
-    }
-    if (reps && reps.length) {
-      const repCounts = [];
-      for (const sp of reps) {
-        const count = await Deal.count({ where: { assignedTo: sp.id, stage: { [Op.in]: activeStages } }, transaction: t });
-        repCounts.push({ sp, count });
-      }
-      repCounts.sort((a, b) => (a.count - b.count) || (a.sp.id - b.sp.id));
-      const chosen = repCounts[0].sp;
-      await deal.update({ assignedTo: chosen.id }, { transaction: t });
-    }
+    try {
+      const rep = await assignNextSalesperson({ transaction: t });
+      await deal.update({ assignedTo: rep.id }, { transaction: t });
+    } catch {}
     const users = await User.findAll({ where: { role: 'user' }, order: [['id', 'ASC']], transaction: t });
     if (users && users.length) {
       const counts = await Promise.all(users.map(async (u) => ({ user: u, count: await Deal.count({ where: { ownerId: u.id }, transaction: t }) })));
