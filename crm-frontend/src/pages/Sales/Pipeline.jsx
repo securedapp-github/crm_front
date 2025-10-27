@@ -54,13 +54,12 @@ export default function Pipeline() {
 
   const onDragOver = (e) => e.preventDefault()
 
-  // Build per-salesperson stats using pipeline data
   const perSalesperson = useMemo(() => {
     return salespeople.map(sp => {
       const byStage = STAGES.map(stage => {
         const items = (data[stage] || []).filter(d => d.assignedTo === sp.id)
         const amount = items.reduce((sum, d) => sum + Number(d.value || 0), 0)
-        return { stage, count: items.length, amount }
+        return { stage, items, amount }
       })
       return { sp, byStage }
     })
@@ -84,68 +83,64 @@ export default function Pipeline() {
         </button>
       </div>
 
-      {/* Kanban Board */}
-      <div>
-        <section>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {STAGES.map((stage) => {
-              const stageData = data[stage] || []
-              const total = totals.find((t) => t.stage === stage)
-              return (
+      {/* Totals header */}
+      <div className="rounded-xl border bg-white shadow-sm">
+        <div className="grid grid-cols-6 gap-0 text-sm">
+          <div className="col-span-1 px-4 py-3 border-r font-medium text-slate-700">Salesperson</div>
+          {STAGES.map(s => {
+            const t = totals.find(t => t.stage === s)
+            return (
+              <div key={s} className="px-4 py-3 border-r last:border-r-0 text-slate-700 flex items-center justify-between">
+                <span>{s}</span>
+                <span className="text-xs text-slate-500">{t?.count || 0} • ₹{Number(t?.amount || 0).toLocaleString()}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Rows per salesperson with stage columns */}
+      <div className="space-y-4">
+        {perSalesperson.map(row => (
+          <div key={row.sp.id} className="rounded-xl border bg-white shadow-sm">
+            <div className="grid grid-cols-6 gap-0">
+              <div className="col-span-1 px-4 py-3 border-r flex items-center gap-3">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
+                  {initials(row.sp.name)}
+                </span>
+                <div className="text-slate-900 font-medium truncate">{row.sp.name}</div>
+              </div>
+              {row.byStage.map(col => (
                 <div
-                  key={stage}
-                  className="rounded-xl border bg-white flex flex-col shadow-sm hover:shadow-md transition"
-                  onDrop={(e) => onDrop(e, stage)}
+                  key={col.stage}
+                  className="px-3 py-3 border-r last:border-r-0 bg-slate-50/30"
+                  onDrop={(e) => onDrop(e, col.stage)}
                   onDragOver={onDragOver}
                 >
-                  <div className="border-b p-3 bg-slate-50 rounded-t-xl flex items-center justify-between">
-                    <div className="font-semibold text-slate-800">{stage}</div>
-                    <div className="text-xs text-slate-500">
-                      {total?.count || 0} deals • ₹
-                      {Number(total?.amount || 0).toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="p-3 space-y-3 min-h-[240px] bg-slate-50/30">
-                    {stageData.map((deal) => (
+                  <div className="min-h-[84px] space-y-2">
+                    {col.items.map(deal => (
                       <div
                         key={deal.id}
-                        className="rounded-lg border bg-white p-3 cursor-move hover:shadow-md transition-all"
+                        className="rounded-lg border bg-white px-3 py-2 cursor-move hover:shadow-md transition-all"
                         draggable
                         onDragStart={(e) => onDragStart(e, deal)}
+                        title={deal.title}
                       >
                         <div className="flex items-center justify-between">
-                          <div
-                            className="font-medium text-slate-900 text-sm truncate"
-                            title={deal.title}
-                          >
-                            {deal.title}
-                          </div>
-                          <div className="text-xs text-slate-600">
-                            ₹{Number(deal.value || 0).toLocaleString()}
-                          </div>
-                        </div>
-                        <div className="mt-2 flex items-center gap-2 text-xs text-slate-600">
-                          <span
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200"
-                            title="Sales person"
-                          >
-                            {initials(deal.salesPerson || 'SP')}
-                          </span>
-                          <span>{deal.salesPerson || 'Sales Person'}</span>
+                          <div className="font-medium text-slate-900 text-sm truncate">{deal.title}</div>
+                          <div className="text-xs text-slate-600">₹{Number(deal.value || 0).toLocaleString()}</div>
                         </div>
                       </div>
                     ))}
-                    {stageData.length === 0 && (
-                      <div className="text-xs text-slate-400 text-center py-6 italic">
-                        Drop deals here
-                      </div>
+                    {col.items.length === 0 && (
+                      <div className="text-xs text-slate-400 text-center py-5 italic">Drop here</div>
                     )}
                   </div>
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </div>
-        </section>
+        ))}
       </div>
     </div>
   )
