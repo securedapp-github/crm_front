@@ -2,7 +2,7 @@ import { Link, Outlet, useLocation } from "react-router-dom"
 import { useMemo, useState } from "react"
 
 const NAV_SECTIONS = [
-  { href: "/dashboard", label: "Overview", icon: "🏠" },
+  { href: "/dashboard", label: "Dashboard", icon: "🏠" },
   { href: "/dashboard/marketing", label: "Marketing", icon: "📈" },
   { href: "/dashboard/sales", label: "Sales", icon: "🧭" },
   { href: "/dashboard/service", label: "Service", icon: "🛟" },

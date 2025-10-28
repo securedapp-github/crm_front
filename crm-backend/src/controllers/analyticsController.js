@@ -1,4 +1,5 @@
-const { Lead, Deal, Campaign, Activity, Task, User } = require('../models');
+const { Deal, Campaign, Activity, User, Contact, Salesperson } = require('../models');
+const { computeCampaignStrength } = require('../services/campaignScoring');
 const { Op } = require('sequelize');
 
 // GET /api/analytics/summary
@@ -10,17 +11,12 @@ exports.getSummary = async (req, res) => {
     const dateTo = to ? new Date(to) : null;
 
     // Build WHERE clauses
-    const leadWhere = {};
     const dealWhere = {};
     const actWhere = {};
     if (dateFrom || dateTo) {
-      leadWhere.createdAt = {};
-      if (dateFrom) leadWhere.createdAt[Op.gte] = dateFrom;
-      if (dateTo) leadWhere.createdAt[Op.lte] = dateTo;
-
-      dealWhere.updatedAt = {};
-      if (dateFrom) dealWhere.updatedAt[Op.gte] = dateFrom;
-      if (dateTo) dealWhere.updatedAt[Op.lte] = dateTo;
+      dealWhere.createdAt = {};
+      if (dateFrom) dealWhere.createdAt[Op.gte] = dateFrom;
+      if (dateTo) dealWhere.createdAt[Op.lte] = dateTo;
 
       actWhere.occurredAt = {};
       if (dateFrom) actWhere.occurredAt[Op.gte] = dateFrom;
@@ -28,104 +24,180 @@ exports.getSummary = async (req, res) => {
     }
     if (ownerId) {
       const oid = Number(ownerId);
-      if (!isNaN(oid)) dealWhere.ownerId = oid;
+      if (!Number.isNaN(oid)) {
+        dealWhere.ownerId = oid;
+      }
     }
+
+    const contactWhere = {};
+    if (dateFrom || dateTo) {
+      contactWhere.createdAt = {};
+      if (dateFrom) contactWhere.createdAt[Op.gte] = dateFrom;
+      if (dateTo) contactWhere.createdAt[Op.lte] = dateTo;
+    }
+
+    // campaignId filtering is currently limited because deals/contacts do not carry campaignId directly.
+    // We still include it for compatibility by narrowing campaign list if provided.
+    let campaignsWhere = {};
     if (campaignId) {
       const cid = Number(campaignId);
-      if (!isNaN(cid)) leadWhere.campaignId = cid;
+      if (!Number.isNaN(cid)) {
+        campaignsWhere = { id: cid };
+      }
     }
 
-    // Load datasets with filters
-    const [leads, deals, campaigns, activities, users] = await Promise.all([
-      Lead.findAll({ where: leadWhere }),
+    const [deals, campaigns, activities, users, people, contacts] = await Promise.all([
       Deal.findAll({ where: dealWhere }),
-      Campaign.findAll(),
+      Campaign.findAll({ where: campaignsWhere }),
       Activity.findAll({ where: actWhere }),
       User.findAll(),
+      Salesperson.findAll(),
+      Contact.findAll({ where: contactWhere })
     ]);
 
-    // KPIs
-    const totalLeads = leads.length;
-    const hotLeads = leads.filter(l => l.isHot).length;
-    const convertedLeads = leads.filter(l => l.status === 'Converted').length;
+    // KPIs derived from deals (each deal represents a qualified lead in the new flow)
+    const totalLeads = deals.length;
+    const hotLeads = deals.filter(d => d.isHot).length;
+    const convertedLeads = deals.filter(d => d.stage === 'Closed Won').length;
     const conversionRate = totalLeads ? Math.round((convertedLeads / totalLeads) * 100) : 0;
-
-    // Funnel (Leads by status, Deals by stage)
-    const leadFunnel = ['New','Contacted','Qualified','Converted','Lost']
-      .map(s => ({ status: s, count: leads.filter(l => l.status === s).length }));
-    const dealStages = ['New','Proposal Sent','Negotiation','Closed Won','Closed Lost']
-      .map(s => ({ stage: s, count: deals.filter(d => d.stage === s).length }));
-
-    // Campaign performance (by leads count + by revenue from Closed Won deals linked via account/contact optional)
-    // Use leads.campaignId counts
-    const campaignLeadCounts = leads.reduce((acc, l) => {
-      if (!l.campaignId) return acc; acc[l.campaignId] = (acc[l.campaignId] || 0) + 1; return acc;
-    }, {});
-    const topCampaignsByLeads = Object.entries(campaignLeadCounts).map(([id, count]) => ({
-      id: Number(id),
-      name: (campaigns.find(c => c.id === Number(id))?.name) || `#${id}`,
-      count
-    })).sort((a,b)=>b.count-a.count).slice(0,5);
-
-    // Revenue attribution: sum deal.value for Closed Won (no strict link to campaign yet; can be enhanced later)
-    const revenueByStage = deals.reduce((acc, d) => {
-      if (d.stage === 'Closed Won') acc.won = (acc.won || 0) + Number(d.value || 0);
-      return acc;
-    }, { won: 0 });
-
-    // Team performance: per user number of leads assigned and deals owned (won)
-    const team = users.map(u => {
-      const leadsAssigned = leads.filter(l => l.assignedTo === u.id).length;
-      const dealsOwned = deals.filter(d => d.ownerId === u.id).length;
-      const dealsWon = deals.filter(d => d.ownerId === u.id && d.stage === 'Closed Won').length;
-      return { userId: u.id, name: u.name || `User #${u.id}`, leadsAssigned, dealsOwned, dealsWon };
-    }).sort((a,b)=>b.dealsWon - a.dealsWon).slice(0,10);
-
-    // Engagement: counts of activity types
-    const engagement = activities.reduce((acc, a) => {
-      acc[a.type] = (acc[a.type] || 0) + 1; return acc;
-    }, {});
-
-    // Forecast (very simple): next 30 days forecast equals last 30 days Closed Won sum
-    const now = new Date();
-    const last30 = new Date(now); last30.setDate(now.getDate() - 30);
-    const wonLast30 = deals.filter(d => d.stage === 'Closed Won' && d.updatedAt && new Date(d.updatedAt) >= last30)
+    const revenueWon = deals
+      .filter(d => d.stage === 'Closed Won')
       .reduce((sum, d) => sum + Number(d.value || 0), 0);
 
-    // Salesperson metrics
-    let people = [];
-    try {
-      const { Salesperson } = require('../models');
-      if (Salesperson) {
-        people = await Salesperson.findAll();
-      }
-    } catch (err) {
-      people = [];
-    }
-    const leadsPerSalesperson = people.map(p => ({ id: p.id, name: p.name, leads: leads.filter(l => l.assignedTo === p.id).length }));
-    const conversionsBySalesperson = people.map(p => ({ id: p.id, name: p.name, converted: leads.filter(l => l.assignedTo === p.id && l.status === 'Converted').length }));
-    const conversionRatePerSalesperson = conversionsBySalesperson.map(c => {
-      const total = leadsPerSalesperson.find(x => x.id === c.id)?.leads || 0;
-      return { id: c.id, name: c.name, rate: total ? Math.round((c.converted / total) * 100) : 0 };
-    });
-    const dealsBySalesperson = people.map(p => ({ id: p.id, name: p.name, deals: deals.filter(d => d.assignedTo === p.id).length, won: deals.filter(d => d.assignedTo === p.id && d.stage === 'Closed Won').length }));
-    const topSalespersonByDeals = dealsBySalesperson.slice().sort((a,b)=> b.won - a.won || b.deals - a.deals)[0] || null;
+    // Lead-style funnel and deal stages
+    const leadFunnel = [
+      { status: 'New', count: deals.filter(d => d.stage === 'New').length },
+      { status: 'Contacted', count: deals.filter(d => d.stage === 'Proposal Sent').length },
+      { status: 'Qualified', count: deals.filter(d => d.stage === 'Negotiation').length },
+      { status: 'Converted', count: deals.filter(d => d.stage === 'Closed Won').length },
+      { status: 'Lost', count: deals.filter(d => d.stage === 'Closed Lost').length }
+    ];
 
-    // Pipeline overview (map legacy -> new pipeline stages)
-    const mapToPipeline = (s) => {
-      if (s === 'Proposal Sent') return 'Proposal';
-      if (s === 'Negotiation') return 'In Progress';
-      if (s === 'Closed Won') return 'Won';
-      if (s === 'Closed Lost') return 'Lost';
+    const dealStages = ['New','Proposal Sent','Negotiation','Closed Won','Closed Lost']
+      .map(stage => ({ stage, count: deals.filter(d => d.stage === stage).length }));
+
+    const campaignScoring = campaigns.map(campaign => {
+      const scoringInputs = {
+        channel: campaign.channel,
+        objective: campaign.objective,
+        audienceSegment: campaign.audienceSegment,
+        budget: campaign.budget,
+        expectedSpend: campaign.expectedSpend,
+        priority: campaign.priority,
+        status: campaign.status,
+        campaignStage: campaign.status,
+        externalCampaignId: campaign.externalCampaignId,
+        utmSource: campaign.utmSource,
+        utmMedium: campaign.utmMedium,
+        utmCampaign: campaign.utmCampaign,
+        complianceChecklist: campaign.complianceChecklist,
+        linkedCompanyDomain: campaign.accountDomain || null,
+      };
+      const result = computeCampaignStrength(scoringInputs);
+      return {
+        id: campaign.id,
+        name: campaign.name,
+        score: result.total,
+        grade: result.grade,
+        isHot: result.isHot,
+      };
+    });
+
+    const topCampaignsByLeads = campaigns
+      .map(c => ({ id: c.id, name: c.name, count: Number(c.leadsGenerated || 0) }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    const hotCampaigns = campaignScoring.filter(c => c.isHot).length;
+    const averageCampaignScore = campaignScoring.length
+      ? Math.round(campaignScoring.reduce((sum, c) => sum + Number(c.score || 0), 0) / campaignScoring.length)
+      : 0;
+
+    const gradeOrder = ['A', 'B', 'C', 'D', 'E'];
+    const gradeCountsMap = campaignScoring.reduce((acc, c) => {
+      const key = gradeOrder.includes(c.grade) ? c.grade : 'Unscored';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    const gradeDistribution = [...gradeOrder, 'Unscored']
+      .filter(grade => gradeCountsMap[grade])
+      .map(grade => ({ grade, count: gradeCountsMap[grade] }));
+
+    const engagement = activities.reduce((acc, activity) => {
+      acc[activity.type] = (acc[activity.type] || 0) + 1;
+      return acc;
+    }, {});
+
+    const now = new Date();
+    const last30 = new Date(now);
+    last30.setDate(now.getDate() - 30);
+    const wonLast30 = deals
+      .filter(d => d.stage === 'Closed Won' && d.updatedAt && new Date(d.updatedAt) >= last30)
+      .reduce((sum, d) => sum + Number(d.value || 0), 0);
+
+    const team = users.map(user => {
+      const leadsAssigned = contacts.filter(c => c.assignedTo === user.id).length;
+      const dealsOwned = deals.filter(d => d.ownerId === user.id).length;
+      const dealsWon = deals.filter(d => d.ownerId === user.id && d.stage === 'Closed Won').length;
+      return {
+        userId: user.id,
+        name: user.name || `User #${user.id}`,
+        leadsAssigned,
+        dealsOwned,
+        dealsWon
+      };
+    }).sort((a, b) => (b.dealsWon - a.dealsWon) || (b.dealsOwned - a.dealsOwned)).slice(0, 10);
+
+    const leadsPerSalesperson = people.map(p => {
+      const assignedDeals = deals.filter(d => d.assignedTo === p.id);
+      return {
+        id: p.id,
+        name: p.name,
+        leads: assignedDeals.length
+      };
+    });
+
+    const dealsBySalesperson = people.map(p => {
+      const assignedDeals = deals.filter(d => d.assignedTo === p.id);
+      const wonDeals = assignedDeals.filter(d => d.stage === 'Closed Won');
+      return {
+        id: p.id,
+        name: p.name,
+        deals: assignedDeals.length,
+        won: wonDeals.length
+      };
+    });
+
+    const conversionRatePerSalesperson = dealsBySalesperson.map(item => ({
+      id: item.id,
+      name: item.name,
+      rate: item.deals ? Math.round((item.won / item.deals) * 100) : 0
+    }));
+
+    const topSalespersonByDeals = dealsBySalesperson
+      .slice()
+      .sort((a, b) => (b.won - a.won) || (b.deals - a.deals))
+      [0] || null;
+
+    const stageToPipeline = (stage) => {
+      if (stage === 'Negotiation') return 'In Progress';
+      if (stage === 'Proposal Sent') return 'Proposal';
+      if (stage === 'Closed Won') return 'Won';
+      if (stage === 'Closed Lost') return 'Lost';
       return 'New';
     };
-    const pipelineStages = ['New','In Progress','Proposal','Won','Lost'];
-    const pipelineOverview = pipelineStages.map(st => ({ stage: st, count: deals.filter(d => mapToPipeline(d.stage) === st).length }));
+
+    const pipelineStages = ['New', 'In Progress', 'Proposal', 'Won', 'Lost'];
+    const pipelineOverview = pipelineStages.map(stage => ({
+      stage,
+      count: deals.filter(d => stageToPipeline(d.stage) === stage).length
+    }));
 
     const summary = {
-      kpis: { totalLeads, hotLeads, convertedLeads, conversionRate, revenueWon: revenueByStage.won || 0 },
+      kpis: { totalLeads, hotLeads, convertedLeads, conversionRate, revenueWon },
       funnel: { leadFunnel, dealStages },
       campaigns: { topCampaignsByLeads },
+      scoring: { hotCampaigns, averageScore: averageCampaignScore, gradeDistribution },
       team,
       engagement,
       forecast: { next30daysRevenue: wonLast30 },

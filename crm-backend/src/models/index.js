@@ -3,6 +3,7 @@ const Contact = require('./Contact');
 const Account = require('./Account');
 const Deal = require('./Deal');
 const Task = require('./Task');
+const Activity = require('./Activity');
 const Campaign = require('./Campaign');
 const Ticket = require('./Ticket');
 const Note = require('./Note');
@@ -60,6 +61,7 @@ module.exports = {
   Deal,
   Task,
   Campaign,
+  Activity,
   Ticket,
   Note,
   Quote,
