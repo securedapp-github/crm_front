@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getPeople, getPipeline, moveDealStage } from '../../api/sales'
+import { getTasks, createTask } from '../../api/task'
 
 const STAGES = ['New', 'In Progress', 'Proposal', 'Won', 'Lost']
 
@@ -7,13 +8,16 @@ export default function Pipeline() {
   const [loading, setLoading] = useState(true)
   const [salespeople, setSalespeople] = useState([])
   const [data, setData] = useState(() => STAGES.reduce((acc, s) => ({ ...acc, [s]: [] }), {}))
+  const [tasks, setTasks] = useState([])
+  const [selectedDealId, setSelectedDealId] = useState('')
 
   const fetchAll = async () => {
     setLoading(true)
     try {
-      const [peopleRes, pipeRes] = await Promise.all([getPeople(), getPipeline()])
+      const [peopleRes, pipeRes, tasksRes] = await Promise.all([getPeople(), getPipeline(), getTasks()])
       setSalespeople((peopleRes.data?.data || []).slice(0, 4))
       setData(pipeRes.data?.data || {})
+      setTasks(tasksRes.data?.data || [])
     } finally {
       setLoading(false)
     }
@@ -39,6 +43,43 @@ export default function Pipeline() {
       })),
     [data]
   )
+
+  const allDeals = useMemo(() => (Object.values(data || {}).flat() || []), [data])
+  const newStageDeals = useMemo(() => (data['New'] || []), [data])
+  const upcomingCalls = useMemo(() => {
+    const now = new Date()
+    const list = (tasks || [])
+      .filter(t => t.status === 'Open' && t.relatedDealId && t.dueDate && new Date(t.dueDate) >= now)
+      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+      .slice(0, 8)
+    const withDeal = list.map(t => ({
+      task: t,
+      deal: allDeals.find(d => d.id === t.relatedDealId) || null
+    }))
+    return withDeal
+  }, [tasks, allDeals])
+
+  const scheduleCall = async (days) => {
+    const idNum = Number(selectedDealId)
+    if (!idNum || Number.isNaN(idNum)) return
+    const deal = allDeals.find(d => d.id === idNum)
+    const due = new Date()
+    due.setDate(due.getDate() + Number(days || 0))
+    const title = 'Call follow-up'
+    const description = `Auto-scheduled from Call System (${days} day(s))`
+    try {
+      await createTask({
+        title,
+        description,
+        status: 'Open',
+        assignedTo: deal?.assignedTo || null,
+        relatedDealId: idNum,
+        dueDate: due.toISOString()
+      })
+      setSelectedDealId('')
+      await fetchAll()
+    } catch {}
+  }
 
   const onDragStart = (e, deal) => {
     e.dataTransfer.setData('text/plain', JSON.stringify({ id: deal.id }))
@@ -82,6 +123,75 @@ export default function Pipeline() {
           {loading ? 'Refreshing...' : 'Refresh Data'}
         </button>
       </div>
+
+      {/* Call System */}
+      <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-emerald-900">Connect Schedule</h3>
+            <p className="text-sm text-emerald-800">Quickly schedule follow-up calls for new leads.</p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div>
+                <label className="block text-xs font-medium text-emerald-900">Select deal</label>
+                <select
+                  className="mt-1 min-w-[240px] rounded-md border border-emerald-300 bg-white px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                  value={selectedDealId}
+                  onChange={(e) => setSelectedDealId(e.target.value)}
+                >
+                  <option value="">Choose a New-stage deal…</option>
+                  {newStageDeals.map(d => (
+                    <option key={d.id} value={d.id}>{d.title}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => scheduleCall(2)}
+                  disabled={!selectedDealId}
+                  className={`rounded-md px-3 py-2 text-sm font-medium text-white ${selectedDealId ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-300 cursor-not-allowed'}`}
+                >
+                  Call in 2 days
+                </button>
+                <button
+                  onClick={() => scheduleCall(1)}
+                  disabled={!selectedDealId}
+                  className={`rounded-md px-3 py-2 text-sm font-medium text-white ${selectedDealId ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-300 cursor-not-allowed'}`}
+                >
+                  Call tomorrow
+                </button>
+                <button
+                  onClick={() => scheduleCall(7)}
+                  disabled={!selectedDealId}
+                  className={`rounded-md px-3 py-2 text-sm font-medium text-white ${selectedDealId ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-300 cursor-not-allowed'}`}
+                >
+                  Call in 1 week
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="w-full md:w-[420px]">
+            <h4 className="text-sm font-semibold text-emerald-900">Upcoming calls</h4>
+            <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-emerald-200 bg-white">
+              {upcomingCalls.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-emerald-800">No upcoming call tasks</div>
+              ) : (
+                <ul className="divide-y">
+                  {upcomingCalls.map(({ task, deal }) => (
+                    <li key={task.id} className="px-3 py-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium text-slate-900 truncate">{deal?.title || `Deal #${task.relatedDealId}`}</div>
+                        <div className="text-xs text-slate-600">{new Date(task.dueDate).toLocaleString()}</div>
+                      </div>
+                      <div className="text-xs text-slate-600">{task.title}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Totals header */}
       <div className="rounded-xl border bg-white shadow-sm">

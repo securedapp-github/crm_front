@@ -1,4 +1,5 @@
 const { Campaign, Contact, Account, Deal, Task, User } = require('../models');
+const { Op } = require('sequelize');
 const { computeCompanyScoreFromHeuristics, applyDealScoreFromCompany } = require('../services/scoring');
 const { computeCampaignStrength } = require('../services/campaignScoring');
 const { assignNextSalesperson } = require('../services/assignment');
@@ -25,6 +26,10 @@ const CAMPAIGN_FIELDS = [
   'utmMedium',
   'utmCampaign',
   'complianceChecklist',
+  'accountCompany',
+  'accountDomain',
+  'mobile',
+  'email',
   'actualSpend',
   'leadsGenerated',
   'wonDeals',
@@ -46,12 +51,51 @@ exports.getCampaigns = async (req, res) => {
 
 // DELETE /api/campaigns/:id
 exports.deleteCampaign = async (req, res) => {
+  const t = await Campaign.sequelize.transaction();
   try {
-    const campaign = await Campaign.findByPk(req.params.id);
-    if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
-    await campaign.destroy();
-    return res.json({ success: true, message: 'Campaign deleted' });
+    const id = Number(req.params.id);
+    const campaign = await Campaign.findByPk(id, { transaction: t });
+    if (!campaign) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: 'Campaign not found' });
+    }
+
+    // Best-effort: remove auto-created follow-up Tasks and their Deals/Contacts
+    const likeFragment = `campaign creation (#${id})`;
+    const tasks = await Task.findAll({
+      where: { description: { [Op.like]: `%${likeFragment}%` } },
+      transaction: t
+    });
+    const taskIds = tasks.map(x => x.id);
+    const dealIds = tasks.map(x => x.relatedDealId).filter(Boolean);
+
+    if (taskIds.length) {
+      await Task.destroy({ where: { id: taskIds }, transaction: t });
+    }
+
+    let contactIds = [];
+    if (dealIds.length) {
+      const deals = await Deal.findAll({ where: { id: dealIds }, transaction: t });
+      contactIds = deals.map(d => d.contactId).filter(Boolean);
+      await Deal.destroy({ where: { id: dealIds }, transaction: t });
+    }
+
+    if (contactIds.length) {
+      // Remove only the placeholder contacts created by campaign flow (heuristic by name prefix)
+      const contacts = await Contact.findAll({ where: { id: contactIds }, transaction: t });
+      const placeholderIds = contacts
+        .filter(c => typeof c.name === 'string' && c.name.startsWith('Campaign Lead -'))
+        .map(c => c.id);
+      if (placeholderIds.length) {
+        await Contact.destroy({ where: { id: placeholderIds }, transaction: t });
+      }
+    }
+
+    await campaign.destroy({ transaction: t });
+    await t.commit();
+    return res.json({ success: true, message: 'Campaign and related records deleted' });
   } catch (err) {
+    await t.rollback();
     return res.status(500).json({ success: false, message: 'Failed to delete campaign' });
   }
 };
@@ -82,7 +126,9 @@ exports.createCampaign = async (req, res) => {
       utmMedium: req.body.utmMedium,
       utmCampaign: req.body.utmCampaign,
       complianceChecklist: req.body.complianceChecklist,
-      linkedCompanyDomain: req.body.linkedCompanyDomain,
+      linkedCompanyDomain: req.body.accountDomain || req.body.linkedCompanyDomain || null,
+      mobile: req.body.mobile || null,
+      email: req.body.email || null,
     };
     const scoreResult = computeCampaignStrength(scoringInputs);
 
@@ -90,9 +136,9 @@ exports.createCampaign = async (req, res) => {
     const placeholderName = `Campaign Lead - ${campaign.name}`;
     const contact = await Contact.create({
       name: placeholderName,
-      email: null,
-      phone: null,
-      company: null,
+      email: (req.body.email && String(req.body.email).trim() !== '') ? String(req.body.email).trim() : null,
+      phone: (req.body.mobile && String(req.body.mobile).trim() !== '') ? String(req.body.mobile).trim() : null,
+      company: (req.body.accountCompany && String(req.body.accountCompany).trim() !== '') ? String(req.body.accountCompany).trim() : null,
       accountId: null,
       assignedTo: null,
     }, { transaction: t });

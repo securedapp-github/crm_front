@@ -88,6 +88,22 @@ const Campaign = sequelize.define('Campaign', {
     type: DataTypes.STRING(100),
     allowNull: true
   },
+  accountCompany: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  accountDomain: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  mobile: {
+    type: DataTypes.STRING(32),
+    allowNull: true
+  },
+  email: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
   complianceChecklist: {
     type: DataTypes.TEXT,
     allowNull: true

@@ -17,6 +17,18 @@ function validDomain(domain) {
   return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(s);
 }
 
+function isTenDigitMobile(mobile) {
+  if (mobile == null) return false;
+  const s = String(mobile).trim();
+  return /^\d{10}$/.test(s);
+}
+
+function isGmail(email) {
+  if (!email) return false;
+  const s = String(email).trim().toLowerCase();
+  return /@gmail\.com$/.test(s);
+}
+
 function scoreChannel(channel) {
   const c = String(channel || '').toLowerCase();
   if (c.includes('multi')) return 15;
@@ -80,8 +92,11 @@ function computeCampaignStrength(inputs = {}) {
   }) ? 10 : 0;
   const complianceScore = normalizeBool(inputs.complianceChecklist || inputs.complianceComplete) ? 10 : 0;
   const domainScore = validDomain(inputs.linkedCompanyDomain) ? 10 : 0;
+  const tldBonus = (typeof inputs.linkedCompanyDomain === 'string' && inputs.linkedCompanyDomain.trim().toLowerCase().endsWith('.in')) ? 5 : 0;
+  const mobileBonus = isTenDigitMobile(inputs.mobile) ? 5 : 0;
+  const gmailBonus = isGmail(inputs.email) ? 5 : 0;
 
-  const total = channelScore + objectiveScore + audienceScore + budgetEfficiency + priorityScore + stageScore + trackingScore + complianceScore + domainScore;
+  const total = channelScore + objectiveScore + audienceScore + budgetEfficiency + priorityScore + stageScore + trackingScore + complianceScore + domainScore + tldBonus + mobileBonus + gmailBonus;
 
   let grade = 'D';
   let strength = 'Weak';

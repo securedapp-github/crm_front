@@ -11,6 +11,8 @@ router.post('/signup', sessionAuth.signup);
 router.post('/verify-otp', sessionAuth.verifyOTP);
 router.post('/resend-otp', sessionAuth.resendOTP);
 router.post('/login', sessionAuth.login);
+router.post('/signup-sales', sessionAuth.signupSales);
+router.post('/login-sales', sessionAuth.loginSales);
 router.get('/me', sessionAuth.me);
 router.post('/logout', sessionAuth.logout);
 

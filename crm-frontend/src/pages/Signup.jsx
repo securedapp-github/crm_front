@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { registerUser, verifyOTP, resendOTP } from '../api/auth'
+import { registerUser, verifyOTP, resendOTP, signupSales } from '../api/auth'
 import Modal from '../components/Modal'
 
 export default function Signup() {
@@ -9,11 +9,13 @@ export default function Signup() {
   const [error, setError] = useState('')
   const [agree, setAgree] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', phone: '' })
+  const [mode, setMode] = useState('admin') // 'admin' | 'sales'
   const [otpOpen, setOtpOpen] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [otpMsg, setOtpMsg] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
+  const [salesIdModal, setSalesIdModal] = useState({ open: false, id: '' })
 
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
@@ -30,13 +32,19 @@ export default function Signup() {
     setLoading(true)
     setError('')
     try {
-      const { name, email, password, phone } = form
-      const res = await registerUser({ name, email, password, phone })
-      if (res.data.otpSent) {
-        setOtpOpen(true)
+      if (mode === 'admin') {
+        const { name, email, password, phone } = form
+        const res = await registerUser({ name, email, password, phone })
+        if (res.data.otpSent) {
+          setOtpOpen(true)
+        } else {
+          navigate('/login')
+        }
       } else {
-        // If OTP wasn't sent, redirect to login
-        navigate('/login')
+        const { name, password } = form
+        const res = await signupSales({ name, password })
+        const sid = res.data?.salesId
+        setSalesIdModal({ open: true, id: sid || '' })
       }
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Signup failed')
@@ -103,9 +111,13 @@ export default function Signup() {
 
         {/* Right panel - signup form */}
         <div className="bg-white rounded-2xl shadow-lg p-8 md:p-10">
-          <div className="text-center mb-6">
+          <div className="text-center mb-4">
             <h1 className="text-3xl font-bold text-gray-900">Start your free trial</h1>
             <p className="text-gray-500 mt-2 text-sm">Create your account to access your CRM dashboard</p>
+          </div>
+          <div className="mb-4 flex items-center justify-center gap-2 text-sm">
+            <button type="button" onClick={()=>setMode('admin')} className={`px-3 py-1.5 rounded-md border ${mode==='admin'?'bg-indigo-600 text-white':'bg-white text-slate-700'}`}>Admin Signup</button>
+            <button type="button" onClick={()=>setMode('sales')} className={`px-3 py-1.5 rounded-md border ${mode==='sales'?'bg-emerald-600 text-white':'bg-white text-slate-700'}`}>Sales Person Signup</button>
           </div>
           <form className="space-y-5" onSubmit={onSubmit}>
             <div>
@@ -115,14 +127,14 @@ export default function Signup() {
                 name="name" placeholder="Full Name" value={form.name} onChange={onChange} required
               />
             </div>
-            <div>
+            {mode==='admin' && (<div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Work Email</label>
               <input
                 type="email"
                 className="w-full rounded-lg border border-gray-300 px-4 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
                 name="email" placeholder="name@company.com" value={form.email} onChange={onChange} required
               />
-            </div>
+            </div>)}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Create Password</label>
               <input
@@ -139,7 +151,7 @@ export default function Signup() {
                 name="confirmPassword" placeholder="••••••••" value={form.confirmPassword} onChange={onChange} required
               />
             </div>
-            <div>
+            {mode==='admin' && (<div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
               <div className="flex">
                 <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-300 bg-gray-100 text-gray-600">+91</span>
@@ -148,8 +160,8 @@ export default function Signup() {
                   name="phone" placeholder="98765 43210" value={form.phone} onChange={onChange}
                 />
               </div>
-            </div>
-            <div className="text-xs text-gray-500">It looks like you’re in INDIA based on your IP.</div>
+            </div>)}
+            {mode==='admin' && (<div className="text-xs text-gray-500">It looks like you’re in INDIA based on your IP.</div>)}
             <div className="flex items-start gap-2">
               <input id="tos" type="checkbox" className="mt-1 h-4 w-4" checked={agree} onChange={(e)=>setAgree(e.target.checked)} />
               <label htmlFor="tos" className="text-sm text-gray-700">
@@ -157,8 +169,8 @@ export default function Signup() {
               </label>
             </div>
             {error && <div className="text-sm text-red-600">{error}</div>}
-            <button type="submit" className="w-full rounded-lg bg-indigo-600 text-white py-3 font-semibold shadow-md hover:bg-indigo-700 transition disabled:opacity-70" disabled={loading}>
-              {loading ? 'Creating...' : 'GET STARTED'}
+            <button type="submit" className={`w-full rounded-lg py-3 font-semibold shadow-md transition disabled:opacity-70 ${mode==='admin'?'bg-indigo-600 hover:bg-indigo-700 text-white':'bg-emerald-600 hover:bg-emerald-700 text-white'}`} disabled={loading}>
+              {loading ? 'Creating...' : (mode==='admin' ? 'GET STARTED' : 'CREATE SALES PERSON')}
             </button>
           </form>
           <p className="mt-6 text-center text-sm text-gray-500">
@@ -209,6 +221,18 @@ export default function Signup() {
           placeholder="Enter OTP"
         />
         {otpMsg && <div className="text-sm text-red-600 mt-1">{otpMsg}</div>}
+      </div>
+    </Modal>
+    <Modal
+      open={salesIdModal.open}
+      onClose={() => setSalesIdModal({ open: false, id: '' })}
+      title="Sales Person ID"
+      actions={<button onClick={()=>{ setSalesIdModal({ open: false, id: '' }); navigate('/login') }} className="px-4 py-2 rounded-md bg-emerald-600 text-white">Go to Login</button>}
+    >
+      <div className="text-sm text-slate-700">
+        Your Sales Person ID is:
+        <div className="mt-2 rounded border bg-slate-50 px-3 py-2 font-mono text-emerald-700">{salesIdModal.id || '—'}</div>
+        Please save it. You will use this ID + password to log in.
       </div>
     </Modal>
     </>

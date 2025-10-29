@@ -1,5 +1,6 @@
 const { User } = require('../models');
 const { generateOTP, sendOTPEmail } = require('../utils/otp');
+const crypto = require('crypto');
 
 // In-memory storage for OTPs (in production, use Redis or database)
 const otpStore = new Map();
@@ -175,4 +176,47 @@ exports.logout = (req, res) => {
     res.clearCookie('crm.sid');
     return res.json({ message: 'Logged out' });
   });
+};
+
+// POST /api/auth/signup-sales
+exports.signupSales = async (req, res) => {
+  try {
+    const { name, password } = req.body || {};
+    if (!name || !password) return res.status(400).json({ error: 'Name and password are required' });
+
+    // Generate unique Sales Person ID: SP-YY<random6>
+    const year = new Date().getFullYear().toString().slice(-2);
+    let salesId;
+    for (let i = 0; i < 5; i++) {
+      const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+      salesId = `SP-${year}${rand}`;
+      const exists = await User.findOne({ where: { salesId } });
+      if (!exists) break;
+    }
+
+    // Use a syntactically valid placeholder email to satisfy model validators
+    const pseudoEmail = `sales+${Date.now()}@securecrm.local`;
+    const user = await User.create({ name, email: pseudoEmail, password, role: 'sales', salesId });
+    // Set session
+    req.session.userId = user.id;
+    return res.status(201).json({ message: 'Sales person registered', salesId: user.salesId, user: { id: user.id, name: user.name, role: user.role } });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to signup sales' });
+  }
+};
+
+// POST /api/auth/login-sales
+exports.loginSales = async (req, res) => {
+  try {
+    const { salesId, password } = req.body || {};
+    if (!salesId || !password) return res.status(400).json({ error: 'Sales Person ID and password are required' });
+    const user = await User.findOne({ where: { salesId, role: 'sales' } });
+    if (!user) return res.status(404).json({ error: 'Sales Person not found' });
+    const valid = await user.validPassword(password);
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    req.session.userId = user.id;
+    return res.json({ message: 'Login successful', user: { id: user.id, name: user.name, salesId: user.salesId, role: user.role } });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to login sales' });
+  }
 };

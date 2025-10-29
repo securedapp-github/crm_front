@@ -35,7 +35,9 @@ export default function Landing() {
     utmMedium: '',
     utmCampaign: '',
     accountCompany: '',
-    accountDomain: ''
+    accountDomain: '',
+    mobile: '',
+    email: ''
   })
   const [form, setForm] = useState(() => initialForm())
   const [users, setUsers] = useState([])
@@ -126,6 +128,8 @@ export default function Landing() {
         utmCampaign: form.utmCampaign?.trim() || undefined,
         ...(form.accountCompany ? { accountCompany: form.accountCompany } : {}),
         ...(form.accountDomain ? { accountDomain: form.accountDomain } : {}),
+        ...(form.mobile ? { mobile: String(form.mobile).trim() } : {}),
+        ...(form.email ? { email: String(form.email).trim() } : {}),
       }
       Object.keys(payload).forEach((key) => {
         if (payload[key] === undefined || payload[key] === null || payload[key] === '') delete payload[key]
@@ -451,10 +455,10 @@ export default function Landing() {
             />
           </div>
           <div className="sm:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
-            <p className="mb-2 text-sm font-semibold text-slate-800">Optional: Link an account for automatic scoring</p>
+            
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Company name</label>
+                <label className="block text-sm font-medium text-slate-700">Entity name</label>
                 <input
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   value={form.accountCompany}
@@ -480,6 +484,26 @@ export default function Landing() {
                     {verification.status === 'done' && verification.exists === false && <span className="text-amber-600">⚠️ New company, not yet verified.</span>}
                   </div>
                 ) : null}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Mobile number</label>
+                <input
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  value={form.mobile}
+                  onChange={handleChange('mobile')}
+                  placeholder="9876543210"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Email</label>
+                <input
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  value={form.email}
+                  onChange={handleChange('email')}
+                  placeholder="name@gmail.com"
+                  disabled={saving}
+                />
               </div>
             </div>
           </div>

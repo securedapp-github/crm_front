@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { loginUser } from '../api/auth'
+import { loginUser, loginSales } from '../api/auth'
 import Modal from '../components/Modal'
 
 export default function Login() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ email: '', password: '' })
+  const [salesForm, setSalesForm] = useState({ salesId: '', password: '' })
+  const [mode, setMode] = useState('admin') // 'admin' | 'sales'
   const [error, setError] = useState('')
   const [fpOpen, setFpOpen] = useState(false)
   const [fpStep, setFpStep] = useState(1)
@@ -30,6 +32,23 @@ export default function Login() {
       if (!user?.id && !user?.email) throw new Error('User info not returned')
       localStorage.setItem('user', JSON.stringify(user))
       navigate('/dashboard')
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.message || 'Login failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const onSubmitSales = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const res = await loginSales(salesForm)
+      const user = res.data?.user
+      if (!user?.id || user?.role !== 'sales') throw new Error('Invalid sales login response')
+      localStorage.setItem('user', JSON.stringify(user))
+      navigate('/dashboard/sales-dashboard')
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Login failed')
     } finally {
@@ -100,6 +119,11 @@ export default function Login() {
             </h1>
             <p className="text-gray-600 mb-8">Welcome back! Please log in to your account.</p>
 
+            <div className="mb-4 flex items-center justify-center gap-2 text-sm">
+              <button type="button" onClick={()=>setMode('admin')} className={`px-3 py-1.5 rounded-md border ${mode==='admin'?'bg-indigo-600 text-white':'bg-white text-slate-700'}`}>Admin Login</button>
+              <button type="button" onClick={()=>setMode('sales')} className={`px-3 py-1.5 rounded-md border ${mode==='sales'?'bg-emerald-600 text-white':'bg-white text-slate-700'}`}>Sales Person Login</button>
+            </div>
+            {mode === 'admin' ? (
             <form onSubmit={onSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -142,6 +166,42 @@ export default function Login() {
                 {loading ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
+            ) : (
+            <form onSubmit={onSubmitSales} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sales Person ID</label>
+                <input
+                  className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition"
+                  name="salesId"
+                  placeholder="SP-25ABC123"
+                  value={salesForm.salesId}
+                  onChange={(e)=>setSalesForm(s=>({ ...s, salesId: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={salesForm.password}
+                  onChange={(e)=>setSalesForm(s=>({ ...s, password: e.target.value }))}
+                  required
+                />
+              </div>
+              {error && <div className="text-sm text-red-600">{error}</div>}
+              <button
+                type="submit"
+                className="w-full rounded-md bg-emerald-600 text-white py-3 font-semibold shadow hover:bg-emerald-700 transition disabled:opacity-70"
+                disabled={loading}
+              >
+                {loading ? 'Signing in...' : 'Sign In as Sales Person'}
+              </button>
+              <div className="text-xs text-slate-600 text-center">Don’t have a Sales Person ID? <Link to="/signup" className="text-emerald-700 underline">Sign up</Link></div>
+            </form>
+            )}
 
             <p className="mt-6 text-sm text-gray-600 text-center">
               Don’t have an account?{' '}

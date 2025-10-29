@@ -9,6 +9,7 @@ import Marketing from './pages/Marketing/Marketing'
 import DashboardHome from './pages/DashboardHome'
 import Pipeline from './pages/Sales/Pipeline'
 import DealDetail from './pages/Sales/DealDetail'
+import SalesDashboard from './pages/Sales/SalesDashboard'
 import Tickets from './pages/Service/Tickets'
 import Notes from './pages/Collaboration/Notes'
 import { ToastProvider } from './components/ToastProvider'
@@ -33,6 +34,7 @@ function App() {
             <Route index element={<DashboardHome />} />
             <Route path="marketing" element={<Marketing />} />
             <Route path="sales" element={<Pipeline />} />
+            <Route path="sales-dashboard" element={<SalesDashboard />} />
             <Route path="sales/deals/:id" element={<DealDetail />} />
             <Route path="service" element={<Tickets />} />
             <Route path="collaboration" element={<Notes />} />

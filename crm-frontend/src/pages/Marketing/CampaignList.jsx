@@ -39,6 +39,8 @@ export default function CampaignList({ autoOpenKey = 0 }) {
     utmCampaign: ''
     , accountCompany: '',
     accountDomain: '',
+    mobile: '',
+    email: ''
   })
 
   const [expanded, setExpanded] = useState(null)
@@ -201,6 +203,8 @@ export default function CampaignList({ autoOpenKey = 0 }) {
       // Include optional account linkage fields for backend automation
       if (form.accountCompany) payload.accountCompany = form.accountCompany
       if (form.accountDomain) payload.accountDomain = form.accountDomain
+      if (form.mobile) payload.mobile = String(form.mobile).trim()
+      if (form.email) payload.email = String(form.email).trim()
       const res = await createCampaign(payload)
       const newCampaign = res.data?.data
       setOpen(false)
@@ -228,7 +232,11 @@ export default function CampaignList({ autoOpenKey = 0 }) {
       c.objective,
       c.audienceSegment,
       c.productLine,
-      c.owner?.name
+      c.owner?.name,
+      c.accountCompany,
+      c.accountDomain,
+      c.mobile,
+      c.email
     ].filter(Boolean).map(v => String(v).toLowerCase())
     return haystack.some(value => value.includes(query.toLowerCase()))
   })
@@ -256,14 +264,18 @@ export default function CampaignList({ autoOpenKey = 0 }) {
               <th className="text-left px-4 py-2">Leads</th>
               <th className="text-left px-4 py-2">Owner</th>
               <th className="text-left px-4 py-2">Priority</th>
+              <th className="text-left px-4 py-2">Entity name</th>
+              <th className="text-left px-4 py-2">Company domain</th>
+              <th className="text-left px-4 py-2">Mobile</th>
+              <th className="text-left px-4 py-2">Email</th>
               <th className="text-left px-4 py-2">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y">{
             loading ? (
-              <tr><td className="px-4 py-3" colSpan={10}>Loading...</td></tr>
+              <tr><td className="px-4 py-3" colSpan={14}>Loading...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td className="px-4 py-3 text-slate-500" colSpan={10}>No campaigns</td></tr>
+              <tr><td className="px-4 py-3 text-slate-500" colSpan={14}>No campaigns</td></tr>
             ) : filtered.map(c=> (
               <Fragment key={c.id}>
                 <tr className="hover:bg-slate-50">
@@ -287,6 +299,10 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                   <td className="px-4 py-3">{c.leadsGenerated ?? 0}</td>
                   <td className="px-4 py-3 text-slate-700">{c.owner?.name || '-'}</td>
                   <td className="px-4 py-3 text-slate-700">{c.priority || '-'}</td>
+                  <td className="px-4 py-3 text-slate-700">{c.accountCompany || '-'}</td>
+                  <td className="px-4 py-3 text-slate-700">{c.accountDomain || '-'}</td>
+                  <td className="px-4 py-3 text-slate-700">{c.mobile || '-'}</td>
+                  <td className="px-4 py-3 text-slate-700">{c.email || '-'}</td>
                   <td className="px-4 py-3">
                     <button onClick={()=>onDelete(c.id)} className="text-xs px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50">
                       Delete
@@ -295,7 +311,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                 </tr>
                 {expanded === c.id && (
                   <tr className="bg-slate-50/60">
-                    <td colSpan={9} className="px-6 py-5">
+                    <td colSpan={14} className="px-6 py-5">
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <DetailBlock label="Objective" value={c.objective} />
                         <DetailBlock label="Audience segment" value={c.audienceSegment} />
@@ -448,10 +464,10 @@ export default function CampaignList({ autoOpenKey = 0 }) {
             <textarea className="w-full px-3 py-2 border rounded-md" rows={2} value={form.complianceChecklist} onChange={e=>setForm(f=>({...f, complianceChecklist:e.target.value}))} />
           </div>
           <div className="md:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
-            <p className="mb-2 text-sm font-semibold text-slate-800">Optional: Link an account for automatic scoring</p>
+            
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div>
-                <label className="block text-sm text-slate-700">Company name</label>
+                <label className="block text-sm text-slate-700">Entity name</label>
                 <input className="w-full px-3 py-2 border rounded-md" value={form.accountCompany} onChange={e=>setForm(f=>({...f, accountCompany:e.target.value}))} />
               </div>
               <div>
@@ -465,6 +481,14 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                     {verification.status === 'done' && verification.exists === false && <span className="text-amber-600">⚠️ New company, not yet verified.</span>}
                   </div>
                 ) : null}
+              </div>
+              <div>
+                <label className="block text-sm text-slate-700">Mobile number</label>
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="9876543210" value={form.mobile} onChange={e=>setForm(f=>({...f, mobile:e.target.value}))} />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-700">Email</label>
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="name@gmail.com" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} />
               </div>
             </div>
           </div>
