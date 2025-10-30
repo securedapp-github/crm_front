@@ -1,5 +1,6 @@
-const { User } = require('../models');
+const { User, Salesperson } = require('../models');
 const { generateOTP, sendOTPEmail } = require('../utils/otp');
+const { sendWelcomeEmail } = require('../utils/email');
 const crypto = require('crypto');
 
 // In-memory storage for OTPs (in production, use Redis or database)
@@ -152,7 +153,7 @@ exports.login = async (req, res) => {
 
     // Set session
     req.session.userId = user.id;
-    return res.json({ message: 'Login successful', user: { id: user.id, name: user.name, email: user.email } });
+    return res.json({ message: 'Login successful', user: { id: user.id, name: user.name, email: user.email, role: user.role, salesId: user.salesId } });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -162,7 +163,7 @@ exports.login = async (req, res) => {
 exports.me = async (req, res) => {
   try {
     if (!req.session.userId) return res.status(401).json({ authenticated: false });
-    const user = await User.findByPk(req.session.userId, { attributes: ['id', 'name', 'email'] });
+    const user = await User.findByPk(req.session.userId, { attributes: ['id', 'name', 'email', 'role', 'salesId'] });
     if (!user) return res.status(401).json({ authenticated: false });
     return res.json({ authenticated: true, user });
   } catch (err) {
@@ -181,8 +182,20 @@ exports.logout = (req, res) => {
 // POST /api/auth/signup-sales
 exports.signupSales = async (req, res) => {
   try {
-    const { name, password } = req.body || {};
-    if (!name || !password) return res.status(400).json({ error: 'Name and password are required' });
+    const { name, email, password } = req.body || {};
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email and password are required' });
+    }
+
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    const existingSalesperson = await Salesperson.findOne({ where: { email } });
+    if (existingSalesperson) {
+      return res.status(400).json({ error: 'Email already linked to a salesperson' });
+    }
 
     // Generate unique Sales Person ID: SP-YY<random6>
     const year = new Date().getFullYear().toString().slice(-2);
@@ -194,12 +207,22 @@ exports.signupSales = async (req, res) => {
       if (!exists) break;
     }
 
-    // Use a syntactically valid placeholder email to satisfy model validators
-    const pseudoEmail = `sales+${Date.now()}@securecrm.local`;
-    const user = await User.create({ name, email: pseudoEmail, password, role: 'sales', salesId });
+    const user = await User.create({ name, email, password, role: 'sales', salesId });
+    await Salesperson.create({ name, email });
+
+    try {
+      await sendWelcomeEmail(email, name);
+    } catch (emailErr) {
+      console.warn('Failed to send welcome email to salesperson:', emailErr.message);
+    }
+
     // Set session
     req.session.userId = user.id;
-    return res.status(201).json({ message: 'Sales person registered', salesId: user.salesId, user: { id: user.id, name: user.name, role: user.role } });
+    return res.status(201).json({
+      message: 'Sales person registered',
+      salesId: user.salesId,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Failed to signup sales' });
   }
@@ -215,7 +238,7 @@ exports.loginSales = async (req, res) => {
     const valid = await user.validPassword(password);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
     req.session.userId = user.id;
-    return res.json({ message: 'Login successful', user: { id: user.id, name: user.name, salesId: user.salesId, role: user.role } });
+    return res.json({ message: 'Login successful', user: { id: user.id, name: user.name, email: user.email, salesId: user.salesId, role: user.role } });
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Failed to login sales' });
   }

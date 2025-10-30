@@ -1,7 +1,8 @@
-import { Link, Outlet, useLocation } from "react-router-dom"
-import { useMemo, useState } from "react"
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
+import { useEffect, useMemo, useState } from "react"
+import { getMe } from "../api/auth"
 
-const NAV_SECTIONS = [
+const DEFAULT_SECTIONS = [
   { href: "/dashboard", label: "Dashboard", icon: "🏠" },
   { href: "/dashboard/marketing", label: "Marketing", icon: "📈" },
   { href: "/dashboard/sales", label: "Sales", icon: "🧭" },
@@ -9,10 +10,64 @@ const NAV_SECTIONS = [
   { href: "/dashboard/collaboration", label: "Collaboration", icon: "📝" },
 ]
 
+const SALES_SECTIONS = [
+  { href: "/dashboard/sales-dashboard", label: "Sales Dashboard", icon: "🧭" },
+]
+
 export default function Dashboard() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const sections = useMemo(() => NAV_SECTIONS, [])
+  const [user, setUser] = useState(null)
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+    setChecking(true)
+    getMe()
+      .then((res) => {
+        if (!mounted) return
+        if (res.data?.authenticated) {
+          setUser(res.data.user || null)
+        } else {
+          setUser(null)
+        }
+      })
+      .catch(() => {
+        if (!mounted) return
+        setUser(null)
+      })
+      .finally(() => {
+        if (mounted) setChecking(false)
+      })
+    return () => { mounted = false }
+  }, [])
+
+  useEffect(() => {
+    if (checking) return
+    if (user?.role === 'sales') {
+      const allowedPrefixes = ['/dashboard/sales-dashboard']
+      const isAllowed = allowedPrefixes.some((prefix) => location.pathname.startsWith(prefix))
+      if (!isAllowed) {
+        navigate('/dashboard/sales-dashboard', { replace: true })
+      }
+    }
+  }, [checking, user, location.pathname, navigate])
+
+  const sections = useMemo(() => {
+    if (checking) return []
+    return user?.role === 'sales' ? SALES_SECTIONS : DEFAULT_SECTIONS
+  }, [checking, user])
+
+  if (checking) {
+    return (
+      <div className="flex min-h-[calc(100vh-64px)] items-center justify-center bg-slate-50">
+        <div className="rounded-xl border border-slate-200 bg-white px-6 py-4 text-sm text-slate-500 shadow-sm">
+          Preparing your workspace...
+        </div>
+      </div>
+    )
+  }
 
   const renderNav = (onNavigate) => (
     <nav className="px-4 py-6 space-y-1 text-sm font-medium">

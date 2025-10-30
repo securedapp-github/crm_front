@@ -73,16 +73,7 @@ exports.getOverview = async (_req, res) => {
 
 exports.getPeople = async (_req, res) => {
   try {
-    let people = await Salesperson.findAll({ order: [['id','ASC']] });
-    if (!people || people.length === 0) {
-      const seeds = [
-        { name: 'Asha Verma', email: 'asha@example.com' },
-        { name: 'Rohit Menon', email: 'rohit@example.com' },
-        { name: 'Kiran Rao', email: 'kiran@example.com' },
-        { name: 'Leela Nair', email: 'leela@example.com' },
-      ];
-      people = await Salesperson.bulkCreate(seeds, { returning: true });
-    }
+    const people = await Salesperson.findAll({ order: [['id', 'ASC']] });
     return res.json({ success: true, data: people });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to load salespeople' });

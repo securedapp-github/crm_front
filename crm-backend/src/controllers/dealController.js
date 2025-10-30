@@ -1,5 +1,6 @@
 const { Deal } = require('../models');
 const { Op } = require('sequelize');
+const { assignNextSalesperson } = require('../services/assignment');
   
   const STAGES = ['New','Proposal Sent','Negotiation','Closed Won','Closed Lost'];
 
@@ -35,29 +36,15 @@ exports.createDeal = async (req, res) => {
     }
     let deal = await Deal.create({ title, value, stage, contactId, ownerId, accountId, assignedTo });
 
-    // Optional round-robin assignment by fewest active deals
+    // Optional round-robin assignment
     if (autoAssign && !deal.assignedTo) {
-      const { Salesperson } = require('../models');
-      let people = await Salesperson.findAll({ order: [['id','ASC']] });
-      if (!people || people.length === 0) {
-        people = await Salesperson.bulkCreate([
-          { name: 'Asha Verma', email: 'asha@example.com' },
-          { name: 'Rohit Menon', email: 'rohit@example.com' },
-          { name: 'Kiran Rao', email: 'kiran@example.com' },
-          { name: 'Leela Nair', email: 'leela@example.com' },
-        ], { returning: true });
-      }
-      // Compute active deals per salesperson (exclude Closed Won/Lost)
-      const activeStages = ['New','Proposal Sent','Negotiation'];
-      const counts = [];
-      for (const sp of people) {
-        const c = await Deal.count({ where: { assignedTo: sp.id, stage: { [Op.in]: activeStages } } });
-        counts.push({ sp, count: c });
-      }
-      counts.sort((a, b) => (a.count - b.count) || (a.sp.id - b.sp.id));
-      const chosen = counts[0]?.sp || people[0];
-      if (chosen) {
-        await deal.update({ assignedTo: chosen.id });
+      try {
+        const chosen = await assignNextSalesperson();
+        if (chosen) {
+          await deal.update({ assignedTo: chosen.id });
+        }
+      } catch (assignErr) {
+        console.warn('Auto-assign skipped:', assignErr.message);
       }
     }
 

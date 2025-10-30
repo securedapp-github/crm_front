@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getPeople, getPipeline, moveDealStage } from '../../api/sales'
-import { getTasks, createTask } from '../../api/task'
+import { getTasks } from '../../api/task'
 
 const STAGES = ['New', 'In Progress', 'Proposal', 'Won', 'Lost']
 
@@ -9,13 +9,14 @@ export default function Pipeline() {
   const [salespeople, setSalespeople] = useState([])
   const [data, setData] = useState(() => STAGES.reduce((acc, s) => ({ ...acc, [s]: [] }), {}))
   const [tasks, setTasks] = useState([])
-  const [selectedDealId, setSelectedDealId] = useState('')
 
   const fetchAll = async () => {
     setLoading(true)
     try {
       const [peopleRes, pipeRes, tasksRes] = await Promise.all([getPeople(), getPipeline(), getTasks()])
-      setSalespeople((peopleRes.data?.data || []).slice(0, 4))
+      const rawPeople = Array.isArray(peopleRes.data?.data) ? peopleRes.data.data : []
+      const filteredPeople = rawPeople.filter(sp => !/@example\.com$/i.test(sp?.email || ''))
+      setSalespeople(filteredPeople)
       setData(pipeRes.data?.data || {})
       setTasks(tasksRes.data?.data || [])
     } finally {
@@ -58,28 +59,6 @@ export default function Pipeline() {
     }))
     return withDeal
   }, [tasks, allDeals])
-
-  const scheduleCall = async (days) => {
-    const idNum = Number(selectedDealId)
-    if (!idNum || Number.isNaN(idNum)) return
-    const deal = allDeals.find(d => d.id === idNum)
-    const due = new Date()
-    due.setDate(due.getDate() + Number(days || 0))
-    const title = 'Call follow-up'
-    const description = `Auto-scheduled from Call System (${days} day(s))`
-    try {
-      await createTask({
-        title,
-        description,
-        status: 'Open',
-        assignedTo: deal?.assignedTo || null,
-        relatedDealId: idNum,
-        dueDate: due.toISOString()
-      })
-      setSelectedDealId('')
-      await fetchAll()
-    } catch {}
-  }
 
   const onDragStart = (e, deal) => {
     e.dataTransfer.setData('text/plain', JSON.stringify({ id: deal.id }))
@@ -124,54 +103,21 @@ export default function Pipeline() {
         </button>
       </div>
 
-      {/* Call System */}
+      {/* Scheduled calls overview (read-only) */}
       <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-emerald-900">Connect Schedule</h3>
-            <p className="text-sm text-emerald-800">Quickly schedule follow-up calls for new leads.</p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <div>
-                <label className="block text-xs font-medium text-emerald-900">Select deal</label>
-                <select
-                  className="mt-1 min-w-[240px] rounded-md border border-emerald-300 bg-white px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                  value={selectedDealId}
-                  onChange={(e) => setSelectedDealId(e.target.value)}
-                >
-                  <option value="">Choose a New-stage deal…</option>
-                  {newStageDeals.map(d => (
-                    <option key={d.id} value={d.id}>{d.title}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => scheduleCall(2)}
-                  disabled={!selectedDealId}
-                  className={`rounded-md px-3 py-2 text-sm font-medium text-white ${selectedDealId ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-300 cursor-not-allowed'}`}
-                >
-                  Call in 2 days
-                </button>
-                <button
-                  onClick={() => scheduleCall(1)}
-                  disabled={!selectedDealId}
-                  className={`rounded-md px-3 py-2 text-sm font-medium text-white ${selectedDealId ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-300 cursor-not-allowed'}`}
-                >
-                  Call tomorrow
-                </button>
-                <button
-                  onClick={() => scheduleCall(7)}
-                  disabled={!selectedDealId}
-                  className={`rounded-md px-3 py-2 text-sm font-medium text-white ${selectedDealId ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-300 cursor-not-allowed'}`}
-                >
-                  Call in 1 week
-                </button>
-              </div>
-            </div>
+            <h3 className="text-lg font-semibold text-emerald-900">Upcoming Sales Calls</h3>
+            <p className="text-sm text-emerald-800">
+              Follow-up times are planned by the sales team. Review their upcoming commitments below.
+            </p>
+            <p className="mt-2 rounded-md border border-emerald-200 bg-white px-3 py-2 text-xs text-emerald-700">
+              Need a new follow-up? Ask a salesperson to schedule it from their Sales Dashboard.
+            </p>
           </div>
 
           <div className="w-full md:w-[420px]">
-            <h4 className="text-sm font-semibold text-emerald-900">Upcoming calls</h4>
+            <h4 className="text-sm font-semibold text-emerald-900">Next 8 scheduled calls</h4>
             <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-emerald-200 bg-white">
               {upcomingCalls.length === 0 ? (
                 <div className="px-3 py-2 text-sm text-emerald-800">No upcoming call tasks</div>

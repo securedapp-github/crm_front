@@ -53,6 +53,8 @@ export default function CampaignList({ autoOpenKey = 0 }) {
   const [scoringQuery, setScoringQuery] = useState('')
   const [scoringById, setScoringById] = useState({})
   const [scoringLoading, setScoringLoading] = useState(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [deletePending, setDeletePending] = useState(false)
   const { show } = useToast()
   const stagePills = {
     Planned: 'bg-slate-100 text-slate-700 border border-slate-200',
@@ -61,17 +63,19 @@ export default function CampaignList({ autoOpenKey = 0 }) {
     Completed: 'bg-indigo-100 text-indigo-700 border-indigo-200',
   }
 
-
-  const onDelete = async (id) => {
-    const confirmed = window.confirm('Delete this campaign?')
-    if (!confirmed) return
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return
+    setDeletePending(true)
     try {
-      await deleteCampaign(id)
-      show('Campaign deleted', 'success')
-      if (expanded === id) setExpanded(null)
-      fetchData()
+      await deleteCampaign(confirmDeleteId)
+      show('Campaign deleted successfully', 'error')
+      if (expanded === confirmDeleteId) setExpanded(null)
+      await fetchData()
     } catch (e) {
       show(e.response?.data?.message || 'Failed to delete campaign', 'error')
+    } finally {
+      setDeletePending(false)
+      setConfirmDeleteId(null)
     }
   }
   const selectStageBg = {
@@ -209,7 +213,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
       const newCampaign = res.data?.data
       setOpen(false)
       setForm(defaultForm())
-      show('Campaign created', 'success')
+      show('Campaign created successfully', 'success')
       await fetchData()
       if (newCampaign?.id) {
         setExpanded(newCampaign.id)
@@ -304,7 +308,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                   <td className="px-4 py-3 text-slate-700">{c.mobile || '-'}</td>
                   <td className="px-4 py-3 text-slate-700">{c.email || '-'}</td>
                   <td className="px-4 py-3">
-                    <button onClick={()=>onDelete(c.id)} className="text-xs px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50">
+                    <button onClick={()=>setConfirmDeleteId(c.id)} className="text-xs px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50">
                       Delete
                     </button>
                   </td>
@@ -501,6 +505,32 @@ export default function CampaignList({ autoOpenKey = 0 }) {
           <LeadScoring initialQuery={scoringQuery} />
         </div>
       )}
+
+      <Modal
+        open={confirmDeleteId != null}
+        onClose={() => { if (!deletePending) setConfirmDeleteId(null) }}
+        title="Delete Campaign"
+        actions={(
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setConfirmDeleteId(null)}
+              disabled={deletePending}
+              className="px-3 py-2 rounded-md border"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDelete}
+              disabled={deletePending}
+              className="px-3 py-2 rounded-md bg-rose-600 text-white"
+            >
+              {deletePending ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        )}
+      >
+        <p className="text-sm text-slate-600">This will remove the campaign permanently. Are you sure?</p>
+      </Modal>
 
     </div>
   )

@@ -7,6 +7,7 @@ export default function Navbar() {
   const location = useLocation()
   const [authed, setAuthed] = useState(false)
   const [name, setName] = useState('')
+  const [role, setRole] = useState('')
   const [checking, setChecking] = useState(true)
   const onDashboard = location.pathname.startsWith('/dashboard')
   const navLinks = useMemo(() => ([
@@ -23,15 +24,18 @@ export default function Navbar() {
         if (res.data?.authenticated) {
           setAuthed(true)
           setName(res.data?.user?.name || '')
+          setRole(res.data?.user?.role || '')
         } else {
           setAuthed(false)
           setName('')
+          setRole('')
         }
       })
       .catch(() => {
         if (!mounted) return
         setAuthed(false)
         setName('')
+        setRole('')
       })
       .finally(() => mounted && setChecking(false))
     return () => { mounted = false }
@@ -43,6 +47,7 @@ export default function Navbar() {
     } catch {}
     setAuthed(false)
     setName('')
+    setRole('')
     navigate('/')
   }
 
@@ -91,7 +96,7 @@ export default function Navbar() {
             <>
               <div className="hidden flex-col text-right text-xs text-slate-500 md:flex mr-2">
                 <span className="font-medium text-slate-700">{name ? `Hi, ${name}` : 'Welcome back'}</span>
-                <span>Account Owner</span>
+                <span>{role === 'sales' ? 'Sales Cloud' : 'Account Owner'}</span>
               </div>
               <nav className="flex items-center gap-2 md:hidden">
                 {navLinks.map((link) => {

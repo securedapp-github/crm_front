@@ -26,13 +26,15 @@ export default function DashboardHome() {
 
   useEffect(() => { fetchSummary() }, [])
 
-  const leadFunnelData = useMemo(() => (
-    summary?.funnel?.leadFunnel || []
-  ).map(x => ({ name: x.status, count: x.count })), [summary])
+  const leadFunnelData = useMemo(() => {
+    if (!summary) return []
+    return (summary.funnel?.leadFunnel || []).map(x => ({ name: x.status, count: x.count }))
+  }, [summary])
 
-  const pipelineData = useMemo(() => (
-    summary?.sales?.pipelineOverview || []
-  ).map(x => ({ name: x.stage, count: x.count })), [summary])
+  const pipelineData = useMemo(() => {
+    if (!summary) return []
+    return (summary.sales?.pipelineOverview || []).map(x => ({ name: x.stage, count: x.count }))
+  }, [summary])
 
   const captureStats = useMemo(() => {
     const active = campaigns.filter(c => c.status === 'Active').length
@@ -42,35 +44,18 @@ export default function DashboardHome() {
   }, [campaigns, leadFunnelData])
 
   const scoringStats = useMemo(() => {
-    if (summary?.scoring) {
-      const { hotCampaigns = 0, averageScore = 0, gradeDistribution = [] } = summary.scoring
-      const ordered = ['A', 'B', 'C', 'D', 'E', 'Unscored']
-        .map(grade => {
-          const found = gradeDistribution.find(item => item.grade === grade)
-          if (!found) return null
-          return { grade, count: found.count }
-        })
-        .filter(Boolean)
-      return {
-        hotCount: hotCampaigns,
-        average: averageScore,
-        grades: ordered,
-        source: 'campaigns'
-      }
-    }
-
     const hotDeals = deals.filter(d => d.isHot).length
     const avgScore = deals.length
       ? Math.round(deals.reduce((sum, d) => sum + (typeof d.score === 'number' ? d.score : 0), 0) / deals.length)
       : 0
-    const baseGrades = ['A', 'B', 'C']
-    const gradeCounts = baseGrades
-      .map(grade => ({ grade, count: deals.filter(d => d.grade === grade).length }))
-      .filter(item => item.count > 0)
+    const gradeCounts = ['A', 'B', 'C'].map(grade => ({
+      grade,
+      count: deals.filter(d => d.grade === grade).length,
+    }))
     const ungraded = deals.filter(d => !d.grade).length
     if (ungraded) gradeCounts.push({ grade: 'Unscored', count: ungraded })
-    return { hotCount: hotDeals, average: avgScore, grades: gradeCounts, source: 'deals' }
-  }, [deals, summary])
+    return { hotDeals, avgScore, gradeCounts }
+  }, [deals])
 
   const leadStats = useMemo(() => ({
     total: summary?.kpis?.totalLeads ?? 0,
@@ -119,9 +104,9 @@ export default function DashboardHome() {
             </div>
             <div className="rounded-2xl bg-white/15 p-4 backdrop-blur">
               <div className="text-xs uppercase tracking-wide text-indigo-100/80">Scoring</div>
-              <div className="mt-2 text-3xl font-semibold">{scoringStats.hotCount}</div>
-              <p className="mt-1 text-xs text-indigo-100/70">Hot {scoringStats.source === 'campaigns' ? 'campaigns' : 'deals'} flagged</p>
-              <p className="mt-2 text-[11px] text-indigo-100/60">Average score: {scoringStats.average}</p>
+              <div className="mt-2 text-3xl font-semibold">{scoringStats.hotDeals}</div>
+              <p className="mt-1 text-xs text-indigo-100/70">Hot opportunities flagged</p>
+              <p className="mt-2 text-[11px] text-indigo-100/60">Average deal score: {scoringStats.avgScore}</p>
             </div>
             <div className="rounded-2xl bg-white/15 p-4 backdrop-blur">
               <div className="text-xs uppercase tracking-wide text-indigo-100/80">Leads</div>
@@ -195,20 +180,20 @@ export default function DashboardHome() {
             </div>
             <div className="mt-6 space-y-4">
               <div className="rounded-2xl bg-indigo-50/60 p-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Hot {scoringStats.source === 'campaigns' ? 'Campaigns' : 'Deals'}</div>
-                <div className="mt-1 text-2xl font-semibold text-indigo-900">{scoringStats.hotCount}</div>
-                <p className="text-xs text-indigo-700/80">Average score {scoringStats.average}</p>
+                <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Hot Deals</div>
+                <div className="mt-1 text-2xl font-semibold text-indigo-900">{scoringStats.hotDeals}</div>
+                <p className="text-xs text-indigo-700/80">Average score {scoringStats.avgScore}</p>
               </div>
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Grade distribution</div>
                 <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                  {scoringStats.grades.map(item => (
+                  {scoringStats.gradeCounts.map(item => (
                     <li key={item.grade} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
                       <span className="font-medium">Grade {item.grade}</span>
-                      <span className="text-xs text-slate-500">{item.count} {scoringStats.source === 'campaigns' ? 'campaigns' : 'deals'}</span>
+                      <span className="text-xs text-slate-500">{item.count} deals</span>
                     </li>
                   ))}
-                  {!scoringStats.grades.length && (
+                  {!scoringStats.gradeCounts.length && (
                     <li className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-center text-xs text-slate-400">No scored deals yet</li>
                   )}
                 </ul>

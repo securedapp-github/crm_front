@@ -1,5 +1,4 @@
 const { Deal, Campaign, Activity, User, Contact, Salesperson } = require('../models');
-const { computeCampaignStrength } = require('../services/campaignScoring');
 const { Op } = require('sequelize');
 
 // GET /api/analytics/summary
@@ -55,6 +54,11 @@ exports.getSummary = async (req, res) => {
       Contact.findAll({ where: contactWhere })
     ]);
 
+    const realPeople = people.filter((p) => {
+      const email = String(p?.email || '').toLowerCase();
+      return email && !email.endsWith('@example.com');
+    });
+
     // KPIs derived from deals (each deal represents a qualified lead in the new flow)
     const totalLeads = deals.length;
     const hotLeads = deals.filter(d => d.isHot).length;
@@ -76,52 +80,10 @@ exports.getSummary = async (req, res) => {
     const dealStages = ['New','Proposal Sent','Negotiation','Closed Won','Closed Lost']
       .map(stage => ({ stage, count: deals.filter(d => d.stage === stage).length }));
 
-    const campaignScoring = campaigns.map(campaign => {
-      const scoringInputs = {
-        channel: campaign.channel,
-        objective: campaign.objective,
-        audienceSegment: campaign.audienceSegment,
-        budget: campaign.budget,
-        expectedSpend: campaign.expectedSpend,
-        priority: campaign.priority,
-        status: campaign.status,
-        campaignStage: campaign.status,
-        externalCampaignId: campaign.externalCampaignId,
-        utmSource: campaign.utmSource,
-        utmMedium: campaign.utmMedium,
-        utmCampaign: campaign.utmCampaign,
-        complianceChecklist: campaign.complianceChecklist,
-        linkedCompanyDomain: campaign.accountDomain || null,
-      };
-      const result = computeCampaignStrength(scoringInputs);
-      return {
-        id: campaign.id,
-        name: campaign.name,
-        score: result.total,
-        grade: result.grade,
-        isHot: result.isHot,
-      };
-    });
-
     const topCampaignsByLeads = campaigns
       .map(c => ({ id: c.id, name: c.name, count: Number(c.leadsGenerated || 0) }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-
-    const hotCampaigns = campaignScoring.filter(c => c.isHot).length;
-    const averageCampaignScore = campaignScoring.length
-      ? Math.round(campaignScoring.reduce((sum, c) => sum + Number(c.score || 0), 0) / campaignScoring.length)
-      : 0;
-
-    const gradeOrder = ['A', 'B', 'C', 'D', 'E'];
-    const gradeCountsMap = campaignScoring.reduce((acc, c) => {
-      const key = gradeOrder.includes(c.grade) ? c.grade : 'Unscored';
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
-    const gradeDistribution = [...gradeOrder, 'Unscored']
-      .filter(grade => gradeCountsMap[grade])
-      .map(grade => ({ grade, count: gradeCountsMap[grade] }));
 
     const engagement = activities.reduce((acc, activity) => {
       acc[activity.type] = (acc[activity.type] || 0) + 1;
@@ -148,7 +110,7 @@ exports.getSummary = async (req, res) => {
       };
     }).sort((a, b) => (b.dealsWon - a.dealsWon) || (b.dealsOwned - a.dealsOwned)).slice(0, 10);
 
-    const leadsPerSalesperson = people.map(p => {
+    const leadsPerSalesperson = realPeople.map(p => {
       const assignedDeals = deals.filter(d => d.assignedTo === p.id);
       return {
         id: p.id,
@@ -157,7 +119,7 @@ exports.getSummary = async (req, res) => {
       };
     });
 
-    const dealsBySalesperson = people.map(p => {
+    const dealsBySalesperson = realPeople.map(p => {
       const assignedDeals = deals.filter(d => d.assignedTo === p.id);
       const wonDeals = assignedDeals.filter(d => d.stage === 'Closed Won');
       return {
@@ -197,7 +159,6 @@ exports.getSummary = async (req, res) => {
       kpis: { totalLeads, hotLeads, convertedLeads, conversionRate, revenueWon },
       funnel: { leadFunnel, dealStages },
       campaigns: { topCampaignsByLeads },
-      scoring: { hotCampaigns, averageScore: averageCampaignScore, gradeDistribution },
       team,
       engagement,
       forecast: { next30daysRevenue: wonLast30 },

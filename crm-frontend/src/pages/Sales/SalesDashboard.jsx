@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getPipeline } from '../../api/sales'
 import { getTasks, updateTask, createTask } from '../../api/task'
+import Modal from '../../components/Modal'
 
 export default function SalesDashboard() {
   const navigate = useNavigate()
@@ -9,6 +10,9 @@ export default function SalesDashboard() {
   const [data, setData] = useState({})
   const [tasks, setTasks] = useState([])
   const [scheduleDealId, setScheduleDealId] = useState('')
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [calendarDate, setCalendarDate] = useState('')
+  const [calendarTime, setCalendarTime] = useState('')
   const user = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}') } catch { return {} }
   }, [])
@@ -50,23 +54,47 @@ export default function SalesDashboard() {
     } catch {}
   }
 
-  const scheduleFollowUp = async (days) => {
+  const openCalendar = () => {
+    if (!scheduleDealId) return
+    const now = new Date()
+    setCalendarDate(now.toISOString().slice(0, 10))
+    setCalendarTime(now.toISOString().slice(11, 16))
+    setCalendarOpen(true)
+  }
+
+  const scheduleFollowUpQuick = async (days) => {
     const idNum = Number(scheduleDealId)
     if (!idNum) return
     const due = new Date()
     due.setDate(due.getDate() + Number(days || 0))
+    await createFollowUpTask(idNum, due, `Scheduled from Quick picker (+${days}d)`) // eslint-disable-line no-use-before-define
+  }
+
+  const createFollowUpTask = async (dealId, dueDateObj, description) => {
     try {
       await createTask({
         title: 'Follow-up Call',
-        description: `Scheduled from Sales Dashboard (+${days}d)`,
+        description,
         status: 'Open',
         assignedTo: myId || null,
-        relatedDealId: idNum,
-        dueDate: due.toISOString()
+        relatedDealId: dealId,
+        dueDate: dueDateObj.toISOString()
       })
       setScheduleDealId('')
       await fetchAll()
     } catch {}
+  }
+
+  const onCalendarSubmit = async () => {
+    if (!scheduleDealId || !calendarDate) return
+    const datePart = calendarDate
+    const timePart = calendarTime || '09:00'
+    const due = new Date(`${datePart}T${timePart}:00`)
+    if (Number.isNaN(due.getTime())) {
+      return
+    }
+    await createFollowUpTask(Number(scheduleDealId), due, 'Scheduled from Sales Dashboard calendar')
+    setCalendarOpen(false)
   }
 
   return (
@@ -89,9 +117,10 @@ export default function SalesDashboard() {
                 <option value="">Select your deal…</option>
                 {myDeals.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
               </select>
-              <button disabled={!scheduleDealId} onClick={()=>scheduleFollowUp(1)} className={`rounded-md px-3 py-2 text-sm text-white ${scheduleDealId? 'bg-emerald-600 hover:bg-emerald-700':'bg-emerald-300 cursor-not-allowed'}`}>Tomorrow</button>
-              <button disabled={!scheduleDealId} onClick={()=>scheduleFollowUp(2)} className={`rounded-md px-3 py-2 text-sm text-white ${scheduleDealId? 'bg-emerald-600 hover:bg-emerald-700':'bg-emerald-300 cursor-not-allowed'}`}>In 2 days</button>
-              <button disabled={!scheduleDealId} onClick={()=>scheduleFollowUp(7)} className={`rounded-md px-3 py-2 text-sm text-white ${scheduleDealId? 'bg-emerald-600 hover:bg-emerald-700':'bg-emerald-300 cursor-not-allowed'}`}>In 1 week</button>
+              <button disabled={!scheduleDealId} onClick={()=>scheduleFollowUpQuick(1)} className={`rounded-md px-3 py-2 text-sm text-white ${scheduleDealId? 'bg-emerald-600 hover:bg-emerald-700':'bg-emerald-300 cursor-not-allowed'}`}>Tomorrow</button>
+              <button disabled={!scheduleDealId} onClick={()=>scheduleFollowUpQuick(2)} className={`rounded-md px-3 py-2 text-sm text-white ${scheduleDealId? 'bg-emerald-600 hover:bg-emerald-700':'bg-emerald-300 cursor-not-allowed'}`}>In 2 days</button>
+              <button disabled={!scheduleDealId} onClick={()=>scheduleFollowUpQuick(7)} className={`rounded-md px-3 py-2 text-sm text-white ${scheduleDealId? 'bg-emerald-600 hover:bg-emerald-700':'bg-emerald-300 cursor-not-allowed'}`}>In 1 week</button>
+              <button disabled={!scheduleDealId} onClick={openCalendar} className={`rounded-md px-3 py-2 text-sm font-medium ${scheduleDealId? 'border border-emerald-500 text-emerald-700 hover:bg-emerald-50':'border border-emerald-200 text-emerald-300 cursor-not-allowed'}`}>Pick date &amp; time…</button>
             </div>
           </div>
           <div className="text-sm text-slate-600">Logged in as <span className="font-medium">{user?.name || 'Sales Person'}</span></div>
@@ -114,7 +143,7 @@ export default function SalesDashboard() {
               </thead>
               <tbody className="divide-y">
                 {myDeals.length === 0 ? (
-                  <tr><td className="px-3 py-3 text-slate-500" colSpan={4}>No assigned leads</td></tr>
+                  <tr><td className="px-3 py-3 text-slate-500" colSpan={4}>No deals assigned to you yet. Please add leads to get started.</td></tr>
                 ) : myDeals.map(d => (
                   <tr key={d.id}>
                     <td className="px-3 py-2 text-slate-900">{d.title}</td>
@@ -157,6 +186,40 @@ export default function SalesDashboard() {
           </div>
         </section>
       </div>
+
+      <Modal
+        open={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+        title="Schedule follow-up"
+        actions={(
+          <div className="flex items-center gap-2">
+            <button onClick={() => setCalendarOpen(false)} className="rounded-md border px-3 py-2">Cancel</button>
+            <button onClick={onCalendarSubmit} className="rounded-md bg-emerald-600 px-4 py-2 text-white">Save</button>
+          </div>
+        )}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+            <input
+              type="date"
+              className="w-full rounded-md border px-3 py-2"
+              value={calendarDate}
+              onChange={(e)=>setCalendarDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Time</label>
+            <input
+              type="time"
+              className="w-full rounded-md border px-3 py-2"
+              value={calendarTime}
+              onChange={(e)=>setCalendarTime(e.target.value)}
+            />
+          </div>
+          <p className="text-xs text-slate-500">This follow-up will appear for admins under Upcoming Sales Calls.</p>
+        </div>
+      </Modal>
     </div>
   )
 }

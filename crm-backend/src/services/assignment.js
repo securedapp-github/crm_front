@@ -11,7 +11,7 @@ async function assignNextSalesperson({ transaction } = {}) {
   const outer = transaction || await sequelize.transaction();
   const manageTx = !transaction;
   try {
-    let people = await Salesperson.findAll({
+    const people = await Salesperson.findAll({
       order: [
         ['lastAssignedAt', 'ASC'],
         ['assignedLeadsCount', 'ASC'],
@@ -21,12 +21,7 @@ async function assignNextSalesperson({ transaction } = {}) {
     });
 
     if (!people || people.length === 0) {
-      people = await Salesperson.bulkCreate([
-        { name: 'Asha Verma', email: 'asha@example.com' },
-        { name: 'Rohit Menon', email: 'rohit@example.com' },
-        { name: 'Kiran Rao', email: 'kiran@example.com' },
-        { name: 'Leela Nair', email: 'leela@example.com' }
-      ], { returning: true, transaction: outer });
+      throw new Error('No salespeople available for assignment');
     }
 
     const chosen = people[0];
