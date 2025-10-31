@@ -35,6 +35,10 @@ const Deal = sequelize.define('Deal', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
+  notes: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
   // Scoring fields for qualification/prioritisation
   score: {
     type: DataTypes.INTEGER,

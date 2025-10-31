@@ -59,11 +59,15 @@ exports.updateDeal = async (req, res) => {
   try {
     const deal = await Deal.findByPk(req.params.id);
     if (!deal) return res.status(404).json({ success: false, message: 'Deal not found' });
-    const { title, value, stage, contactId, ownerId, accountId } = req.body;
+    const { title, value, stage, contactId, ownerId, accountId, notes } = req.body;
     if (stage && !STAGES.includes(stage)) {
       return res.status(400).json({ success: false, message: 'Invalid stage' });
     }
-    await deal.update({ title, value, stage, contactId, ownerId, accountId });
+    const updates = { title, value, stage, contactId, ownerId, accountId, notes };
+    Object.keys(updates).forEach((key) => {
+      if (typeof updates[key] === 'undefined') delete updates[key];
+    });
+    await deal.update(updates);
     res.json({ success: true, data: deal });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to update deal' });

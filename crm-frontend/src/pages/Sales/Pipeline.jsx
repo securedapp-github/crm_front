@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getPeople, getPipeline, moveDealStage } from '../../api/sales'
+import { getPeople, getPipeline } from '../../api/sales'
 import { getTasks } from '../../api/task'
 
 const STAGES = ['New', 'In Progress', 'Proposal', 'Won', 'Lost']
@@ -60,28 +60,18 @@ export default function Pipeline() {
     return withDeal
   }, [tasks, allDeals])
 
-  const onDragStart = (e, deal) => {
-    e.dataTransfer.setData('text/plain', JSON.stringify({ id: deal.id }))
-  }
-
-  const onDrop = async (e, stage) => {
-    try {
-      const payload = JSON.parse(e.dataTransfer.getData('text/plain'))
-      await moveDealStage(payload.id, stage)
-      await fetchAll()
-    } catch {}
-  }
-
-  const onDragOver = (e) => e.preventDefault()
-
   const perSalesperson = useMemo(() => {
     return salespeople.map(sp => {
       const byStage = STAGES.map(stage => {
         const items = (data[stage] || []).filter(d => d.assignedTo === sp.id)
         const amount = items.reduce((sum, d) => sum + Number(d.value || 0), 0)
-        return { stage, items, amount }
+        const notes = items.filter(d => d.notes)
+        return { stage, items, amount, notes }
       })
-      return { sp, byStage }
+      const stageNotes = byStage
+        .filter(col => col.notes.length > 0)
+        .map(col => ({ stage: col.stage, deals: col.notes }))
+      return { sp, byStage, stageNotes }
     })
   }, [salespeople, data])
 
@@ -170,8 +160,6 @@ export default function Pipeline() {
                 <div
                   key={col.stage}
                   className="px-3 py-3 border-r last:border-r-0 bg-slate-50/30"
-                  onDrop={(e) => onDrop(e, col.stage)}
-                  onDragOver={onDragOver}
                 >
                   <div className="min-h-[84px] space-y-2">
                     {col.items.map(deal => {
@@ -184,9 +172,7 @@ export default function Pipeline() {
                       return (
                         <div
                           key={deal.id}
-                          className="rounded-lg border bg-white px-3 py-2 cursor-move hover:shadow-md transition-all"
-                          draggable
-                          onDragStart={(e) => onDragStart(e, deal)}
+                          className="rounded-lg border bg-white px-3 py-2 transition-all"
                           title={deal.title}
                         >
                           <div className="flex items-center justify-between">
@@ -197,12 +183,35 @@ export default function Pipeline() {
                       )
                     })}
                     {col.items.length === 0 && (
-                      <div className="text-xs text-slate-400 text-center py-5 italic">Drop here</div>
+                      <div className="text-xs text-slate-400 text-center py-5 italic">No deals</div>
                     )}
                   </div>
                 </div>
               ))}
             </div>
+            {row.stageNotes.length > 0 && (
+              <div className="border-t px-4 py-4 bg-slate-50/50">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Notes for {row.sp.name}</div>
+                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  {row.stageNotes.map(stageGroup => (
+                    <div key={stageGroup.stage} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                      <div className="text-sm font-semibold text-slate-800">{stageGroup.stage}</div>
+                      <ul className="mt-2 space-y-2 text-xs text-slate-600">
+                        {stageGroup.deals.map(deal => (
+                          <li key={deal.id} className="rounded-md border border-slate-100 bg-slate-50/60 p-2">
+                            <div className="font-medium text-slate-700 truncate">{deal.title || `Deal #${deal.id}`}</div>
+                            <p className="mt-1 whitespace-pre-wrap text-slate-600">{deal.notes}</p>
+                            {deal.updatedAt && (
+                              <span className="mt-1 block text-[10px] text-slate-400">Updated {new Date(deal.updatedAt).toLocaleString()}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

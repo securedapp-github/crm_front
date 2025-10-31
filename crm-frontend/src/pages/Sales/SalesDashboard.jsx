@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getPipeline } from '../../api/sales'
+import { getPipeline, moveDealStage } from '../../api/sales'
 import { getTasks, updateTask, createTask } from '../../api/task'
+import { updateDealNotes } from '../../api/deal'
 import Modal from '../../components/Modal'
+
+const STAGES = ['New', 'In Progress', 'Proposal', 'Won', 'Lost']
 
 export default function SalesDashboard() {
   const navigate = useNavigate()
@@ -13,6 +16,10 @@ export default function SalesDashboard() {
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [calendarDate, setCalendarDate] = useState('')
   const [calendarTime, setCalendarTime] = useState('')
+  const [noteDealId, setNoteDealId] = useState('')
+  const [noteText, setNoteText] = useState('')
+  const [noteSaving, setNoteSaving] = useState(false)
+
   const user = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}') } catch { return {} }
   }, [])
@@ -32,6 +39,29 @@ export default function SalesDashboard() {
   const allDeals = useMemo(() => (Object.values(data || {}).flat() || []), [data])
   const myDeals = useMemo(() => (allDeals.filter(d => Number(d.assignedTo) === myId)), [allDeals, myId])
 
+  const stageTotals = useMemo(() => {
+    return STAGES.map(stage => {
+      const items = (data[stage] || []).filter(d => Number(d.assignedTo) === myId)
+      const amount = items.reduce((sum, deal) => sum + Number(deal.value || 0), 0)
+      return { stage, count: items.length, amount }
+    })
+  }, [data, myId])
+
+  const stageColumns = useMemo(() => {
+    return STAGES.map(stage => {
+      const items = (data[stage] || []).filter(d => Number(d.assignedTo) === myId)
+      return { stage, items }
+    })
+  }, [data, myId])
+
+
+  const stageNotes = useMemo(() => stageColumns.map(col => ({
+    stage: col.stage,
+    items: col.items.filter(d => d.notes)
+  })), [stageColumns])
+
+  const hasStageNotes = useMemo(() => stageNotes.some(col => col.items.length > 0), [stageNotes])
+
   const myTasks = useMemo(() => {
     const setDealIds = new Set(myDeals.map(d => d.id))
     return (tasks || []).filter(t => t.relatedDealId && setDealIds.has(t.relatedDealId))
@@ -47,11 +77,62 @@ export default function SalesDashboard() {
 
   const dealTitle = (id) => myDeals.find(d => d.id === id)?.title || `Deal #${id}`
 
+  const initials = (name) =>
+    (name || '')
+      .split(' ')
+      .map((w) => w[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'SP'
+
+  useEffect(() => {
+    if (!noteDealId) {
+      setNoteText('')
+      return
+    }
+    const selected = myDeals.find(d => d.id === Number(noteDealId))
+    setNoteText(selected?.notes || '')
+  }, [noteDealId, myDeals])
+
   const setStatus = async (task, status) => {
     try {
       await updateTask(task.id, { status })
       await fetchAll()
     } catch {}
+  }
+
+  const friendlyTitle = (deal) => {
+    const pattern = /^Campaign Lead -\s*(.+?)\s*Opportunity$/i
+    const match = typeof deal.title === 'string' ? deal.title.match(pattern) : null
+    if (match && match[1]) return match[1]
+    return deal.title
+  }
+
+  const onDragStart = (e, deal) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ id: deal.id }))
+  }
+
+  const onDrop = async (e, stage) => {
+    try {
+      const payload = JSON.parse(e.dataTransfer.getData('text/plain'))
+      if (!payload?.id) return
+      await moveDealStage(payload.id, stage)
+      await fetchAll()
+    } catch {}
+  }
+
+  const onDragOver = (e) => e.preventDefault()
+
+  const saveNotes = async () => {
+    if (!noteDealId) return
+    setNoteSaving(true)
+    try {
+      await updateDealNotes(Number(noteDealId), noteText)
+      await fetchAll()
+    } finally {
+      setNoteSaving(false)
+    }
   }
 
   const openCalendar = () => {
@@ -127,7 +208,135 @@ export default function SalesDashboard() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-900">My Pipeline</h3>
+          <p className="text-xs text-slate-500">Drag deals across stages as you progress them</p>
+        </div>
+        <div className="rounded-xl border bg-white shadow-sm">
+          <div className="grid grid-cols-6 text-sm">
+            <div className="col-span-1 border-r px-4 py-3 font-medium text-slate-700">Stage</div>
+            {stageTotals.map(item => (
+              <div key={item.stage} className="flex items-center justify-between border-r px-4 py-3 text-slate-700 last:border-r-0">
+                <span>{item.stage}</span>
+                <span className="text-xs text-slate-500">{item.count} • ₹{Number(item.amount || 0).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-white shadow-sm">
+          <div className="grid grid-cols-6">
+            <div className="col-span-1 border-r px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
+                  {initials(user?.name)}
+                </span>
+                <div className="truncate text-sm font-medium text-slate-900">{user?.name || 'You'}</div>
+              </div>
+            </div>
+            {stageColumns.map(col => (
+              <div
+                key={col.stage}
+                className="border-r px-3 py-3 last:border-r-0 bg-slate-50/30"
+                onDragOver={onDragOver}
+                onDrop={(e) => onDrop(e, col.stage)}
+              >
+                <div className="min-h-[96px] space-y-2">
+                  {col.items.map(deal => (
+                    <div
+                      key={deal.id}
+                      className="cursor-move rounded-lg border bg-white px-3 py-2 text-sm shadow-sm hover:shadow-md transition"
+                      draggable
+                      onDragStart={(e) => onDragStart(e, deal)}
+                      title={deal.title}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="truncate font-medium text-slate-900">{friendlyTitle(deal)}</div>
+                        <div className="text-xs text-slate-600">₹{Number(deal.value || 0).toLocaleString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {col.items.length === 0 && (
+                    <div className="py-6 text-center text-xs italic text-slate-400">Drop here</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-xl border bg-white shadow-sm">
+          <div className="border-b px-4 py-3 text-sm font-semibold text-slate-900">Your Notes</div>
+          {hasStageNotes ? (
+            <div className="space-y-4 px-4 py-4">
+              {stageNotes.filter(col => col.items.length).map(col => (
+                <div key={col.stage} className="space-y-2">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{col.stage}</div>
+                  <ul className="space-y-2 text-xs text-slate-600">
+                    {col.items.map(deal => (
+                      <li key={deal.id} className="rounded-md border border-slate-200 bg-slate-50/80 p-3">
+                        <div className="font-medium text-slate-700 truncate">{friendlyTitle(deal)}</div>
+                        <p className="mt-1 whitespace-pre-wrap text-slate-600">{deal.notes}</p>
+                        {deal.updatedAt && (
+                          <span className="mt-1 block text-[10px] text-slate-400">Updated {new Date(deal.updatedAt).toLocaleString()}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="px-4 py-6 text-xs text-slate-400">Add a note above to have it appear here for quick reference.</div>
+          )}
+        </div>
+        {!myDeals.length && (
+          <div className="text-xs text-slate-500">You have no assigned deals yet. Capture or convert leads to populate your pipeline.</div>
+        )}
+      </section>
+
+      <section className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-slate-900">Deal Notes</h3>
+            <p className="text-xs text-slate-500">Share progress updates visible to admins.</p>
+          </div>
+        </div>
+        <div className="mt-4 space-y-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <select
+              className="min-w-[240px] rounded-md border px-3 py-2 text-sm"
+              value={noteDealId}
+              onChange={(e) => setNoteDealId(e.target.value)}
+            >
+              <option value="">Select deal to update…</option>
+              {myDeals.map(d => (
+                <option key={d.id} value={d.id}>{d.title}</option>
+              ))}
+            </select>
+            <span className="text-xs text-slate-500">Notes show in admin dashboard under your name.</span>
+          </div>
+          <textarea
+            className="w-full rounded-md border px-3 py-2 text-sm"
+            rows={4}
+            placeholder="Type your latest update…"
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            disabled={!noteDealId || noteSaving}
+          />
+          <div className="flex justify-end">
+            <button
+              onClick={saveNotes}
+              disabled={!noteDealId || noteSaving}
+              className={`rounded-md px-4 py-2 text-sm font-medium text-white ${(!noteDealId || noteSaving) ? 'bg-indigo-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+            >
+              {noteSaving ? 'Saving…' : 'Save Update'}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Assigned Leads */}
         <section className="rounded-xl border bg-white p-4 shadow-sm">
           <h3 className="text-base font-semibold text-slate-900">Assigned Leads</h3>
@@ -185,7 +394,7 @@ export default function SalesDashboard() {
             )}
           </div>
         </section>
-      </div>
+      </section>
 
       <Modal
         open={calendarOpen}
