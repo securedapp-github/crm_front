@@ -44,27 +44,32 @@ export default function Navbar() {
   const onLogout = async () => {
     try {
       await logout()
-    } catch {}
+    } catch { }
     setAuthed(false)
     setName('')
     setRole('')
     navigate('/')
   }
 
+  const dashPath = role === 'sales' ? '/dashboard/sales-dashboard' : '/dashboard'
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/90 shadow-sm backdrop-blur-lg">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-6 px-4 py-3 md:px-8">
-        <div className="flex items-center gap-3 text-lg font-semibold text-slate-900 md:text-xl">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">🔐</span>
-            <div>
-              <p className="leading-none">SecureCRM</p>
-              <p className="text-xs font-normal text-slate-500">Customer Intelligence Hub</p>
-            </div>
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 md:gap-6 md:px-8 flex-nowrap">
+        <div className="flex min-w-0 flex-1 items-center gap-3 text-slate-900">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">🔐</span>
+          <div className="text-base font-semibold md:text-lg min-w-0">
+            <span className="block font-semibold whitespace-nowrap">
+              SecureCRM
+            </span>
+            <span className="block text-xs font-normal text-slate-500 md:text-sm">
+              Customer Relationship Management
+            </span>
+
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-sm flex-shrink-0">
           <nav className="hidden items-center gap-2 font-medium text-slate-600 md:flex">
             {navLinks.map((link) => {
               if (link.protected && !authed) return null
@@ -73,11 +78,10 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   to={link.href}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 transition ${
-                    active
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 transition ${active
                       ? 'border-indigo-500 bg-indigo-50 text-indigo-600 shadow-sm'
                       : 'border-transparent hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600'
-                  }`}
+                    }`}
                 >
                   {link.label}
                 </Link>
@@ -89,8 +93,16 @@ export default function Navbar() {
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 md:hidden"
           >
             <span>←</span>
-            <span>Home</span>
+            <span className="hidden sm:inline">Home</span>
           </button>
+          {authed && (
+            <button
+              onClick={() => navigate(dashPath)}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 md:hidden"
+            >
+              <span>Dashboard</span>
+            </button>
+          )}
 
           {authed ? (
             <>
@@ -98,25 +110,7 @@ export default function Navbar() {
                 <span className="font-medium text-slate-700">{name ? `Hi, ${name}` : 'Welcome back'}</span>
                 <span>{role === 'sales' ? 'Sales Cloud' : 'Account Owner'}</span>
               </div>
-              <nav className="flex items-center gap-2 md:hidden">
-                {navLinks.map((link) => {
-                  if (link.protected && !authed) return null
-                  const active = location.pathname === link.href || (link.href !== '/' && location.pathname.startsWith(link.href))
-                  return (
-                    <Link
-                      key={link.href}
-                      to={link.href}
-                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 transition ${
-                        active
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-600 shadow-sm'
-                          : 'border-transparent hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600'
-                      }`}
-                    >
-                      {link.label}
-                    </Link>
-                  )
-                })}
-              </nav>
+              {/* Hide extra nav links on small screens to avoid wrapping */}
               <button onClick={onLogout} className="inline-flex items-center gap-2 rounded-lg bg-rose-500 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-rose-600">
                 Logout
               </button>

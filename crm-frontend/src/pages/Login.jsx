@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { loginUser, loginSales } from '../api/auth'
+import { loginUser, loginSales, requestForgotPasswordOtp, resetPasswordWithOtp, resendForgotOtp } from '../api/auth'
 import Modal from '../components/Modal'
 
 export default function Login() {
@@ -62,9 +62,16 @@ export default function Login() {
         setFpMsg('Please enter your email address')
         return
       }
-      // In a real implementation, you would send a request to the backend
-      // to initiate the password reset process and send an OTP
-      setFpStep(2)
+      setFpLoading(true)
+      try {
+        const res = await requestForgotPasswordOtp(fpEmail)
+        setFpMsg(res.data?.message || 'OTP sent to your email')
+        setFpStep(2)
+      } catch (err) {
+        setFpMsg(err.response?.data?.error || err.response?.data?.message || 'Failed to send OTP')
+      } finally {
+        setFpLoading(false)
+      }
       return
     }
     
@@ -73,7 +80,6 @@ export default function Login() {
         setFpMsg('Please enter the OTP')
         return
       }
-      // In a real implementation, you would verify the OTP with the backend
       setFpMsg('')
       setFpStep(3)
       return
@@ -84,28 +90,33 @@ export default function Login() {
         setFpMsg('Password must be at least 6 characters')
         return
       }
-      // In a real implementation, you would send the new password to the backend
       setFpLoading(true)
       try {
-        // Simulate API call
-        setTimeout(() => {
-          setFpLoading(false)
-          setFpStep(4)
-        }, 500)
-      } catch (e) {
-        setFpMsg('Something went wrong')
+        const res = await resetPasswordWithOtp({ email: fpEmail, otp: fpOtp, password: fpNew })
+        setFpMsg(res.data?.message || 'Password reset successful')
+        setFpStep(4)
+      } catch (err) {
+        setFpMsg(err.response?.data?.error || err.response?.data?.message || 'Failed to reset password')
+      } finally {
         setFpLoading(false)
       }
     }
   }
 
-  const onResendOTP = () => {
+  const onResendOTP = async () => {
+    if (!fpEmail) {
+      setFpMsg('Enter your email first')
+      return
+    }
     setResendLoading(true)
-    setFpMsg('OTP resent successfully!')
-    // In a real implementation, you would call an API to resend the OTP
-    setTimeout(() => {
+    try {
+      const res = await resendForgotOtp(fpEmail)
+      setFpMsg(res.data?.message || 'OTP resent successfully')
+    } catch (err) {
+      setFpMsg(err.response?.data?.error || err.response?.data?.message || 'Failed to resend OTP')
+    } finally {
       setResendLoading(false)
-    }, 1000)
+    }
   }
 
   return (

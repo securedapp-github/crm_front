@@ -1,7 +1,7 @@
 const { User, Salesperson } = require('../models');
 const { Op } = require('sequelize');
 const { generateOTP, sendOTPEmail } = require('../utils/otp');
-const { sendWelcomeEmail, sendPasswordResetEmail } = require('../utils/email');
+const { sendWelcomeEmail, sendPasswordResetEmail, sendSalesIdEmail } = require('../utils/email');
 const crypto = require('crypto');
 
 // In-memory storage for OTPs (in production, use Redis or database)
@@ -160,6 +160,96 @@ exports.login = async (req, res) => {
   }
 };
 
+// POST /api/auth/forgot-password-otp
+exports.requestForgotPasswordOTP = async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const user = await User.findOne({ where: { email } });
+    // Do not reveal whether user exists
+    if (!user) {
+      return res.json({ message: 'If that account exists, an OTP has been sent to the email.' });
+    }
+
+    const otp = generateOTP();
+    const expiration = Date.now() + 10 * 60 * 1000; // 10 minutes
+    otpStore.set(`fp:${email}`, { otp, expiration });
+
+    try {
+      await sendOTPEmail(email, otp);
+      return res.json({ message: 'OTP sent to your email. It will expire in 10 minutes.' });
+    } catch (emailErr) {
+      console.error('Failed to send forgot-password OTP email:', emailErr);
+      return res.status(500).json({ error: 'Failed to send OTP email' });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/auth/resend-forgot-otp
+exports.resendForgotOTP = async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.json({ message: 'If that account exists, an OTP has been resent.' });
+    }
+
+    const otp = generateOTP();
+    const expiration = Date.now() + 10 * 60 * 1000; // 10 minutes
+    otpStore.set(`fp:${email}`, { otp, expiration });
+
+    try {
+      await sendOTPEmail(email, otp);
+      return res.json({ message: 'OTP resent successfully.' });
+    } catch (emailErr) {
+      console.error('Failed to resend forgot-password OTP email:', emailErr);
+      return res.status(500).json({ error: 'Failed to resend OTP email' });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/auth/reset-password-otp
+exports.resetPasswordWithOTP = async (req, res) => {
+  try {
+    const { email, otp, password } = req.body || {};
+    if (!email || !otp || !password) {
+      return res.status(400).json({ error: 'Email, OTP and new password are required' });
+    }
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(400).json({ error: 'Invalid email or OTP' });
+
+    const record = otpStore.get(`fp:${email}`);
+    if (!record) return res.status(400).json({ error: 'OTP not found or expired' });
+
+    if (Date.now() > record.expiration) {
+      otpStore.delete(`fp:${email}`);
+      return res.status(400).json({ error: 'OTP has expired' });
+    }
+
+    if (record.otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
+    user.password = password;
+    await user.save();
+
+    // Clean up OTP
+    otpStore.delete(`fp:${email}`);
+
+    return res.json({ message: 'Password reset successful. You can now sign in with your new password.' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 // POST /api/auth/forgot-password
 exports.requestPasswordReset = async (req, res) => {
   try {
@@ -217,6 +307,134 @@ exports.resetPassword = async (req, res) => {
     await user.save();
 
     return res.json({ message: 'Password reset successful. You can now sign in with your new password.' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/auth/signup-sales-start
+exports.signupSalesStart = async (req, res) => {
+  try {
+    const { name, email, password } = req.body || {};
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email and password are required' });
+    }
+
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    const existingSalesperson = await Salesperson.findOne({ where: { email } });
+    if (existingSalesperson) {
+      return res.status(400).json({ error: 'Email already linked to a salesperson' });
+    }
+
+    const otp = generateOTP();
+    const expiration = Date.now() + 10 * 60 * 1000; // 10 minutes
+    otpStore.set(`sales:${email}`, { otp, expiration, pending: { name, email, password } });
+
+    try {
+      await sendOTPEmail(email, otp);
+      return res.status(201).json({ message: 'OTP sent to your email. Please verify to complete Sales signup.' });
+    } catch (emailErr) {
+      console.error('Failed to send Sales signup OTP email:', emailErr);
+      return res.status(500).json({ error: 'Failed to send OTP email' });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to start Sales signup' });
+  }
+};
+
+// POST /api/auth/verify-sales-otp
+exports.verifySalesOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body || {};
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email and OTP are required' });
+    }
+
+    const record = otpStore.get(`sales:${email}`);
+    if (!record) return res.status(400).json({ error: 'OTP not found or expired' });
+
+    if (Date.now() > record.expiration) {
+      otpStore.delete(`sales:${email}`);
+      return res.status(400).json({ error: 'OTP has expired' });
+    }
+
+    if (record.otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
+    const { name, password } = record.pending || {};
+    if (!name) {
+      return res.status(400).json({ error: 'Signup session not found' });
+    }
+
+    // Generate unique Sales Person ID: SP-YY<random6>
+    const year = new Date().getFullYear().toString().slice(-2);
+    let salesId;
+    for (let i = 0; i < 5; i++) {
+      const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+      salesId = `SP-${year}${rand}`;
+      const exists = await User.findOne({ where: { salesId } });
+      if (!exists) break;
+    }
+
+    const user = await User.create({ name, email, password, role: 'sales', salesId });
+    await Salesperson.create({ name, email });
+
+    try {
+      await sendWelcomeEmail(email, name);
+    } catch (emailErr) {
+      console.warn('Failed to send welcome email to salesperson:', emailErr.message);
+    }
+
+    // Send Sales ID email
+    try {
+      await sendSalesIdEmail(email, name, salesId);
+    } catch (emailErr) {
+      console.warn('Failed to send salesId email to salesperson:', emailErr.message);
+    }
+
+    // Set session
+    req.session.userId = user.id;
+
+    // Clean up
+    otpStore.delete(`sales:${email}`);
+
+    return res.json({
+      message: 'Sales person registered',
+      salesId: user.salesId,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to verify Sales OTP' });
+  }
+};
+
+// POST /api/auth/resend-sales-otp
+exports.resendSalesOTP = async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const record = otpStore.get(`sales:${email}`);
+    if (!record || !record.pending) {
+      return res.status(400).json({ error: 'No pending Sales signup found for this email' });
+    }
+
+    const otp = generateOTP();
+    const expiration = Date.now() + 10 * 60 * 1000; // 10 minutes
+    otpStore.set(`sales:${email}`, { otp, expiration, pending: record.pending });
+
+    try {
+      await sendOTPEmail(email, otp);
+      return res.json({ message: 'OTP resent successfully' });
+    } catch (emailErr) {
+      console.error('Failed to resend Sales signup OTP email:', emailErr);
+      return res.status(500).json({ error: 'Failed to resend OTP email' });
+    }
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

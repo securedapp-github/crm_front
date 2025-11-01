@@ -86,4 +86,41 @@ This link will expire in 1 hour. If you did not request this, you can ignore thi
   }
 }
 
-module.exports = { createTransporter, sendWelcomeEmail, sendPasswordResetEmail };
+// Send Sales Person ID email
+async function sendSalesIdEmail(email, name = 'there', salesId) {
+  try {
+    const transporter = createTransporter();
+    const mailOptions = {
+      from: `"SecureCRM" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Your SecureCRM Sales Person ID',
+      text: `Hi ${name},
+
+Your Sales Person ID is: ${salesId}
+
+Use this ID with your password to log in to the Sales Dashboard.
+
+Best regards,
+The SecureCRM Team`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Your Sales Person ID</h2>
+          <p>Hi ${name},</p>
+          <p>Your Sales Person ID is:</p>
+          <p style="font-size: 20px; font-weight: 700; color: #065f46; margin: 12px 0;">${salesId}</p>
+          <p>Use this ID with your password to log in to the Sales Dashboard.</p>
+          <p>Best regards,<br/>The SecureCRM Team</p>
+          <hr>
+          <p style="font-size: 12px; color: #666;">This is an automated message, please do not reply.</p>
+        </div>
+      `
+    };
+    await transporter.sendMail(mailOptions);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending salesId email:', error);
+    throw new Error('Failed to send salesId email');
+  }
+}
+
+module.exports = { createTransporter, sendWelcomeEmail, sendPasswordResetEmail, sendSalesIdEmail };

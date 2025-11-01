@@ -93,35 +93,30 @@ export default function Pipeline() {
         </button>
       </div>
 
-      {/* Scheduled calls overview (read-only) */}
-      <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-emerald-900">Upcoming Sales Calls</h3>
-            <p className="text-sm text-emerald-800">
-              Follow-up times are planned by the sales team. Review their upcoming commitments below.
-            </p>
-            <p className="mt-2 rounded-md border border-emerald-200 bg-white px-3 py-2 text-xs text-emerald-700">
-              Need a new follow-up? Ask a salesperson to schedule it from their Sales Dashboard.
-            </p>
-          </div>
-
+      {/* Upcoming calls overview */}
+      <section className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <h3 className="text-base font-semibold text-slate-900">Upcoming Sales Calls</h3>
           <div className="w-full md:w-[420px]">
-            <h4 className="text-sm font-semibold text-emerald-900">Next 8 scheduled calls</h4>
-            <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-emerald-200 bg-white">
+            <div className="max-h-40 overflow-y-auto rounded-lg border bg-white">
               {upcomingCalls.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-emerald-800">No upcoming call tasks</div>
+                <div className="px-3 py-2 text-sm text-slate-600">No upcoming call tasks</div>
               ) : (
                 <ul className="divide-y">
-                  {upcomingCalls.map(({ task, deal }) => (
-                    <li key={task.id} className="px-3 py-2 text-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium text-slate-900 truncate">{deal?.title || `Deal #${task.relatedDealId}`}</div>
-                        <div className="text-xs text-slate-600">{new Date(task.dueDate).toLocaleString()}</div>
-                      </div>
-                      <div className="text-xs text-slate-600">{task.title}</div>
-                    </li>
-                  ))}
+                  {upcomingCalls.map(({ task, deal }) => {
+                    const sp = salespeople.find(p => p.id === (deal?.assignedTo || 0))
+                    const spName = sp?.userName || sp?.name || '—'
+                    return (
+                      <li key={task.id} className="px-3 py-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium text-slate-900 truncate">{deal?.title || `Deal #${task.relatedDealId}`}</div>
+                          <div className="text-xs text-slate-600">{new Date(task.dueDate).toLocaleString()}</div>
+                        </div>
+                        <div className="text-xs text-slate-600">{task.title}</div>
+                        <div className="text-[11px] text-slate-500">Salesperson: {spName}</div>
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </div>

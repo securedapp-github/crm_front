@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { registerUser, verifyOTP, resendOTP, signupSales } from '../api/auth'
+import { registerUser, verifyOTP, resendOTP, signupSalesStart, verifySalesOtp, resendSalesOtp } from '../api/auth'
 import Modal from '../components/Modal'
 
 export default function Signup() {
@@ -46,9 +46,8 @@ export default function Signup() {
           return
         }
         const { name, email, password } = form
-        const res = await signupSales({ name, email, password })
-        const sid = res.data?.salesId
-        setSalesIdModal({ open: true, id: sid || '' })
+        const res = await signupSalesStart({ name, email, password })
+        setOtpOpen(true)
       }
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Signup failed')
@@ -67,10 +66,18 @@ export default function Signup() {
     setOtpMsg('')
     
     try {
-      const res = await verifyOTP({ email: form.email, otp: otpCode })
-      setOtpLoading(false)
-      setOtpOpen(false)
-      navigate('/login')
+      if (mode === 'admin') {
+        await verifyOTP({ email: form.email, otp: otpCode })
+        setOtpLoading(false)
+        setOtpOpen(false)
+        navigate('/login')
+      } else {
+        const res = await verifySalesOtp({ email: form.email, otp: otpCode })
+        const sid = res.data?.salesId
+        setOtpLoading(false)
+        setOtpOpen(false)
+        setSalesIdModal({ open: true, id: sid || '' })
+      }
     } catch (err) {
       setOtpLoading(false)
       setOtpMsg(err.response?.data?.error || 'Invalid OTP. Please try again.')
@@ -82,8 +89,13 @@ export default function Signup() {
     setOtpMsg('')
     
     try {
-      await resendOTP({ email: form.email })
-      setOtpMsg('OTP resent successfully!')
+      if (mode === 'admin') {
+        await resendOTP({ email: form.email })
+        setOtpMsg('OTP resent successfully!')
+      } else {
+        await resendSalesOtp({ email: form.email })
+        setOtpMsg('OTP resent successfully!')
+      }
     } catch (err) {
       setOtpMsg(err.response?.data?.error || 'Failed to resend OTP. Please try again.')
     } finally {

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getPipeline, moveDealStage } from '../../api/sales'
+import { getPipeline, moveDealStage, getPeople } from '../../api/sales'
 import { getTasks, updateTask, createTask } from '../../api/task'
 import { updateDealNotes } from '../../api/deal'
+import { getCampaigns } from '../../api/campaign'
 import Modal from '../../components/Modal'
 
 const STAGES = ['New', 'In Progress', 'Proposal', 'Won', 'Lost']
@@ -12,10 +13,14 @@ export default function SalesDashboard() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState({})
   const [tasks, setTasks] = useState([])
+  const [campaigns, setCampaigns] = useState([])
+  const [people, setPeople] = useState([])
   const [scheduleDealId, setScheduleDealId] = useState('')
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [calendarDate, setCalendarDate] = useState('')
   const [calendarTime, setCalendarTime] = useState('')
+  const [calendarAmPm, setCalendarAmPm] = useState('AM')
+  const [selectedDealId, setSelectedDealId] = useState('')
   const [noteDealId, setNoteDealId] = useState('')
   const [noteText, setNoteText] = useState('')
   const [noteSaving, setNoteSaving] = useState(false)
@@ -23,36 +28,44 @@ export default function SalesDashboard() {
   const user = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}') } catch { return {} }
   }, [])
-  const myId = Number(user?.id || 0)
+  const myUserId = Number(user?.id || 0)
+  const myEmail = useMemo(() => String(user?.email || '').trim().toLowerCase(), [user])
+  const mySalespersonId = useMemo(() => {
+    // people endpoint returns items with userId (app user) and base Salesperson id
+    const me = (people || []).find(p => (Number(p.userId || 0) === myUserId) || (String(p.email||'').toLowerCase() === myEmail))
+    return Number(me?.id || 0)
+  }, [people, myUserId, myEmail])
 
   const fetchAll = async () => {
     setLoading(true)
     try {
-      const [pipeRes, taskRes] = await Promise.all([getPipeline(), getTasks()])
+      const [pipeRes, taskRes, peopleRes, campRes] = await Promise.all([getPipeline(), getTasks(), getPeople(), getCampaigns()])
       setData(pipeRes.data?.data || {})
       setTasks(taskRes.data?.data || [])
+      setPeople(peopleRes.data?.data || [])
+      setCampaigns(Array.isArray(campRes.data?.data) ? campRes.data.data : [])
     } finally { setLoading(false) }
   }
 
   useEffect(() => { fetchAll() }, [])
 
   const allDeals = useMemo(() => (Object.values(data || {}).flat() || []), [data])
-  const myDeals = useMemo(() => (allDeals.filter(d => Number(d.assignedTo) === myId)), [allDeals, myId])
+  const myDeals = useMemo(() => (allDeals.filter(d => Number(d.assignedTo) === mySalespersonId)), [allDeals, mySalespersonId])
 
   const stageTotals = useMemo(() => {
     return STAGES.map(stage => {
-      const items = (data[stage] || []).filter(d => Number(d.assignedTo) === myId)
+      const items = (data[stage] || []).filter(d => Number(d.assignedTo) === mySalespersonId)
       const amount = items.reduce((sum, deal) => sum + Number(deal.value || 0), 0)
       return { stage, count: items.length, amount }
     })
-  }, [data, myId])
+  }, [data, mySalespersonId])
 
   const stageColumns = useMemo(() => {
     return STAGES.map(stage => {
-      const items = (data[stage] || []).filter(d => Number(d.assignedTo) === myId)
+      const items = (data[stage] || []).filter(d => Number(d.assignedTo) === mySalespersonId)
       return { stage, items }
     })
-  }, [data, myId])
+  }, [data, mySalespersonId])
 
 
   const stageNotes = useMemo(() => stageColumns.map(col => ({
@@ -109,6 +122,23 @@ export default function SalesDashboard() {
     return deal.title
   }
 
+  const campaignByName = useMemo(() => {
+    const map = new Map()
+    for (const c of campaigns) {
+      if (c?.name) map.set(String(c.name).trim().toLowerCase(), c)
+    }
+    return map
+  }, [campaigns])
+
+  const findCampaignForDeal = (deal) => {
+    if (!deal || !deal.title) return null
+    const pattern = /^Campaign Lead -\s*(.+?)\s*Opportunity$/i
+    const m = String(deal.title).match(pattern)
+    if (!m || !m[1]) return null
+    const key = m[1].trim().toLowerCase()
+    return campaignByName.get(key) || null
+  }
+
   const onDragStart = (e, deal) => {
     e.dataTransfer.setData('text/plain', JSON.stringify({ id: deal.id }))
   }
@@ -139,7 +169,15 @@ export default function SalesDashboard() {
     if (!scheduleDealId) return
     const now = new Date()
     setCalendarDate(now.toISOString().slice(0, 10))
-    setCalendarTime(now.toISOString().slice(11, 16))
+    // initialise as 12-hour time and AM/PM
+    const hours = now.getHours()
+    const minutes = now.getMinutes()
+    const isPM = hours >= 12
+    const h12 = hours % 12 === 0 ? 12 : hours % 12
+    const mm = String(minutes).padStart(2, '0')
+    const hh = String(h12).padStart(2, '0')
+    setCalendarTime(`${hh}:${mm}`)
+    setCalendarAmPm(isPM ? 'PM' : 'AM')
     setCalendarOpen(true)
   }
 
@@ -157,7 +195,7 @@ export default function SalesDashboard() {
         title: 'Follow-up Call',
         description,
         status: 'Open',
-        assignedTo: myId || null,
+        assignedTo: myUserId || null,
         relatedDealId: dealId,
         dueDate: dueDateObj.toISOString()
       })
@@ -170,7 +208,14 @@ export default function SalesDashboard() {
     if (!scheduleDealId || !calendarDate) return
     const datePart = calendarDate
     const timePart = calendarTime || '09:00'
-    const due = new Date(`${datePart}T${timePart}:00`)
+    // interpret timePart as 12-hour input and convert using AM/PM selector
+    const [hhStr, mmStr] = (timePart || '09:00').split(':')
+    let hh = Math.max(1, Math.min(12, parseInt(hhStr || '9', 10) || 9))
+    const mm = Math.max(0, Math.min(59, parseInt(mmStr || '0', 10) || 0))
+    if (calendarAmPm === 'PM' && hh !== 12) hh += 12
+    if (calendarAmPm === 'AM' && hh === 12) hh = 0
+    const due = new Date(`${datePart}T00:00:00`)
+    due.setHours(hh, mm, 0, 0)
     if (Number.isNaN(due.getTime())) {
       return
     }
@@ -193,18 +238,69 @@ export default function SalesDashboard() {
               <select
                 className="min-w-[240px] rounded-md border px-3 py-2 text-sm"
                 value={scheduleDealId}
-                onChange={(e)=>setScheduleDealId(e.target.value)}
+                onChange={(e)=>{ setScheduleDealId(e.target.value); setSelectedDealId(e.target.value); }}
               >
                 <option value="">Select your deal…</option>
                 {myDeals.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
               </select>
-              <button disabled={!scheduleDealId} onClick={()=>scheduleFollowUpQuick(1)} className={`rounded-md px-3 py-2 text-sm text-white ${scheduleDealId? 'bg-emerald-600 hover:bg-emerald-700':'bg-emerald-300 cursor-not-allowed'}`}>Tomorrow</button>
-              <button disabled={!scheduleDealId} onClick={()=>scheduleFollowUpQuick(2)} className={`rounded-md px-3 py-2 text-sm text-white ${scheduleDealId? 'bg-emerald-600 hover:bg-emerald-700':'bg-emerald-300 cursor-not-allowed'}`}>In 2 days</button>
-              <button disabled={!scheduleDealId} onClick={()=>scheduleFollowUpQuick(7)} className={`rounded-md px-3 py-2 text-sm text-white ${scheduleDealId? 'bg-emerald-600 hover:bg-emerald-700':'bg-emerald-300 cursor-not-allowed'}`}>In 1 week</button>
               <button disabled={!scheduleDealId} onClick={openCalendar} className={`rounded-md px-3 py-2 text-sm font-medium ${scheduleDealId? 'border border-emerald-500 text-emerald-700 hover:bg-emerald-50':'border border-emerald-200 text-emerald-300 cursor-not-allowed'}`}>Pick date &amp; time…</button>
             </div>
           </div>
           <div className="text-sm text-slate-600">Logged in as <span className="font-medium">{user?.name || 'Sales Person'}</span></div>
+        </div>
+      </section>
+
+      {/* Selected Deal Details */}
+      <section className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-900">Selected Deal Details</h3>
+          <button
+            type="button"
+            aria-label="Close details"
+            onClick={() => { setSelectedDealId(''); setScheduleDealId(''); }}
+            className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+            title="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div className="mt-3 rounded-lg border bg-slate-50/50 p-4 text-sm">
+          {(() => {
+            const d = myDeals.find(x => x.id === Number(selectedDealId))
+            if (!d) return (<div className="text-slate-500">Select a deal from the dropdown or click a deal card to view details.</div>)
+            const camp = findCampaignForDeal(d)
+            if (!camp) return (<div className="text-slate-500">No campaign details found for this deal.</div>)
+            return (
+              <div className="space-y-3">
+                <div className="rounded-lg border bg-white p-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                    <div><div className="text-slate-500">Name</div><div className="text-slate-900 font-medium">{camp.name}</div></div>
+                    <div><div className="text-slate-500">Channel</div><div className="text-slate-900">{camp.channel || '—'}</div></div>
+                    <div><div className="text-slate-500">Campaign stage</div><div className="text-slate-900">{camp.status || '—'}</div></div>
+                    <div><div className="text-slate-500">Priority</div><div className="text-slate-900">{camp.priority || '—'}</div></div>
+                    <div><div className="text-slate-500">Entity name</div><div className="text-slate-900">{camp.accountCompany || '—'}</div></div>
+                    <div><div className="text-slate-500">Company domain</div><div className="text-slate-900">{camp.accountDomain || '—'}</div></div>
+                    <div><div className="text-slate-500">Mobile</div><div className="text-slate-900">{camp.mobile || '—'}</div></div>
+                    <div><div className="text-slate-500">Email</div><div className="text-slate-900">{camp.email || '—'}</div></div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <div className="rounded-lg border bg-white p-3"><div className="text-[11px] text-slate-500 uppercase">Objective</div><div className="text-sm text-slate-800">{camp.objective || '—'}</div></div>
+                  <div className="rounded-lg border bg-white p-3"><div className="text-[11px] text-slate-500 uppercase">Audience Segment</div><div className="text-sm text-slate-800">{camp.audienceSegment || '—'}</div></div>
+                  <div className="rounded-lg border bg-white p-3"><div className="text-[11px] text-slate-500 uppercase">Product Line</div><div className="text-sm text-slate-800">{camp.productLine || '—'}</div></div>
+                  <div className="rounded-lg border bg-white p-3"><div className="text-[11px] text-slate-500 uppercase">Expected Spend</div><div className="text-sm text-slate-800">{camp.expectedSpend != null ? `₹${Number(camp.expectedSpend).toLocaleString()}` : '—'}</div></div>
+                  <div className="rounded-lg border bg-white p-3"><div className="text-[11px] text-slate-500 uppercase">Planned Leads</div><div className="text-sm text-slate-800">{camp.plannedLeads != null ? Number(camp.plannedLeads).toLocaleString() : '—'}</div></div>
+                  <div className="rounded-lg border bg-white p-3"><div className="text-[11px] text-slate-500 uppercase">Campaign Code</div><div className="text-sm text-slate-800">{camp.code || '—'}</div></div>
+                  <div className="rounded-lg border bg-white p-3"><div className="text-[11px] text-slate-500 uppercase">External Campaign ID</div><div className="text-sm text-slate-800">{camp.externalCampaignId || '—'}</div></div>
+                  <div className="rounded-lg border bg-white p-3"><div className="text-[11px] text-slate-500 uppercase">UTM Source</div><div className="text-sm text-slate-800">{camp.utmSource || '—'}</div></div>
+                  <div className="rounded-lg border bg-white p-3"><div className="text-[11px] text-slate-500 uppercase">UTM Medium</div><div className="text-sm text-slate-800">{camp.utmMedium || '—'}</div></div>
+                  <div className="rounded-lg border bg-white p-3 md:col-span-3"><div className="text-[11px] text-slate-500 uppercase">UTM Campaign</div><div className="text-sm text-slate-800">{camp.utmCampaign || '—'}</div></div>
+                  <div className="rounded-lg border bg-white p-3 md:col-span-3"><div className="text-[11px] text-slate-500 uppercase">Description</div><div className="text-sm text-slate-800 whitespace-pre-wrap">{camp.description || '—'}</div></div>
+                  <div className="rounded-lg border bg-white p-3 md:col-span-3"><div className="text-[11px] text-slate-500 uppercase">Compliance Checklist</div><div className="text-sm text-slate-800 whitespace-pre-wrap">{camp.complianceChecklist || '—'}</div></div>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       </section>
 
@@ -249,6 +345,7 @@ export default function SalesDashboard() {
                       className="cursor-move rounded-lg border bg-white px-3 py-2 text-sm shadow-sm hover:shadow-md transition"
                       draggable
                       onDragStart={(e) => onDragStart(e, deal)}
+                      onClick={() => { setSelectedDealId(String(deal.id)); setScheduleDealId(String(deal.id)); }}
                       title={deal.title}
                     >
                       <div className="flex items-center justify-between">
@@ -419,14 +516,27 @@ export default function SalesDashboard() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Time</label>
-            <input
-              type="time"
-              className="w-full rounded-md border px-3 py-2"
-              value={calendarTime}
-              onChange={(e)=>setCalendarTime(e.target.value)}
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="^(0?[1-9]|1[0-2]):[0-5][0-9]$"
+                placeholder="hh:mm"
+                className="w-full rounded-md border px-3 py-2"
+                value={calendarTime}
+                onChange={(e)=>setCalendarTime(e.target.value)}
+              />
+              <select
+                className="rounded-md border px-2 py-2 text-sm"
+                value={calendarAmPm}
+                onChange={(e)=>setCalendarAmPm(e.target.value)}
+              >
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
+            </div>
           </div>
-          <p className="text-xs text-slate-500">This follow-up will appear for admins under Upcoming Sales Calls.</p>
+          <p className="text-xs text-slate-500">Your follow-up will be visible in both dashboards.</p>
         </div>
       </Modal>
     </div>

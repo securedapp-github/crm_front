@@ -112,9 +112,16 @@ export default function Dashboard() {
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="border-b border-slate-200 px-5 py-5">
-            <h2 className="text-xl font-semibold text-indigo-600">SecureCRM</h2>
-            <p className="text-xs text-slate-500">Customer Intelligence Hub</p>
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <h2 className="text-base font-semibold text-slate-900">Menu</h2>
+            <button
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close menu"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50"
+              title="Close"
+            >
+              ×
+            </button>
           </div>
           {renderNav(() => setMobileOpen(false))}
           <div className="mt-auto px-5 py-4 text-xs text-slate-400">© 2025 SecureCRM</div>
@@ -123,19 +130,8 @@ export default function Dashboard() {
 
       {/* Desktop sidebar */}
       <aside className="sticky top-[64px] hidden h-[calc(100vh-64px)] w-72 shrink-0 flex-col overflow-hidden border-r border-white/50 bg-white/85 backdrop-blur-xl shadow-lg shadow-indigo-100/40 lg:flex">
-        <div className="border-b border-white/60 bg-gradient-to-br from-indigo-100/60 via-white to-slate-100 px-6 py-6">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow">🔐</span>
-            <div>
-              <h1 className="text-xl font-semibold text-slate-900">SecureCRM</h1>
-              <p className="text-xs text-slate-500">Customer Intelligence Hub</p>
-            </div>
-          </div>
-          <div className="mt-4 text-sm text-slate-600">
-            <p className="rounded-xl border border-indigo-200/80 bg-white/80 px-4 py-3 text-xs leading-relaxed">
-              Elevate marketing, sales, and service with a unified command center.
-            </p>
-          </div>
+        <div className="border-b border-white/60 bg-gradient-to-br from-indigo-100/40 via-white to-slate-100 px-6 py-5">
+          <h2 className="text-sm font-semibold text-slate-700">Navigation</h2>
         </div>
         <div className="flex-1 overflow-y-auto">{renderNav()}</div>
         <div className="border-t border-white/60 px-6 py-4 text-xs text-slate-400">
