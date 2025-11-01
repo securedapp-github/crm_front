@@ -59,11 +59,12 @@ exports.updateDeal = async (req, res) => {
   try {
     const deal = await Deal.findByPk(req.params.id);
     if (!deal) return res.status(404).json({ success: false, message: 'Deal not found' });
-    const { title, value, stage, contactId, ownerId, accountId, notes } = req.body;
+    const { title, value, stage, contactId, ownerId, accountId, notes, isHot, score, grade } = req.body;
     if (stage && !STAGES.includes(stage)) {
       return res.status(400).json({ success: false, message: 'Invalid stage' });
     }
-    const updates = { title, value, stage, contactId, ownerId, accountId, notes };
+    // Allow updating scoring/priority fields as well
+    const updates = { title, value, stage, contactId, ownerId, accountId, notes, isHot, score, grade };
     Object.keys(updates).forEach((key) => {
       if (typeof updates[key] === 'undefined') delete updates[key];
     });
