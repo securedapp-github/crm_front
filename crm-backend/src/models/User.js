@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const User = sequelize.define('User', {
   id: {
@@ -41,6 +42,14 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: true,
     unique: false
+  },
+  passwordResetToken: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  passwordResetExpires: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   timestamps: true,
@@ -63,6 +72,14 @@ const User = sequelize.define('User', {
 // Instance method to check password
 User.prototype.validPassword = async function(password) {
   return await bcrypt.compare(password, this.password);
+};
+
+User.prototype.generatePasswordResetToken = function() {
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const hashed = crypto.createHash('sha256').update(resetToken).digest('hex');
+  this.passwordResetToken = hashed;
+  this.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  return resetToken;
 };
 
 module.exports = User;

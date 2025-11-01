@@ -1,6 +1,7 @@
 const { User, Salesperson } = require('../models');
+const { Op } = require('sequelize');
 const { generateOTP, sendOTPEmail } = require('../utils/otp');
-const { sendWelcomeEmail } = require('../utils/email');
+const { sendWelcomeEmail, sendPasswordResetEmail } = require('../utils/email');
 const crypto = require('crypto');
 
 // In-memory storage for OTPs (in production, use Redis or database)
@@ -154,6 +155,68 @@ exports.login = async (req, res) => {
     // Set session
     req.session.userId = user.id;
     return res.json({ message: 'Login successful', user: { id: user.id, name: user.name, email: user.email, role: user.role, salesId: user.salesId } });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/auth/forgot-password
+exports.requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.json({ message: 'If that account exists, a reset link has been sent.' });
+    }
+
+    const resetToken = user.generatePasswordResetToken();
+    await user.save({ hooks: false });
+
+    const base = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const resetUrl = `${base}/reset-password?token=${resetToken}`;
+
+    try {
+      await sendPasswordResetEmail(user.email, resetUrl);
+      return res.json({ message: 'Password reset instructions sent to your email.' });
+    } catch (emailErr) {
+      console.error('Failed to send password reset email:', emailErr);
+      return res.status(500).json({ error: 'Failed to send password reset email' });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/auth/reset-password
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body || {};
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: { [Op.gt]: new Date() }
+      }
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Password reset token is invalid or has expired' });
+    }
+
+    user.password = password;
+    user.passwordResetToken = null;
+    user.passwordResetExpires = null;
+    await user.save();
+
+    return res.json({ message: 'Password reset successful. You can now sign in with your new password.' });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
