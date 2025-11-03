@@ -1,11 +1,13 @@
 const { User, Salesperson } = require('../models');
 const { Op } = require('sequelize');
 const { generateOTP, sendOTPEmail } = require('../utils/otp');
-const { sendWelcomeEmail, sendPasswordResetEmail, sendSalesIdEmail } = require('../utils/email');
+const { sendWelcomeEmail, sendPasswordResetEmail, sendSalesIdEmail, createTransporter } = require('../utils/email');
 const crypto = require('crypto');
 
 // In-memory storage for OTPs (in production, use Redis or database)
 const otpStore = new Map();
+// In-memory storage for approval tokens
+const approvalStore = new Map();
 
 // POST /api/auth/signup
 exports.signup = async (req, res) => {
@@ -370,6 +372,65 @@ exports.verifySalesOTP = async (req, res) => {
     if (!name) {
       return res.status(400).json({ error: 'Signup session not found' });
     }
+    // Move to approval step: generate one-time approval token and email to admin
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiration = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    approvalStore.set(token, { name, email, password, expiration });
+
+    // Clean up OTP
+    otpStore.delete(`sales:${email}`);
+
+    // Construct approval link to backend
+    const approveUrl = `${req.protocol}://${req.get('host')}/api/auth/approve-sales?token=${token}`;
+
+    // Send email to company admin for approval
+    try {
+      const transporter = createTransporter();
+      const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+      await transporter.sendMail({
+        from: `"SecureCRM" <${process.env.EMAIL_USER}>`,
+        to: adminEmail,
+        subject: 'Approve Sales Person Signup',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Sales Person Signup Approval</h2>
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p>To approve this signup and generate the Sales Person ID, click the button below:</p>
+            <p style="text-align:center; margin:20px 0;">
+              <a href="${approveUrl}" style="background:#065f46;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Approve Sales Person</a>
+            </p>
+            <p style="font-size:12px;color:#666;">This link expires in 24 hours.</p>
+          </div>
+        `
+      });
+    } catch (emailErr) {
+      console.error('Failed to send approval email to admin:', emailErr);
+    }
+
+    // Respond to client: pending approval
+    return res.json({
+      message: 'OTP verified. Your account is pending company approval. You will receive your Sales Person ID via email once approved.'
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to verify Sales OTP' });
+  }
+};
+
+// GET /api/auth/approve-sales
+exports.approveSales = async (req, res) => {
+  try {
+    const { token } = req.query || {};
+    if (!token) return res.status(400).send('Missing token');
+
+    const record = approvalStore.get(token);
+    if (!record) return res.status(400).send('Invalid or expired token');
+    if (Date.now() > record.expiration) {
+      approvalStore.delete(token);
+      return res.status(400).send('Token expired');
+    }
+
+    const { name, email, password } = record;
 
     // Generate unique Sales Person ID: SP-YY<random6>
     const year = new Date().getFullYear().toString().slice(-2);
@@ -385,31 +446,26 @@ exports.verifySalesOTP = async (req, res) => {
     await Salesperson.create({ name, email });
 
     try {
-      await sendWelcomeEmail(email, name);
-    } catch (emailErr) {
-      console.warn('Failed to send welcome email to salesperson:', emailErr.message);
-    }
-
-    // Send Sales ID email
-    try {
       await sendSalesIdEmail(email, name, salesId);
     } catch (emailErr) {
       console.warn('Failed to send salesId email to salesperson:', emailErr.message);
     }
 
-    // Set session
-    req.session.userId = user.id;
+    // Clean up approval token
+    approvalStore.delete(token);
 
-    // Clean up
-    otpStore.delete(`sales:${email}`);
-
-    return res.json({
-      message: 'Sales person registered',
-      salesId: user.salesId,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role }
-    });
+    // Return a simple approval page
+    res.setHeader('Content-Type', 'text/html');
+    return res.send(`
+      <html><body style="font-family:Arial, sans-serif;">
+        <h2>Sales Person Approved</h2>
+        <p>${name} (${email}) has been approved. The Sales Person ID has been emailed to them.</p>
+        <p>You may close this tab.</p>
+      </body></html>
+    `);
   } catch (err) {
-    return res.status(500).json({ error: err.message || 'Failed to verify Sales OTP' });
+    console.error('Approval error:', err);
+    return res.status(500).send('Server error during approval');
   }
 };
 

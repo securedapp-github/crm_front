@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { getCampaigns, createCampaign, deleteCampaign, getCampaignScoring } from '../../api/campaign'
+import { getCampaigns, createCampaign, deleteCampaign, getCampaignScoring, updateCampaign } from '../../api/campaign'
+import { getDeals } from '../../api/deal'
 import Modal from '../../components/Modal'
 import { useToast } from '../../components/ToastProvider'
 import { api } from '../../api/auth'
@@ -16,6 +17,7 @@ const DetailBlock = ({ label, value, full }) => (
 export default function CampaignList({ autoOpenKey = 0 }) {
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
+  const [deals, setDeals] = useState([])
   const [open, setOpen] = useState(false)
   const defaultForm = () => ({
     name: '',
@@ -40,8 +42,31 @@ export default function CampaignList({ autoOpenKey = 0 }) {
     , accountCompany: '',
     accountDomain: '',
     mobile: '',
-    email: ''
+    email: '',
+    callDate: '',
+    callTime: ''
   })
+
+  const stripSuffix = (s) => String(s || '').replace(/-W\d{3}$/i, '').trim()
+  const workIdFor = (baseRaw) => {
+    const base = stripSuffix(baseRaw)
+    if (!base) return ''
+    const matched = (deals || []).filter(d => {
+      const t = String(d.title || '')
+      if (!t.startsWith(base)) return false
+      const re = new RegExp(`^${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:-W\\d{3})?$`, 'i')
+      return re.test(t)
+    })
+    if (matched.length === 0) return ''
+    // Extract max sequence
+    let max = 0
+    matched.forEach(d => {
+      const m = String(d.title || '').match(/-W(\d{3})$/i)
+      if (m) { const n = parseInt(m[1], 10); if (!isNaN(n)) max = Math.max(max, n) }
+    })
+    const seq = max || 1
+    return `${base}-W${String(seq).padStart(3,'0')}`
+  }
 
   const [expanded, setExpanded] = useState(null)
   const [form, setForm] = useState(() => defaultForm())
@@ -55,6 +80,10 @@ export default function CampaignList({ autoOpenKey = 0 }) {
   const [scoringLoading, setScoringLoading] = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [deletePending, setDeletePending] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState(() => defaultForm())
+  const [editSaving, setEditSaving] = useState(false)
   const { show } = useToast()
   const stagePills = {
     Planned: 'bg-slate-100 text-slate-700 border border-slate-200',
@@ -106,8 +135,9 @@ export default function CampaignList({ autoOpenKey = 0 }) {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const res = await getCampaigns()
-      setCampaigns(res.data?.data || [])
+      const [cres, dres] = await Promise.all([getCampaigns(), getDeals()])
+      setCampaigns(cres.data?.data || [])
+      setDeals(Array.isArray(dres.data?.data) ? dres.data.data : [])
     } finally {
       setLoading(false)
     }
@@ -179,6 +209,17 @@ export default function CampaignList({ autoOpenKey = 0 }) {
     finally { setScoringLoading(null) }
   }
 
+  const parseTime = (t) => {
+    if (!t) return { hour: '', mer: 'AM' }
+    const m = String(t).match(/^(\d{1,2})(?::\d{2})?\s*(AM|PM)$/i)
+    if (!m) return { hour: '', mer: 'AM' }
+    return { hour: String(Number(m[1]) || ''), mer: m[2].toUpperCase() }
+  }
+  const composeTime = (hour, mer) => {
+    if (!hour || !mer) return ''
+    return `${hour}:00 ${mer}`
+  }
+
   const toggleExpand = (id) => {
     setExpanded((prev) => {
       const next = prev === id ? null : id
@@ -209,6 +250,8 @@ export default function CampaignList({ autoOpenKey = 0 }) {
       if (form.accountDomain) payload.accountDomain = form.accountDomain
       if (form.mobile) payload.mobile = String(form.mobile).trim()
       if (form.email) payload.email = String(form.email).trim()
+      if (form.callDate) payload.callDate = form.callDate
+      if (form.callTime) payload.callTime = form.callTime
       const res = await createCampaign(payload)
       const newCampaign = res.data?.data
       setOpen(false)
@@ -306,11 +349,19 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                   <td className="px-4 py-3 text-slate-700">{c.accountCompany || '-'}</td>
                   <td className="px-4 py-3 text-slate-700">{c.accountDomain || '-'}</td>
                   <td className="px-4 py-3 text-slate-700">{c.mobile || '-'}</td>
-                  <td className="px-4 py-3 text-slate-700">{c.email || '-'}</td>
+                  <td className="px-4 py-3 text-slate-700">
+                    <div className="flex items-center gap-2">
+                      <span>{c.email || '-'}</span>
+                      {(() => { const id = workIdFor(c.email || c.accountCompany || c.name); return id ? (<span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 border border-slate-200" title={id}>{id}</span>) : null })()}
+                    </div>
+                  </td>
                   <td className="px-4 py-3">
-                    <button onClick={()=>setConfirmDeleteId(c.id)} className="text-xs px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50">
-                      Delete
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={()=>{ setEditingId(c.id); setEditForm({
+                        name: c.name||'', code: c.code||'', objective: c.objective||'', channel: c.channel||'Email', audienceSegment: c.audienceSegment||'', productLine: c.productLine||'', startDate: c.startDate||'', endDate: c.endDate||'', budget: c.budget??'', expectedSpend: c.expectedSpend??'', currency: c.currency||'USD', status: c.status||'Planned', priority: c.priority||'Medium', description: c.description||'', complianceChecklist: c.complianceChecklist||'', externalCampaignId: c.externalCampaignId||'', utmSource: c.utmSource||'', utmMedium: c.utmMedium||'', utmCampaign: c.utmCampaign||'', accountCompany: c.accountCompany||'', accountDomain: c.accountDomain||'', mobile: c.mobile||'', email: c.email||'', callDate: c.callDate||'', callTime: c.callTime||''
+                      }); setEditOpen(true); }} className="text-xs px-2 py-1 rounded border border-slate-200 text-slate-700 hover:bg-slate-50">Edit</button>
+                      <button onClick={()=>setConfirmDeleteId(c.id)} className="text-xs px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50">Delete</button>
+                    </div>
                   </td>
                 </tr>
                 {expanded === c.id && (
@@ -327,6 +378,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                         <DetailBlock label="UTM source" value={c.utmSource} />
                         <DetailBlock label="UTM medium" value={c.utmMedium} />
                         <DetailBlock label="UTM campaign" value={c.utmCampaign} />
+                        <DetailBlock label="Call schedule" value={[c.callDate, c.callTime].filter(Boolean).join(' ')} />
                       </div>
                       <div className="mt-4 grid grid-cols-1 gap-4">
                         <DetailBlock label="Description" value={c.description} full />
@@ -459,6 +511,23 @@ export default function CampaignList({ autoOpenKey = 0 }) {
             <label className="block text-sm text-slate-700">UTM campaign</label>
             <input className="w-full px-3 py-2 border rounded-md" value={form.utmCampaign} onChange={e=>setForm(f=>({...f, utmCampaign:e.target.value}))} />
           </div>
+          <div>
+            <label className="block text-sm text-slate-700">Preferred call date</label>
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={form.callDate||''} onChange={e=>setForm(f=>({...f, callDate:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Preferred call time</label>
+            {(() => { const { hour, mer } = parseTime(form.callTime); return (
+              <div className="flex items-center gap-2">
+                <select className="px-3 py-2 border rounded-md" value={hour} onChange={e=>{ const h=e.target.value; setForm(f=>({...f, callTime: composeTime(h, parseTime(f.callTime).mer)})) }}>
+                  {['','1','2','3','4','5','6','7','8','9','10','11','12'].map(h=> <option key={h} value={h}>{h || '—'}</option>)}
+                </select>
+                <select className="px-3 py-2 border rounded-md" value={mer} onChange={e=>{ const m=e.target.value; setForm(f=>({...f, callTime: composeTime(parseTime(f.callTime).hour, m)})) }}>
+                  {['AM','PM'].map(m=> <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+            )})()}
+          </div>
           <div className="md:col-span-2 xl:col-span-3">
             <label className="block text-sm text-slate-700">Description</label>
             <textarea className="w-full px-3 py-2 border rounded-md" rows={3} value={form.description} onChange={e=>setForm(f=>({...f, description:e.target.value}))} />
@@ -482,7 +551,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                     {domainError && <div className="text-rose-600">{domainError}</div>}
                     {verification.status === 'loading' && <span className="text-slate-500">Checking...</span>}
                     {verification.status === 'done' && verification.exists === true && <span className="text-emerald-600">✅ Verified organization.</span>}
-                    {verification.status === 'done' && verification.exists === false && <span className="text-amber-600">⚠️ New company, not yet verified.</span>}
+                    {verification.status === 'done' && verification.exists === false && <span className="text-amber-600"> New company</span>}
                   </div>
                 ) : null}
               </div>
@@ -530,6 +599,158 @@ export default function CampaignList({ autoOpenKey = 0 }) {
         )}
       >
         <p className="text-sm text-slate-600">This will remove the campaign permanently. Are you sure?</p>
+      </Modal>
+
+      <Modal open={editOpen} onClose={()=>setEditOpen(false)} title="Edit Campaign" actions={
+        <div className="flex items-center gap-2">
+          <button onClick={()=>setEditOpen(false)} className="px-3 py-2 rounded-md border">Cancel</button>
+          <button onClick={async ()=>{
+            if (!editingId) return; setEditSaving(true);
+            try {
+              const payload = { ...editForm };
+              Object.entries(payload).forEach(([k,v])=>{ if (v === '' || v === null) delete payload[k] })
+              if (payload.currency) payload.currency = String(payload.currency).toUpperCase();
+              if (payload.mobile) payload.mobile = String(payload.mobile).trim();
+              if (payload.email) payload.email = String(payload.email).trim();
+              await updateCampaign(editingId, payload);
+              show('Campaign updated', 'success');
+              setEditOpen(false);
+              // Refresh both campaigns and pipeline data
+              await Promise.all([
+                fetchData(),
+                // Force refresh of pipeline data by fetching it directly
+                api.get('/sales/pipeline').catch(() => null)
+              ]);
+            } catch (e) { show(e.response?.data?.message || 'Failed to update campaign', 'error') }
+            finally { setEditSaving(false) }
+          }} className={`px-3 py-2 rounded-md text-white ${editSaving ? 'bg-indigo-400' : 'bg-indigo-600'}`}>{editSaving ? 'Saving…' : 'Save changes'}</button>
+        </div>
+      }>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="md:col-span-2 xl:col-span-3">
+            <label className="block text-sm text-slate-700">Name</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.name} onChange={e=>setEditForm(f=>({...f, name:e.target.value}))} />
+          </div>
+          <div className="md:col-span-2 xl:col-span-1">
+            <label className="block text-sm text-slate-700">Campaign code</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.code} onChange={e=>setEditForm(f=>({...f, code:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Objective</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.objective} onChange={e=>setEditForm(f=>({...f, objective:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Channel</label>
+            <select className="w-full px-3 py-2 border rounded-md" value={editForm.channel} onChange={e=>setEditForm(f=>({...f, channel:e.target.value}))}>
+              {channelOptions.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Audience segment</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.audienceSegment} onChange={e=>setEditForm(f=>({...f, audienceSegment:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Product line</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.productLine} onChange={e=>setEditForm(f=>({...f, productLine:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Budget</label>
+            <input className="w-full px-3 py-2 border rounded-md" type="number" value={editForm.budget} onChange={e=>setEditForm(f=>({...f, budget:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Expected spend</label>
+            <input className="w-full px-3 py-2 border rounded-md" type="number" value={editForm.expectedSpend} onChange={e=>setEditForm(f=>({...f, expectedSpend:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Currency</label>
+            <select className="w-full px-3 py-2 border rounded-md" value={editForm.currency} onChange={e=>setEditForm(f=>({...f, currency:e.target.value}))}>
+              {currencyOptions.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Start date</label>
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={editForm.startDate} onChange={e=>setEditForm(f=>({...f, startDate:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">End date</label>
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={editForm.endDate} onChange={e=>setEditForm(f=>({...f, endDate:e.target.value}))} />
+          </div>
+          <div>
+            <label className="flex items-center gap-2 text-sm text-slate-700">Campaign stage
+              <span className={`h-2.5 w-2.5 rounded-full ${stageDots[editForm.status] || 'bg-slate-400'}`} aria-hidden="true" />
+            </label>
+            <select className={`w-full rounded-md border bg-white px-3 py-2 transition focus:outline-none focus:ring ${selectStageBg[editForm.status] || 'border-slate-200 text-slate-900 focus:border-slate-300 focus:ring-slate-200'}`} value={editForm.status} onChange={e=>setEditForm(f=>({...f, status:e.target.value}))}>
+              {['Planned','Active','Completed','On Hold'].map(s=> <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Priority</label>
+            <select className="w-full px-3 py-2 border rounded-md" value={editForm.priority} onChange={e=>setEditForm(f=>({...f, priority:e.target.value}))}>
+              {priorityOptions.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">External campaign ID</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.externalCampaignId} onChange={e=>setEditForm(f=>({...f, externalCampaignId:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">UTM source</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.utmSource} onChange={e=>setEditForm(f=>({...f, utmSource:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">UTM medium</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.utmMedium} onChange={e=>setEditForm(f=>({...f, utmMedium:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">UTM campaign</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.utmCampaign} onChange={e=>setEditForm(f=>({...f, utmCampaign:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Preferred call date</label>
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={editForm.callDate||''} onChange={e=>setEditForm(f=>({...f, callDate:e.target.value}))} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Preferred call time</label>
+            {(() => { const { hour, mer } = parseTime(editForm.callTime); return (
+              <div className="flex items-center gap-2">
+                <select className="px-3 py-2 border rounded-md" value={hour} onChange={e=>{ const h=e.target.value; setEditForm(f=>({...f, callTime: composeTime(h, parseTime(f.callTime).mer)})) }}>
+                  {['','1','2','3','4','5','6','7','8','9','10','11','12'].map(h=> <option key={h} value={h}>{h || '—'}</option>)}
+                </select>
+                <select className="px-3 py-2 border rounded-md" value={mer} onChange={e=>{ const m=e.target.value; setEditForm(f=>({...f, callTime: composeTime(parseTime(f.callTime).hour, m)})) }}>
+                  {['AM','PM'].map(m=> <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+            )})()}
+          </div>
+          <div className="md:col-span-2 xl:col-span-3">
+            <label className="block text-sm text-slate-700">Description</label>
+            <textarea className="w-full px-3 py-2 border rounded-md" rows={3} value={editForm.description} onChange={e=>setEditForm(f=>({...f, description:e.target.value}))} />
+          </div>
+          <div className="md:col-span-2 xl:col-span-3">
+            <label className="block text-sm text-slate-700">Compliance checklist</label>
+            <textarea className="w-full px-3 py-2 border rounded-md" rows={2} value={editForm.complianceChecklist} onChange={e=>setEditForm(f=>({...f, complianceChecklist:e.target.value}))} />
+          </div>
+          <div className="md:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div>
+                <label className="block text-sm text-slate-700">Entity name</label>
+                <input className="w-full px-3 py-2 border rounded-md" value={editForm.accountCompany} onChange={e=>setEditForm(f=>({...f, accountCompany:e.target.value}))} />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-700">Company domain</label>
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="example.com" value={editForm.accountDomain} onChange={e=>setEditForm(f=>({...f, accountDomain:e.target.value}))} />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-700">Mobile number</label>
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="9876543210" value={editForm.mobile} onChange={e=>setEditForm(f=>({...f, mobile:e.target.value}))} />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-700">Email</label>
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="name@gmail.com" value={editForm.email} onChange={e=>setEditForm(f=>({...f, email:e.target.value}))} />
+              </div>
+            </div>
+          </div>
+        </div>
       </Modal>
 
     </div>

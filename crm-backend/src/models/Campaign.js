@@ -104,6 +104,14 @@ const Campaign = sequelize.define('Campaign', {
     type: DataTypes.STRING(255),
     allowNull: true
   },
+  callDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
+  },
+  callTime: {
+    type: DataTypes.STRING(8),
+    allowNull: true
+  },
   complianceChecklist: {
     type: DataTypes.TEXT,
     allowNull: true

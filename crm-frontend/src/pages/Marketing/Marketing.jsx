@@ -5,7 +5,7 @@ import LeadScoring from './LeadScoring'
 export default function Marketing() {
   const [tab, setTab] = useState('capture')
   const tabs = useMemo(() => ([
-    { id: 'capture', label: 'Capture', description: 'Campaigns & lead intake' },
+    { id: 'capture', label: 'Capture', description: 'Campaigns' },
     { id: 'scoring', label: 'Scoring', description: 'Grades & prioritisation' }
   ]), [])
 

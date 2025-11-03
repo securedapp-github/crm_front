@@ -116,9 +116,22 @@ export default function SalesDashboard() {
   }
 
   const friendlyTitle = (deal) => {
-    const pattern = /^Campaign Lead -\s*(.+?)\s*Opportunity$/i
-    const match = typeof deal.title === 'string' ? deal.title.match(pattern) : null
-    if (match && match[1]) return match[1]
+    if (!deal || !deal.title) return 'Untitled Deal'
+    
+    // Try different patterns to extract a cleaner title
+    const patterns = [
+      /^Campaign Lead -\s*(.+?)(?:\s*Opportunity)?$/i,
+      /^Campaign:\s*(.+?)(?:\s*\|.*)?$/i,
+      /^(.+?)(?:\s*\|.*)?$/
+    ]
+    
+    for (const pattern of patterns) {
+      const match = String(deal.title).match(pattern)
+      if (match && match[1]) {
+        return match[1].trim()
+      }
+    }
+    
     return deal.title
   }
 
@@ -131,12 +144,65 @@ export default function SalesDashboard() {
   }, [campaigns])
 
   const findCampaignForDeal = (deal) => {
-    if (!deal || !deal.title) return null
-    const pattern = /^Campaign Lead -\s*(.+?)\s*Opportunity$/i
-    const m = String(deal.title).match(pattern)
-    if (!m || !m[1]) return null
-    const key = m[1].trim().toLowerCase()
-    return campaignByName.get(key) || null
+    if (!deal) return null
+    
+    // Debug logging
+    console.log('Finding campaign for deal:', {
+      dealId: deal.id,
+      title: deal.title,
+      accountCompany: deal.accountCompany,
+      campaigns: Array.from(campaignByName.keys())
+    })
+    
+    // First try to find by exact title match (most reliable)
+    if (deal.title) {
+      // Try various patterns to extract campaign name
+      const patterns = [
+        /^Campaign Lead -\s*(.+?)(?:\s*Opportunity)?$/i,
+        /^(.+?)(?:\s*Opportunity)?$/i,
+        /^Campaign:\s*(.+?)(?:\s*\|.*)?$/i,
+        /^(.+?)(?:\s*\|.*)?$/
+      ]
+      
+      for (const pattern of patterns) {
+        const m = String(deal.title).match(pattern)
+        if (m && m[1]) {
+          const key = m[1].trim().toLowerCase()
+          const matched = campaignByName.get(key)
+          if (matched) {
+            console.log('Found campaign by title pattern:', { pattern: pattern.toString(), key, campaign: matched })
+            return matched
+          }
+        }
+      }
+    }
+    
+    // Try to find by account company name (case insensitive)
+    if (deal.accountCompany) {
+      const accountKey = String(deal.accountCompany).trim().toLowerCase()
+      const matched = Array.from(campaignByName.values()).find(camp => 
+        camp.accountCompany && String(camp.accountCompany).toLowerCase() === accountKey
+      )
+      if (matched) {
+        console.log('Found campaign by account company:', { accountKey, campaign: matched })
+        return matched
+      }
+    }
+    
+    // Try to find by partial match in title
+    if (deal.title) {
+      const dealTitle = String(deal.title).toLowerCase()
+      const matched = Array.from(campaignByName.entries()).find(([name]) => 
+        dealTitle.includes(name.toLowerCase())
+      )
+      if (matched) {
+        console.log('Found campaign by partial title match:', { match: matched[0], campaign: matched[1] })
+        return matched[1]
+      }
+    }
+    
+    console.log('No matching campaign found for deal')
+    return null
   }
 
   const onDragStart = (e, deal) => {
@@ -345,7 +411,14 @@ export default function SalesDashboard() {
                       className="cursor-move rounded-lg border bg-white px-3 py-2 text-sm shadow-sm hover:shadow-md transition"
                       draggable
                       onDragStart={(e) => onDragStart(e, deal)}
-                      onClick={() => { setSelectedDealId(String(deal.id)); setScheduleDealId(String(deal.id)); }}
+                      onClick={() => {
+                        const dealId = String(deal.id)
+                        setSelectedDealId(dealId)
+                        setScheduleDealId(dealId)
+                        // Force re-render of the details section by toggling the state
+                        setSelectedDealId(null)
+                        setTimeout(() => setSelectedDealId(dealId), 10)
+                      }}
                       title={deal.title}
                     >
                       <div className="flex items-center justify-between">

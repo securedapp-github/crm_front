@@ -1,5 +1,6 @@
 const { Campaign, Lead, Deal, Contact, Account, Activity, User } = require('../models');
 const { computeCampaignStrength } = require('../services/campaignScoring');
+const { Op } = require('sequelize');
 
 exports.seed = async (_req, res) => {
   const t = await Campaign.sequelize.transaction();
@@ -62,5 +63,62 @@ exports.seed = async (_req, res) => {
   } catch (e) {
     await t.rollback();
     return res.status(500).json({ success: false, message: 'Seeding failed' });
+  }
+};
+
+// POST /api/dev/normalize-deal-titles
+// Body: { strategy?: 'email'|'title', dryRun?: boolean }
+// - strategy 'email': base = contact.email (fallback to stripped title)
+// - strategy 'title': base = stripped title (remove -W###)
+exports.normalizeDealTitles = async (req, res) => {
+  const { strategy = 'title', dryRun = true } = req.body || {};
+  try {
+    const deals = await Deal.findAll({ order: [['createdAt','ASC']] });
+    const contactsById = {};
+    if (strategy === 'email') {
+      const cids = [...new Set(deals.map(d => d.contactId).filter(Boolean))];
+      if (cids.length) {
+        const cs = await Contact.findAll({ where: { id: { [Op.in]: cids } } });
+        cs.forEach(c => { contactsById[c.id] = c; });
+      }
+    }
+
+    const stripSuffix = (s) => String(s || '').replace(/-W\d{3}$/i, '').trim();
+    const keyFor = (d) => {
+      if (strategy === 'email') {
+        const email = contactsById[d.contactId]?.email || null;
+        return (email && email.trim()) ? email.trim().toLowerCase() : stripSuffix(d.title);
+      }
+      return stripSuffix(d.title);
+    };
+
+    // Group by base key
+    const groups = new Map();
+    for (const d of deals) {
+      const k = keyFor(d);
+      if (!k) continue;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(d);
+    }
+
+    const changes = [];
+    for (const [base, list] of groups.entries()) {
+      // Sort by createdAt to assign deterministic sequence
+      list.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+      for (let i = 0; i < list.length; i++) {
+        const d = list[i];
+        const desired = `${base}-W${String(i+1).padStart(3,'0')}`;
+        if (d.title !== desired) {
+          changes.push({ id: d.id, from: d.title, to: desired });
+          if (!dryRun) {
+            await d.update({ title: desired });
+          }
+        }
+      }
+    }
+
+    return res.json({ success: true, data: { changes, total: changes.length, dryRun: Boolean(dryRun), strategy } });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: 'Normalization failed' });
   }
 };

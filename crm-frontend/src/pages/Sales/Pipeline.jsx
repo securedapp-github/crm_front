@@ -159,16 +159,17 @@ export default function Pipeline() {
                   <div className="min-h-[84px] space-y-2">
                     {col.items.map(deal => {
                       const friendlyTitle = (() => {
-                        const pattern = /^Campaign Lead -\s*(.+?)\s*Opportunity$/i
-                        const match = typeof deal.title === 'string' ? deal.title.match(pattern) : null
-                        if (match && match[1]) return match[1]
-                        return deal.title
+                        const t = typeof deal.title === 'string' ? deal.title : ''
+                        const pattern = /^Campaign Lead\s*-\s*(.+?)(?:\s*Opportunity)?$/i
+                        const match = t.match(pattern)
+                        const cleaned = match && match[1] ? match[1].trim() : t
+                        return cleaned
                       })()
                       return (
                         <div
                           key={deal.id}
                           className="rounded-lg border bg-white px-3 py-2 transition-all"
-                          title={deal.title}
+                          title={friendlyTitle}
                         >
                           <div className="flex items-center justify-between">
                             <div className="font-medium text-slate-900 text-sm truncate">{friendlyTitle}</div>

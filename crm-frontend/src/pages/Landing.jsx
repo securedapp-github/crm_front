@@ -37,7 +37,9 @@ export default function Landing() {
     accountCompany: '',
     accountDomain: '',
     mobile: '',
-    email: ''
+    email: '',
+    callDate: '',
+    callTime: ''
   })
   const [form, setForm] = useState(() => initialForm())
   const [users, setUsers] = useState([])
@@ -54,6 +56,17 @@ export default function Landing() {
     Active: 'border-emerald-300 text-emerald-700 focus:border-emerald-500 focus:ring-emerald-200',
     'On Hold': 'border-amber-300 text-amber-700 focus:border-amber-500 focus:ring-amber-200',
     Completed: 'border-indigo-300 text-indigo-700 focus:border-indigo-500 focus:ring-indigo-200',
+  }
+
+  const parseTime = (t) => {
+    if (!t) return { hour: '', mer: 'AM' }
+    const m = String(t).match(/^(\d{1,2})(?::\d{2})?\s*(AM|PM)$/i)
+    if (!m) return { hour: '', mer: 'AM' }
+    return { hour: String(Number(m[1]) || ''), mer: m[2].toUpperCase() }
+  }
+  const composeTime = (hour, mer) => {
+    if (!hour || !mer) return ''
+    return `${hour}:00 ${mer}`
   }
 
   const handleChange = (field) => (e) => {
@@ -130,6 +143,8 @@ export default function Landing() {
         ...(form.accountDomain ? { accountDomain: form.accountDomain } : {}),
         ...(form.mobile ? { mobile: String(form.mobile).trim() } : {}),
         ...(form.email ? { email: String(form.email).trim() } : {}),
+        ...(form.callDate ? { callDate: form.callDate } : {}),
+        ...(form.callTime ? { callTime: form.callTime } : {}),
       }
       Object.keys(payload).forEach((key) => {
         if (payload[key] === undefined || payload[key] === null || payload[key] === '') delete payload[key]
@@ -307,6 +322,39 @@ export default function Landing() {
             />
           </div>
           <div>
+            <label className="block text-sm font-medium text-slate-700">Preferred call date</label>
+            <input
+              type="date"
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              value={form.callDate}
+              onChange={handleChange('callDate')}
+              disabled={saving}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Preferred call time</label>
+            {(() => { const { hour, mer } = parseTime(form.callTime); return (
+              <div className="mt-1 flex items-center gap-2">
+                <select
+                  className="rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  value={hour}
+                  onChange={(e)=>{ const h=e.target.value; setForm(prev=>({...prev, callTime: composeTime(h, parseTime(prev.callTime).mer)})) }}
+                  disabled={saving}
+                >
+                  {['','1','2','3','4','5','6','7','8','9','10','11','12'].map(h=> <option key={h} value={h}>{h || '—'}</option>)}
+                </select>
+                <select
+                  className="rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  value={mer}
+                  onChange={(e)=>{ const m=e.target.value; setForm(prev=>({...prev, callTime: composeTime(parseTime(prev.callTime).hour, m)})) }}
+                  disabled={saving}
+                >
+                  {['AM','PM'].map(m=> <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+            )})()}
+          </div>
+          <div>
             <label className="block text-sm font-medium text-slate-700">Start date</label>
             <input
               type="date"
@@ -481,7 +529,7 @@ export default function Landing() {
                     {domainError && <div className="text-rose-600">{domainError}</div>}
                     {verification.status === 'loading' && <span className="text-slate-500">Checking...</span>}
                     {verification.status === 'done' && verification.exists === true && <span className="text-emerald-600">✅ Verified organization.</span>}
-                    {verification.status === 'done' && verification.exists === false && <span className="text-amber-600">⚠️ New company, not yet verified.</span>}
+                    {verification.status === 'done' && verification.exists === false && <span className="text-amber-600"> New company</span>}
                   </div>
                 ) : null}
               </div>

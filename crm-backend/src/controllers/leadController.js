@@ -1,4 +1,4 @@
-const { Lead, User, Contact, Deal, Campaign, Task, Account } = require('../models');
+const { Lead, User, Contact, Deal, Campaign, Task, Account, LeadActivity } = require('../models');
 const { Op } = require('sequelize');
 const { assignNextSalesperson } = require('../services/assignment');
 
@@ -8,6 +8,35 @@ const computeGrade = (score) => {
   if (score >= 40) return 'B';
   return 'C';
 };
+
+// GET /api/leads/:id/activities
+exports.getLeadActivities = async (req, res) => {
+  try {
+    const leadId = Number(req.params.id)
+    const lead = await Lead.findByPk(leadId)
+    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' })
+    const acts = await LeadActivity.findAll({ where: { leadId }, order: [['createdAt','DESC']] })
+    return res.json({ success: true, data: acts })
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch lead activities' })
+  }
+}
+
+// POST /api/leads/:id/activities
+// Body: { type?: string, note?: string, meta?: object }
+exports.addLeadActivity = async (req, res) => {
+  try {
+    const leadId = Number(req.params.id)
+    const lead = await Lead.findByPk(leadId)
+    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' })
+    const { type = 'New intent', note = null, meta = null } = req.body || {}
+    const createdBy = req.user?.id || null
+    const act = await LeadActivity.create({ leadId, type, note, meta, createdBy })
+    return res.status(201).json({ success: true, data: act })
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to add lead activity' })
+  }
+}
 
 // GET /api/leads
 exports.getLeads = async (req, res) => {
@@ -114,15 +143,7 @@ exports.createLead = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
     // Duplicate check by email or phone (if provided)
-    const dupWhere = [];
-    if (email && String(email).trim() !== '') dupWhere.push({ email: String(email).trim() });
-    if (phone && String(phone).trim() !== '') dupWhere.push({ phone: String(phone).trim() });
-    if (dupWhere.length) {
-      const dup = await Lead.findOne({ where: { [Op.or]: dupWhere } });
-      if (dup) {
-        return res.status(400).json({ success: false, message: 'Duplicate lead exists with same email or phone' });
-      }
-    }
+    // Note: duplicates are allowed now; no blocking on email/phone
     let baseScore = 10; // New Lead
     if (status === 'Contacted') baseScore += 20;
     if (status === 'Qualified') baseScore += 30;
@@ -152,11 +173,38 @@ exports.createLead = async (req, res) => {
     if (campaignId) {
       try { await Campaign.increment('leadsGenerated', { by: 1, where: { id: campaignId } }); } catch {}
     }
-    // Optional auto-assign on create (Salesperson round-robin)
+    // Optional auto-assign on create (Salesperson round-robin). Only use existing salespeople.
     if (autoAssign && !lead.assignedTo) {
-      const chosen = await assignNextSalesperson();
-      await lead.update({ assignedTo: chosen.id, autoAssignRequested: true });
+      try {
+        const chosen = await assignNextSalesperson();
+        await lead.update({ assignedTo: chosen.id, autoAssignRequested: true });
+      } catch (e) {
+        // No salespeople available — proceed without assignment
+      }
     }
+    // Auto-create a corresponding Deal in 'New' stage with unique work-id title (base-W###)
+    try {
+      const assignedSp = lead.assignedTo || null;
+      const baseTitleRaw = lead.company || lead.email || lead.name;
+      const baseTitle = String(baseTitleRaw || 'Work').replace(/-W\d{3}$/i, '').trim();
+      const existing = await Deal.findAll({ where: { title: { [Op.like]: `${baseTitle}%` } } });
+      const matched = existing.filter(d => {
+        const t = String(d.title || '').trim();
+        return t === baseTitle || new RegExp(`^${baseTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-W\\d{3}$`, 'i').test(t);
+      });
+      const seq = matched.length + 1;
+      const finalTitle = `${baseTitle}-W${String(seq).padStart(3, '0')}`;
+      await Deal.create({
+        title: finalTitle,
+        value: 0,
+        stage: 'New',
+        contactId: null,
+        accountId: null,
+        ownerId: req.user?.id || null,
+        assignedTo: assignedSp || null,
+        notes: null
+      });
+    } catch {}
     res.status(201).json({ success: true, data: lead });
   } catch (err) {
     if (err && (err.name === 'SequelizeValidationError' || err.name === 'SequelizeUniqueConstraintError')) {
@@ -247,8 +295,21 @@ exports.assignLead = async (req, res) => {
     let lead = leadId ? await Lead.findByPk(leadId) : await Lead.findOne({ where: { assignedTo: null }, order: [['createdAt', 'DESC']] });
     if (!lead) return res.status(404).json({ success: false, message: 'No lead found to assign' });
 
-    const assignee = await assignNextSalesperson();
+    let assignee = null;
+    try {
+      assignee = await assignNextSalesperson();
+    } catch (e) {
+      return res.status(404).json({ success: false, message: 'No salespeople available for assignment' });
+    }
     await lead.update({ assignedTo: assignee.id, autoAssignRequested: true });
+    // Also reflect assignment in the most recent auto-created Deal for this lead, if present
+    try {
+      const title = `${lead.name} Opportunity`;
+      const deal = await Deal.findOne({ where: { title }, order: [['createdAt', 'DESC']] });
+      if (deal) {
+        await deal.update({ assignedTo: assignee.id });
+      }
+    } catch {}
     res.json({ success: true, data: { lead, assignee } });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to assign lead' });
@@ -285,9 +346,18 @@ exports.convertLead = async (req, res) => {
       assignedTo: lead.assignedTo || req.user?.id
     }, { transaction: t });
 
-    // Create a deal linked to Contact and Account
+    // Create a deal linked to Contact and Account with unique work-id title
+    const baseTitleRaw = lead.company || lead.email || lead.name;
+    const baseTitle = String(baseTitleRaw || 'Work').replace(/-W\d{3}$/i, '').trim();
+    const existing = await Deal.findAll({ where: { title: { [Op.like]: `${baseTitle}%` } }, transaction: t });
+    const matched = existing.filter(d => {
+      const tt = String(d.title || '').trim();
+      return tt === baseTitle || new RegExp(`^${baseTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-W\\d{3}$`, 'i').test(tt);
+    });
+    const seq = matched.length + 1;
+    const finalTitle = `${baseTitle}-W${String(seq).padStart(3, '0')}`;
     const deal = await Deal.create({
-      title: `${lead.name} Opportunity`,
+      title: finalTitle,
       value: 0,
       stage: 'New',
       contactId: contact.id,

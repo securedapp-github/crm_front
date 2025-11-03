@@ -34,7 +34,24 @@ exports.createDeal = async (req, res) => {
     if (stage && !STAGES.includes(stage)) {
       return res.status(400).json({ success: false, message: 'Invalid stage' });
     }
-    let deal = await Deal.create({ title, value, stage, contactId, ownerId, accountId, assignedTo });
+    // Compute unique work ID suffix W### per contact/email or per base title
+    const baseTitle = String(title).replace(/-W\d{3}$/i, '').trim();
+    let seq = 1;
+    if (contactId) {
+      const count = await Deal.count({ where: { contactId } });
+      seq = count + 1;
+    } else {
+      const existing = await Deal.findAll({ where: { title: { [Op.like]: `${baseTitle}%` } } });
+      // Only count titles that match baseTitle or baseTitle-W### pattern
+      const matched = existing.filter(d => {
+        const t = String(d.title || '').trim();
+        return t === baseTitle || new RegExp(`^${baseTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-W\\d{3}$`, 'i').test(t);
+      });
+      seq = matched.length + 1;
+    }
+    const finalTitle = `${baseTitle}-W${String(seq).padStart(3, '0')}`;
+
+    let deal = await Deal.create({ title: finalTitle, value, stage, contactId, ownerId, accountId, assignedTo });
 
     // Optional round-robin assignment
     if (autoAssign && !deal.assignedTo) {

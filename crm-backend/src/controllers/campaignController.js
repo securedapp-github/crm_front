@@ -30,6 +30,8 @@ const CAMPAIGN_FIELDS = [
   'accountDomain',
   'mobile',
   'email',
+  'callDate',
+  'callTime',
   'actualSpend',
   'leadsGenerated',
   'wonDeals',
@@ -143,8 +145,18 @@ exports.createCampaign = async (req, res) => {
       assignedTo: null,
     }, { transaction: t });
 
+    // Unique W### title for initial deal using clean base (prefer company/email, fallback to campaign name)
+    const baseInitRaw = req.body.accountCompany || req.body.email || campaign.name;
+    const baseInit = String(baseInitRaw || campaign.name).replace(/^(Campaign Lead\s*-\s*)/i, '').replace(/\s*Opportunity$/i, '').replace(/-W\d{3}$/i, '').trim();
+    const existingInit = await Deal.findAll({ where: { title: { [Op.like]: `${baseInit}%` } }, transaction: t });
+    const matchedInit = existingInit.filter(d => {
+      const tt = String(d.title || '').trim();
+      return tt === baseInit || new RegExp(`^${baseInit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-W\\d{3}$`, 'i').test(tt);
+    });
+    const seqInit = matchedInit.length + 1;
+    const finalInitTitle = `${baseInit}-W${String(seqInit).padStart(3, '0')}`;
     const deal = await Deal.create({
-      title: `${placeholderName} Opportunity`,
+      title: finalInitTitle,
       value: 0,
       stage: 'New',
       contactId: contact.id,
@@ -389,8 +401,18 @@ exports.captureLead = async (req, res) => {
     }, { transaction: t });
 
     // Create a Deal stub to push into pipeline (optional but useful)
+    // Unique W### title for captured contact deal
+    const baseCapRaw = contact.email || account?.name || contact.name;
+    const baseCap = String(baseCapRaw || contact.name).replace(/-W\d{3}$/i, '').trim();
+    const existingCap = await Deal.findAll({ where: { title: { [Op.like]: `${baseCap}%` } }, transaction: t });
+    const matchedCap = existingCap.filter(d => {
+      const tt = String(d.title || '').trim();
+      return tt === baseCap || new RegExp(`^${baseCap.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-W\\d{3}$`, 'i').test(tt);
+    });
+    const seqCap = matchedCap.length + 1;
+    const finalCapTitle = `${baseCap}-W${String(seqCap).padStart(3, '0')}`;
     const deal = await Deal.create({
-      title: `${contact.name} Opportunity`,
+      title: finalCapTitle,
       value: 0,
       stage: 'New',
       contactId: contact.id,

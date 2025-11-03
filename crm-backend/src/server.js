@@ -21,7 +21,6 @@ const quoteRoutes = require('./routes/quoteRoutes');
 const accountRoutes = require('./routes/accountRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const devRoutes = require('./routes/devRoutes');
-const leadRoutes = require('./routes/leadRoutes');
 const salesRoutes = require('./routes/salesRoutes');
 
 // Initialize express app
@@ -73,7 +72,6 @@ app.use('/api/notes', noteRoutes);
 app.use('/api/quotes', quoteRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/accounts', accountRoutes);
-app.use('/api/leads', leadRoutes);
 app.use('/api/dev', devRoutes);
 app.use('/api/sales', salesRoutes);
 

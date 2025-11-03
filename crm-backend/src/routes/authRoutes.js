@@ -14,6 +14,8 @@ router.post('/resend-otp', sessionAuth.resendOTP);
 router.post('/signup-sales-start', sessionAuth.signupSalesStart);
 router.post('/verify-sales-otp', sessionAuth.verifySalesOTP);
 router.post('/resend-sales-otp', sessionAuth.resendSalesOTP);
+// Approval callback for Sales signups
+router.get('/approve-sales', sessionAuth.approveSales);
 router.post('/login', sessionAuth.login);
 router.post('/forgot-password', sessionAuth.requestPasswordReset);
 router.post('/reset-password', sessionAuth.resetPassword);

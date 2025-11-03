@@ -15,7 +15,7 @@ export default function Signup() {
   const [otpMsg, setOtpMsg] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
-  const [salesIdModal, setSalesIdModal] = useState({ open: false, id: '' })
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false)
 
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
@@ -72,11 +72,10 @@ export default function Signup() {
         setOtpOpen(false)
         navigate('/login')
       } else {
-        const res = await verifySalesOtp({ email: form.email, otp: otpCode })
-        const sid = res.data?.salesId
+        await verifySalesOtp({ email: form.email, otp: otpCode })
         setOtpLoading(false)
         setOtpOpen(false)
-        setSalesIdModal({ open: true, id: sid || '' })
+        setApprovalModalOpen(true)
       }
     } catch (err) {
       setOtpLoading(false)
@@ -240,15 +239,13 @@ export default function Signup() {
       </div>
     </Modal>
     <Modal
-      open={salesIdModal.open}
-      onClose={() => setSalesIdModal({ open: false, id: '' })}
-      title="Sales Person ID"
-      actions={<button onClick={()=>{ setSalesIdModal({ open: false, id: '' }); navigate('/login') }} className="px-4 py-2 rounded-md bg-emerald-600 text-white">Go to Login</button>}
+      open={approvalModalOpen}
+      onClose={() => setApprovalModalOpen(false)}
+      title="Approval Pending"
+      actions={<button onClick={()=>{ setApprovalModalOpen(false); navigate('/login') }} className="px-4 py-2 rounded-md bg-emerald-600 text-white">OK</button>}
     >
       <div className="text-sm text-slate-700">
-        Your Sales Person ID is:
-        <div className="mt-2 rounded border bg-slate-50 px-3 py-2 font-mono text-emerald-700">{salesIdModal.id || '—'}</div>
-        Please save it. You will use this ID + password to log in.
+        Your OTP is verified. Your Sales Person signup is pending company approval. Once approved, you will receive an email with your Sales Person ID. Use that ID with your password to log in.
       </div>
     </Modal>
     </>

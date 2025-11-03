@@ -9,6 +9,8 @@ const Ticket = require('./Ticket');
 const Note = require('./Note');
 const Quote = require('./Quote');
 const Salesperson = require('./Salesperson');
+const Lead = require('./Lead');
+const LeadActivity = require('./LeadActivity');
 
 // Associations
 // User
@@ -46,6 +48,13 @@ Quote.belongsTo(Deal, { foreignKey: 'dealId', as: 'deal' });
 User.hasMany(Campaign, { foreignKey: 'campaignOwnerId', as: 'campaignsOwned' });
 Campaign.belongsTo(User, { foreignKey: 'campaignOwnerId', as: 'owner' });
 
+// Lead
+// We keep associations light; assignedTo is an integer user id without FK constraints
+Lead.hasMany(LeadActivity, { foreignKey: 'leadId', as: 'activities' });
+LeadActivity.belongsTo(Lead, { foreignKey: 'leadId', as: 'lead' });
+Lead.belongsTo(Campaign, { foreignKey: 'campaignId', as: 'campaign' });
+Lead.belongsTo(User, { foreignKey: 'assignedTo', as: 'owner' });
+
 // Ticket
 User.hasMany(Ticket, { foreignKey: 'assignedTo', as: 'tickets' });
 Ticket.belongsTo(User, { foreignKey: 'assignedTo', as: 'assignee' });
@@ -65,5 +74,7 @@ module.exports = {
   Ticket,
   Note,
   Quote,
-  Salesperson
+  Salesperson,
+  Lead,
+  LeadActivity
 };
