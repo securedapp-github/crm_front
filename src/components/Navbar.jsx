@@ -40,7 +40,7 @@ export default function Navbar() {
       })
       .finally(() => mounted && setChecking(false))
     return () => { mounted = false }
-  }, [location.pathname])
+  }, []) // Remove location.pathname dependency to prevent repeated calls
 
   const onLogout = async () => {
     try {
