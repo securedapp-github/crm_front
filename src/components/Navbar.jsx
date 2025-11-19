@@ -11,10 +11,18 @@ export default function Navbar() {
   const [role, setRole] = useState('')
   const [checking, setChecking] = useState(true)
   const onDashboard = location.pathname.startsWith('/dashboard')
-  const navLinks = useMemo(() => ([
-    { href: '/', label: 'Home' },
-    { href: '/dashboard', label: 'Dashboard', protected: true },
-  ]), [])
+  const navLinks = useMemo(() => {
+    const links = [{ href: '/', label: 'Home' }]
+    if (authed && role === 'sales') {
+      links.push(
+        { href: '/dashboard/sales-dashboard', label: 'Sales Dashboard', protected: true },
+        { href: '/dashboard/sales/completed', label: 'Completed Deals', protected: true }
+      )
+    } else {
+      links.push({ href: '/dashboard', label: 'Dashboard', protected: true })
+    }
+    return links
+  }, [authed, role])
 
   useEffect(() => {
     let mounted = true

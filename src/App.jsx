@@ -10,8 +10,16 @@ import DashboardHome from './pages/DashboardHome'
 import Pipeline from './pages/Sales/Pipeline'
 import DealDetail from './pages/Sales/DealDetail'
 import SalesDashboard from './pages/Sales/SalesDashboard'
+import CompletedDeals from './pages/Sales/CompletedDeals'
+import SalesMail from './pages/Sales/SalesMail'
 import Tickets from './pages/Service/Tickets'
 import Notes from './pages/Collaboration/Notes'
+import SalesTeam from './pages/Teams/SalesTeam'
+import MarketingTeam from './pages/Teams/MarketingTeam'
+import GrowthTeam from './pages/Teams/GrowthTeam'
+import OperationsTeam from './pages/Teams/OperationsTeam'
+import TechTeam from './pages/Teams/TechTeam'
+import HRTeam from './pages/Teams/HRTeam'
 import { ToastProvider } from './components/ToastProvider'
 
 function App() {
@@ -35,9 +43,15 @@ function App() {
             <Route path="marketing" element={<Marketing />} />
             <Route path="sales" element={<Pipeline />} />
             <Route path="sales-dashboard" element={<SalesDashboard />} />
+            <Route path="sales/mail" element={<SalesMail />} />
+            <Route path="sales/completed" element={<CompletedDeals />} />
             <Route path="sales/deals/:id" element={<DealDetail />} />
-            <Route path="service" element={<Tickets />} />
-            <Route path="collaboration" element={<Notes />} />
+            <Route path="sales-team" element={<SalesTeam />} />
+            <Route path="marketing-team" element={<MarketingTeam />} />
+            <Route path="growth-team" element={<GrowthTeam />} />
+            <Route path="operations-team" element={<OperationsTeam />} />
+            <Route path="tech-team" element={<TechTeam />} />
+            <Route path="hr-team" element={<HRTeam />} />
           </Route>
         </Routes>
       </ToastProvider>

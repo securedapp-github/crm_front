@@ -6,7 +6,7 @@ import { updateDealNotes } from '../../api/deal'
 import { getCampaigns } from '../../api/campaign'
 import Modal from '../../components/Modal'
 
-const STAGES = ['New', 'In Progress', 'Proposal', 'Won', 'Lost']
+const STAGES = ['New', 'In Progress', 'Proposal', 'Deal Closed', 'Lost']
 
 export default function SalesDashboard() {
   const navigate = useNavigate()
@@ -86,6 +86,23 @@ export default function SalesDashboard() {
       .filter(t => t.status === 'Open' && t.dueDate && new Date(t.dueDate) >= now)
       .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
       .slice(0, 10)
+  }, [myTasks])
+
+  const completedSummary = useMemo(() => {
+    const summary = new Map()
+    for (const task of myTasks) {
+      if (task.status !== 'Completed' || !task.relatedDealId) continue
+      const entry = summary.get(task.relatedDealId) || { dealId: task.relatedDealId, count: 0, lastCompleted: null }
+      entry.count += 1
+      const completedAt = task.updatedAt
+        ? new Date(task.updatedAt).getTime()
+        : (task.dueDate ? new Date(task.dueDate).getTime() : null)
+      if (completedAt && (!entry.lastCompleted || completedAt > entry.lastCompleted)) {
+        entry.lastCompleted = completedAt
+      }
+      summary.set(task.relatedDealId, entry)
+    }
+    return Array.from(summary.values()).sort((a, b) => b.count - a.count)
   }, [myTasks])
 
   const dealTitle = (id) => myDeals.find(d => d.id === id)?.title || `Deal #${id}`
@@ -516,21 +533,15 @@ export default function SalesDashboard() {
                 <tr>
                   <th className="text-left px-3 py-2">Title</th>
                   <th className="text-left px-3 py-2">Stage</th>
-                  <th className="text-left px-3 py-2">Value</th>
-                  <th className="text-left px-3 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {myDeals.length === 0 ? (
-                  <tr><td className="px-3 py-3 text-slate-500" colSpan={4}>No deals assigned to you yet. Please add leads to get started.</td></tr>
+                  <tr><td className="px-3 py-3 text-slate-500" colSpan={2}>No deals assigned to you yet. Please add leads to get started.</td></tr>
                 ) : myDeals.map(d => (
                   <tr key={d.id}>
                     <td className="px-3 py-2 text-slate-900">{d.title}</td>
                     <td className="px-3 py-2 text-slate-700">{d.pipelineStage || d.stage || 'New'}</td>
-                    <td className="px-3 py-2 text-slate-700">₹{Number(d.value||0).toLocaleString()}</td>
-                    <td className="px-3 py-2">
-                      <Link to={`/dashboard/sales/deals/${d.id}`} className="text-indigo-600 hover:underline text-xs">View</Link>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -554,13 +565,40 @@ export default function SalesDashboard() {
                         <div className="text-xs text-slate-600">{new Date(t.dueDate).toLocaleString()}</div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={()=>setStatus(t,'In Progress')} className="rounded-md border px-2 py-1 text-xs text-amber-700 border-amber-200 hover:bg-amber-50">Scheduled</button>
-                        <button onClick={()=>setStatus(t,'Resolved')} className="rounded-md border px-2 py-1 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50">Completed</button>
+                        <button onClick={()=>setStatus(t,'Closed')} className="rounded-md border px-2 py-1 text-xs text-slate-700 border-slate-200 hover:bg-slate-50">Close</button>
+                        <button onClick={()=>setStatus(t,'Completed')} className="rounded-md border px-2 py-1 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50">Completed</button>
                       </div>
                     </div>
                   </li>
                 ))}
               </ul>
+            )}
+          </div>
+          <div className="mt-4 border-t pt-4">
+            <h4 className="text-sm font-semibold text-slate-900">Completed Contacts Summary</h4>
+            {completedSummary.length === 0 ? (
+              <p className="mt-2 text-xs text-slate-500">No completed contact schedules yet.</p>
+            ) : (
+              <div className="mt-2 max-h-56 overflow-y-auto rounded border">
+                <table className="min-w-full text-xs">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Deal</th>
+                      <th className="px-3 py-2 text-left">Completed Calls</th>
+                      <th className="px-3 py-2 text-left">Last Completed</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {completedSummary.map(item => (
+                      <tr key={item.dealId}>
+                        <td className="px-3 py-2 text-slate-900">{dealTitle(item.dealId)}</td>
+                        <td className="px-3 py-2 text-slate-700">{item.count}</td>
+                        <td className="px-3 py-2 text-slate-600">{item.lastCompleted ? new Date(item.lastCompleted).toLocaleString() : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </section>

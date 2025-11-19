@@ -43,6 +43,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
     accountDomain: '',
     mobile: '',
     email: '',
+    serviceOffering: '',
     callDate: '',
     callTime: ''
   })
@@ -84,6 +85,10 @@ export default function CampaignList({ autoOpenKey = 0 }) {
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(() => defaultForm())
   const [editSaving, setEditSaving] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [assigningCampaign, setAssigningCampaign] = useState(null)
+  const [assignTarget, setAssignTarget] = useState('')
+  const [assignSaving, setAssignSaving] = useState(false)
   const { show } = useToast()
   const stagePills = {
     Planned: 'bg-slate-100 text-slate-700 border border-slate-200',
@@ -130,6 +135,24 @@ export default function CampaignList({ autoOpenKey = 0 }) {
 
   const priorityOptions = useMemo(() => (
     ['Low', 'Medium', 'High']
+  ), [])
+
+  const serviceOptions = useMemo(() => (
+    [
+      'Dapp Development',
+      'Smart Contract Audit',
+      'Dapp Security Audit',
+      'Token Audit',
+      'Web3 KYC',
+      'Web3 Security',
+      'Blockchain Forensic',
+      'RWA Audit',
+      'Crypto Compliance & AMI',
+      'Decentralized Identity (DID)',
+      'NFTs Development',
+      'DeFi Development',
+      'LevelUp Academy'
+    ]
   ), [])
 
   const fetchData = async () => {
@@ -179,12 +202,6 @@ export default function CampaignList({ autoOpenKey = 0 }) {
     const raw = form.accountDomain || ''
     if (!raw) { setVerification({ status: 'idle', exists: null }); setDomainError(''); return }
     const normalized = String(raw).trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
-    const allowed = /\.(com|io|in)$/i.test(normalized)
-    if (!allowed) {
-      setDomainError('Only .com, .io, and .in domains are allowed')
-      setVerification({ status: 'idle', exists: null })
-      return
-    }
     setDomainError('')
     setVerification({ status: 'loading', exists: null })
     const t = setTimeout(async () => {
@@ -250,6 +267,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
       if (form.accountDomain) payload.accountDomain = form.accountDomain
       if (form.mobile) payload.mobile = String(form.mobile).trim()
       if (form.email) payload.email = String(form.email).trim()
+      if (form.serviceOffering) payload.serviceOffering = form.serviceOffering
       if (form.callDate) payload.callDate = form.callDate
       if (form.callTime) payload.callTime = form.callTime
       const res = await createCampaign(payload)
@@ -357,8 +375,14 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={()=>{ setAssigningCampaign(c); setAssignTarget(String(c.campaignOwnerId || '')); setAssignOpen(true) }}
+                        className="text-xs px-2 py-1 rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                      >
+                        Assign
+                      </button>
                       <button onClick={()=>{ setEditingId(c.id); setEditForm({
-                        name: c.name||'', code: c.code||'', objective: c.objective||'', channel: c.channel||'Email', audienceSegment: c.audienceSegment||'', productLine: c.productLine||'', startDate: c.startDate||'', endDate: c.endDate||'', budget: c.budget??'', expectedSpend: c.expectedSpend??'', currency: c.currency||'USD', status: c.status||'Planned', priority: c.priority||'Medium', description: c.description||'', complianceChecklist: c.complianceChecklist||'', externalCampaignId: c.externalCampaignId||'', utmSource: c.utmSource||'', utmMedium: c.utmMedium||'', utmCampaign: c.utmCampaign||'', accountCompany: c.accountCompany||'', accountDomain: c.accountDomain||'', mobile: c.mobile||'', email: c.email||'', callDate: c.callDate||'', callTime: c.callTime||''
+                        name: c.name||'', code: c.code||'', objective: c.objective||'', channel: c.channel||'Email', audienceSegment: c.audienceSegment||'', productLine: c.productLine||'', startDate: c.startDate||'', endDate: c.endDate||'', budget: c.budget??'', expectedSpend: c.expectedSpend??'', currency: c.currency||'USD', status: c.status||'Planned', priority: c.priority||'Medium', description: c.description||'', complianceChecklist: c.complianceChecklist||'', externalCampaignId: c.externalCampaignId||'', utmSource: c.utmSource||'', utmMedium: c.utmMedium||'', utmCampaign: c.utmCampaign||'', accountCompany: c.accountCompany||'', accountDomain: c.accountDomain||'', mobile: c.mobile||'', email: c.email||'', serviceOffering: c.serviceOffering||'', callDate: c.callDate||'', callTime: c.callTime||''
                       }); setEditOpen(true); }} className="text-xs px-2 py-1 rounded border border-slate-200 text-slate-700 hover:bg-slate-50">Edit</button>
                       <button onClick={()=>setConfirmDeleteId(c.id)} className="text-xs px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50">Delete</button>
                     </div>
@@ -378,6 +402,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                         <DetailBlock label="UTM source" value={c.utmSource} />
                         <DetailBlock label="UTM medium" value={c.utmMedium} />
                         <DetailBlock label="UTM campaign" value={c.utmCampaign} />
+                        <DetailBlock label="Service offering" value={c.serviceOffering} />
                         <DetailBlock label="Call schedule" value={[c.callDate, c.callTime].filter(Boolean).join(' ')} />
                       </div>
                       <div className="mt-4 grid grid-cols-1 gap-4">
@@ -537,8 +562,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
             <textarea className="w-full px-3 py-2 border rounded-md" rows={2} value={form.complianceChecklist} onChange={e=>setForm(f=>({...f, complianceChecklist:e.target.value}))} />
           </div>
           <div className="md:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
-            
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <div>
                 <label className="block text-sm text-slate-700">Entity name</label>
                 <input className="w-full px-3 py-2 border rounded-md" value={form.accountCompany} onChange={e=>setForm(f=>({...f, accountCompany:e.target.value}))} />
@@ -563,7 +587,64 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                 <label className="block text-sm text-slate-700">Email</label>
                 <input className="w-full px-3 py-2 border rounded-md" placeholder="name@gmail.com" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} />
               </div>
+              <div>
+                <label className="block text-sm text-slate-700">Choose a Service</label>
+                <select
+                  className="w-full px-3 py-2 border rounded-md"
+                  value={form.serviceOffering}
+                  onChange={e=>setForm(f=>({...f, serviceOffering: e.target.value}))}
+                >
+                  {serviceOptions.map(option => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
             </div>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={assignOpen} onClose={()=>!assignSaving && setAssignOpen(false)} title="Assign Campaign" actions={
+        <div className="flex items-center gap-2">
+          <button onClick={()=>setAssignOpen(false)} disabled={assignSaving} className="px-3 py-2 rounded border">Cancel</button>
+          <button
+            onClick={async ()=>{
+              if (!assigningCampaign || !assignTarget) return
+              setAssignSaving(true)
+              try {
+                await updateCampaign(assigningCampaign.id, { campaignOwnerId: Number(assignTarget) })
+                show('Campaign assigned successfully', 'success')
+                setAssignOpen(false)
+                setAssignTarget('')
+                setAssigningCampaign(null)
+                await fetchData()
+              } catch (e) {
+                show(e.response?.data?.message || 'Failed to assign campaign', 'error')
+              } finally { setAssignSaving(false) }
+            }}
+            disabled={!assignTarget || assignSaving}
+            className={`px-3 py-2 rounded text-white ${!assignTarget || assignSaving ? 'bg-indigo-400' : 'bg-indigo-600'}`}
+          >{assignSaving ? 'Assigning…' : 'Assign'}</button>
+        </div>
+      }>
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-slate-600">Select a team member to own this campaign. They'll appear as the campaign owner throughout the app.</p>
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Assign to</label>
+            <select
+              className="mt-1 w-full rounded-md border px-3 py-2"
+              value={assignTarget}
+              onChange={(e)=>setAssignTarget(e.target.value)}
+            >
+              <option value="">Select teammate…</option>
+              {users
+                .filter(u => u.role !== 'sales' ? true : true)
+                .map(user => (
+                  <option key={user.id} value={user.id}>{user.name || user.email || `User #${user.id}`}</option>
+                ))}
+            </select>
           </div>
         </div>
       </Modal>
@@ -731,7 +812,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
             <textarea className="w-full px-3 py-2 border rounded-md" rows={2} value={editForm.complianceChecklist} onChange={e=>setEditForm(f=>({...f, complianceChecklist:e.target.value}))} />
           </div>
           <div className="md:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <div>
                 <label className="block text-sm text-slate-700">Entity name</label>
                 <input className="w-full px-3 py-2 border rounded-md" value={editForm.accountCompany} onChange={e=>setEditForm(f=>({...f, accountCompany:e.target.value}))} />
@@ -747,6 +828,18 @@ export default function CampaignList({ autoOpenKey = 0 }) {
               <div>
                 <label className="block text-sm text-slate-700">Email</label>
                 <input className="w-full px-3 py-2 border rounded-md" placeholder="name@gmail.com" value={editForm.email} onChange={e=>setEditForm(f=>({...f, email:e.target.value}))} />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-700">Choose a Service</label>
+                <select
+                  className="w-full px-3 py-2 border rounded-md"
+                  value={editForm.serviceOffering}
+                  onChange={e=>setEditForm(f=>({...f, serviceOffering: e.target.value}))}
+                >
+                  {serviceOptions.map(option => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>

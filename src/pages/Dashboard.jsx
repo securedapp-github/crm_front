@@ -4,14 +4,12 @@ import { getMe } from "../api/auth"
 
 const DEFAULT_SECTIONS = [
   { href: "/dashboard", label: "Dashboard", icon: "🏠" },
-  { href: "/dashboard/marketing", label: "Marketing", icon: "📈" },
-  { href: "/dashboard/sales", label: "Sales", icon: "🧭" },
-  { href: "/dashboard/service", label: "Service", icon: "🛟" },
-  { href: "/dashboard/collaboration", label: "Collaboration", icon: "📝" },
 ]
 
 const SALES_SECTIONS = [
   { href: "/dashboard/sales-dashboard", label: "Sales Dashboard", icon: "🧭" },
+  { href: "/dashboard/sales/mail", label: "Send Mail", icon: "✉️" },
+  { href: "/dashboard/sales/completed", label: "Completed Deals", icon: "✅" },
 ]
 
 export default function Dashboard() {
@@ -46,7 +44,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (checking) return
     if (user?.role === 'sales') {
-      const allowedPrefixes = ['/dashboard/sales-dashboard']
+      const allowedPrefixes = ['/dashboard/sales-dashboard', '/dashboard/sales/completed', '/dashboard/sales/mail']
       const isAllowed = allowedPrefixes.some((prefix) => location.pathname.startsWith(prefix))
       if (!isAllowed) {
         navigate('/dashboard/sales-dashboard', { replace: true })
@@ -69,35 +67,194 @@ export default function Dashboard() {
     )
   }
 
-  const renderNav = (onNavigate) => (
-    <nav className="px-4 py-6 space-y-1 text-sm font-medium">
-      {sections.map((item) => {
-        const active = item.href === "/dashboard"
-          ? location.pathname === item.href
-          : location.pathname.startsWith(item.href)
-        return (
-          <Link
-            key={item.href}
-            to={item.href}
-            onClick={() => {
-              if (onNavigate) onNavigate()
-            }}
-            className={`group flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-all ${
-              active
-                ? "border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm"
-                : "border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600"
-            }`}
-          >
-            <span className="flex items-center gap-3 text-left">
-              <span className="text-lg">{item.icon}</span>
-              <span>{item.label}</span>
-            </span>
-            <span className={`text-xs transition ${active ? "text-indigo-500" : "text-slate-300 group-hover:text-indigo-400"}`}>→</span>
-          </Link>
-        )
-      })}
-    </nav>
-  )
+  const renderNav = (onNavigate) => {
+    const renderLink = (item) => {
+      const active = item.href === "/dashboard"
+        ? location.pathname === item.href
+        : location.pathname.startsWith(item.href)
+
+      return (
+        <Link
+          key={item.href}
+          to={item.href}
+          onClick={() => {
+            if (onNavigate) onNavigate()
+          }}
+          className={`group flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-all ${
+            active
+              ? "border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm"
+              : "border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600"
+          }`}
+        >
+          <span className="flex items-center gap-3 text-left">
+            <span className="text-lg">{item.icon}</span>
+            <span>{item.label}</span>
+          </span>
+          <span className={`text-xs transition ${active ? "text-indigo-500" : "text-slate-300 group-hover:text-indigo-400"}`}>
+            →
+          </span>
+        </Link>
+      )
+    }
+
+    return (
+      <nav className="px-4 py-6 space-y-3 text-sm font-medium">
+        <div className="space-y-2">
+          {sections.map((item) => (
+            <div key={item.href}>{renderLink(item)}</div>
+          ))}
+        </div>
+
+        {user?.role !== 'sales' && (
+          <div className="space-y-2">
+            <Link
+              to="/dashboard/sales-team"
+              onClick={() => {
+                if (onNavigate) onNavigate()
+              }}
+              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
+                location.pathname.startsWith('/dashboard/sales-team')
+                  ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+                  : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <span className="text-lg">👥</span>
+                <span>Sales Team</span>
+              </span>
+              <span className={`text-xs transition ${
+                location.pathname.startsWith('/dashboard/sales-team')
+                  ? 'text-indigo-500'
+                  : 'text-slate-300 group-hover:text-indigo-400'
+              }`}>
+                →
+              </span>
+            </Link>
+
+            <Link
+              to="/dashboard/marketing-team"
+              onClick={() => {
+                if (onNavigate) onNavigate()
+              }}
+              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
+                location.pathname.startsWith('/dashboard/marketing-team')
+                  ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+                  : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <span className="text-lg">📣</span>
+                <span>Marketing Team</span>
+              </span>
+              <span className={`text-xs transition ${
+                location.pathname.startsWith('/dashboard/marketing-team')
+                  ? 'text-indigo-500'
+                  : 'text-slate-300 group-hover:text-indigo-400'
+              }`}>
+                →
+              </span>
+            </Link>
+
+            <Link
+              to="/dashboard/growth-team"
+              onClick={() => {
+                if (onNavigate) onNavigate()
+              }}
+              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
+                location.pathname.startsWith('/dashboard/growth-team')
+                  ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+                  : 'border-transparent text-slate-600 hover-border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <span className="text-lg">📈</span>
+                <span>Growth Team</span>
+              </span>
+              <span className={`text-xs transition ${
+                location.pathname.startsWith('/dashboard/growth-team')
+                  ? 'text-indigo-500'
+                  : 'text-slate-300 group-hover:text-indigo-400'
+              }`}>
+                →
+              </span>
+            </Link>
+
+            <Link
+              to="/dashboard/operations-team"
+              onClick={() => {
+                if (onNavigate) onNavigate()
+              }}
+              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
+                location.pathname.startsWith('/dashboard/operations-team')
+                  ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+                  : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <span className="text-lg">🏭</span>
+                <span>Operations Team</span>
+              </span>
+              <span className={`text-xs transition ${
+                location.pathname.startsWith('/dashboard/operations-team')
+                  ? 'text-indigo-500'
+                  : 'text-slate-300 group-hover:text-indigo-400'
+              }`}>
+                →
+              </span>
+            </Link>
+
+            <Link
+              to="/dashboard/tech-team"
+              onClick={() => {
+                if (onNavigate) onNavigate()
+              }}
+              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
+                location.pathname.startsWith('/dashboard/tech-team')
+                  ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+                  : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <span className="text-lg">💻</span>
+                <span>Tech Team</span>
+              </span>
+              <span className={`text-xs transition ${
+                location.pathname.startsWith('/dashboard/tech-team')
+                  ? 'text-indigo-500'
+                  : 'text-slate-300 group-hover:text-indigo-400'
+              }`}>
+                →
+              </span>
+            </Link>
+
+            <Link
+              to="/dashboard/hr-team"
+              onClick={() => {
+                if (onNavigate) onNavigate()
+              }}
+              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
+                location.pathname.startsWith('/dashboard/hr-team')
+                  ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+                  : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <span className="text-lg">🧑‍💼</span>
+                <span>HR Team</span>
+              </span>
+              <span className={`text-xs transition ${
+                location.pathname.startsWith('/dashboard/hr-team')
+                  ? 'text-indigo-500'
+                  : 'text-slate-300 group-hover:text-indigo-400'
+              }`}>
+                →
+              </span>
+            </Link>
+          </div>
+        )}
+      </nav>
+    )
+  }
 
   return (
     <div className="relative flex min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 via-white to-slate-100">

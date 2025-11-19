@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { loginUser, loginSales, requestForgotPasswordOtp, resetPasswordWithOtp, resendForgotOtp } from '../api/auth'
+import { loginAdmin, loginSales, requestForgotPasswordOtp, resetPasswordWithOtp, resendForgotOtp } from '../api/auth'
 import Modal from '../components/Modal'
 
 export default function Login() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({ email: '', password: '' })
+  const [adminForm, setAdminForm] = useState({ adminId: '', password: '' })
   const [salesForm, setSalesForm] = useState({ salesId: '', password: '' })
   const [mode, setMode] = useState('admin') // 'admin' | 'sales'
   const [error, setError] = useState('')
@@ -18,6 +18,8 @@ export default function Login() {
   const [fpLoading, setFpLoading] = useState(false)
   const [fpMsg, setFpMsg] = useState('')
   const [resendLoading, setResendLoading] = useState(false)
+  const [showAdminPassword, setShowAdminPassword] = useState(false)
+  const [showSalesPassword, setShowSalesPassword] = useState(false)
 
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
@@ -26,10 +28,9 @@ export default function Login() {
     setLoading(true)
     setError('')
     try {
-      const res = await loginUser(form)
-      const data = res.data?.data || res.data
-      const user = data?.user || { id: data?.id, name: data?.name, email: data?.email }
-      if (!user?.id && !user?.email) throw new Error('User info not returned')
+      const res = await loginAdmin(adminForm)
+      const user = res.data?.user
+      if (!user?.id || user?.role !== 'admin') throw new Error('Invalid admin login response')
       localStorage.setItem('user', JSON.stringify(user))
       navigate('/dashboard')
     } catch (err) {
@@ -137,31 +138,49 @@ export default function Login() {
             {mode === 'admin' ? (
             <form onSubmit={onSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Admin ID</label>
                 <input
                   className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
-                  name="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={form.email}
-                  onChange={onChange}
+                  name="adminId"
+                  placeholder="AD-25ABC123"
+                  value={adminForm.adminId}
+                  onChange={(e)=>setAdminForm(s=>({ ...s, adminId: e.target.value }))}
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input
-                  className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
-                  name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={form.password}
-                  onChange={onChange}
-                  required
-                />
+                <div className="relative">
+                  <input
+                    className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 pr-12 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
+                    name="password"
+                    type={showAdminPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={adminForm.password}
+                    onChange={(e)=>setAdminForm(s=>({ ...s, password: e.target.value }))}
+                    required
+                  />
+                  <button
+                    type="button"
+                    aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowAdminPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-3 flex items-center text-slate-500 hover:text-slate-700"
+                  >
+                    {showAdminPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.742 6.742A7.5 7.5 0 0119.5 12a7.5 7.5 0 01-1.41 4.243m-2.122 2.122A7.5 7.5 0 0112 19.5a7.5 7.5 0 01-5.303-2.16m0 0A7.5 7.5 0 014.5 12c0-1.808.63-3.468 1.697-4.777m2.5-2.5A7.5 7.5 0 0112 4.5c1.808 0 3.468.63 4.777 1.697" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
                 <div className="mt-2 text-right">
-                  <button type="button" className="text-sm text-indigo-600 hover:underline" onClick={() => { setFpOpen(true); setFpStep(1); setFpEmail(form.email || ''); setFpOtp(''); setFpNew(''); setFpMsg(''); }}>
+                  <button type="button" className="text-sm text-indigo-600 hover:underline" onClick={() => { setFpOpen(true); setFpStep(1); setFpEmail(''); setFpOtp(''); setFpNew(''); setFpMsg(''); }}>
                     Forgot password?
                   </button>
                 </div>
@@ -192,15 +211,34 @@ export default function Login() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input
-                  className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition"
-                  name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={salesForm.password}
-                  onChange={(e)=>setSalesForm(s=>({ ...s, password: e.target.value }))}
-                  required
-                />
+                <div className="relative">
+                  <input
+                    className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 pr-12 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition"
+                    name="password"
+                    type={showSalesPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={salesForm.password}
+                    onChange={(e)=>setSalesForm(s=>({ ...s, password: e.target.value }))}
+                    required
+                  />
+                  <button
+                    type="button"
+                    aria-label={showSalesPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowSalesPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-3 flex items-center text-slate-500 hover:text-slate-700"
+                  >
+                    {showSalesPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.742 6.742A7.5 7.5 0 0119.5 12a7.5 7.5 0 01-1.41 4.243m-2.122 2.122A7.5 7.5 0 0112 19.5a7.5 7.5 0 01-5.303-2.16m0 0A7.5 7.5 0 014.5 12c0-1.808.63-3.468 1.697-4.777m2.5-2.5A7.5 7.5 0 0112 4.5c1.808 0 3.468.63 4.777 1.697" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
               {error && <div className="text-sm text-red-600">{error}</div>}
               <button

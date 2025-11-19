@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { registerUser, verifyOTP, resendOTP, signupSalesStart, verifySalesOtp, resendSalesOtp } from '../api/auth'
+import { signupAdminStart, verifyAdminOtp, resendAdminOtp, signupSalesStart, verifySalesOtp, resendSalesOtp } from '../api/auth'
 import Modal from '../components/Modal'
 
 export default function Signup() {
@@ -16,6 +16,9 @@ export default function Signup() {
   const [otpLoading, setOtpLoading] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
   const [approvalModalOpen, setApprovalModalOpen] = useState(false)
+  const [pendingRole, setPendingRole] = useState('admin')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
@@ -33,20 +36,16 @@ export default function Signup() {
     setError('')
     try {
       if (mode === 'admin') {
-        const { name, email, password, phone } = form
-        const res = await registerUser({ name, email, password, phone })
-        if (res.data.otpSent) {
-          setOtpOpen(true)
-        } else {
-          navigate('/login')
-        }
+        const { name, email, password } = form
+        await signupAdminStart({ name, email, password })
+        setOtpOpen(true)
       } else {
         if (!form.email) {
           setError('Email is required for Sales Person signup')
           return
         }
         const { name, email, password } = form
-        const res = await signupSalesStart({ name, email, password })
+        await signupSalesStart({ name, email, password })
         setOtpOpen(true)
       }
     } catch (err) {
@@ -67,16 +66,15 @@ export default function Signup() {
     
     try {
       if (mode === 'admin') {
-        await verifyOTP({ email: form.email, otp: otpCode })
-        setOtpLoading(false)
-        setOtpOpen(false)
-        navigate('/login')
+        await verifyAdminOtp({ email: form.email, otp: otpCode })
+        setPendingRole('admin')
       } else {
         await verifySalesOtp({ email: form.email, otp: otpCode })
-        setOtpLoading(false)
-        setOtpOpen(false)
-        setApprovalModalOpen(true)
+        setPendingRole('sales')
       }
+      setOtpLoading(false)
+      setOtpOpen(false)
+      setApprovalModalOpen(true)
     } catch (err) {
       setOtpLoading(false)
       setOtpMsg(err.response?.data?.error || 'Invalid OTP. Please try again.')
@@ -89,12 +87,11 @@ export default function Signup() {
     
     try {
       if (mode === 'admin') {
-        await resendOTP({ email: form.email })
-        setOtpMsg('OTP resent successfully!')
+        await resendAdminOtp({ email: form.email })
       } else {
         await resendSalesOtp({ email: form.email })
-        setOtpMsg('OTP resent successfully!')
       }
+      setOtpMsg('OTP resent successfully!')
     } catch (err) {
       setOtpMsg(err.response?.data?.error || 'Failed to resend OTP. Please try again.')
     } finally {
@@ -152,19 +149,57 @@ export default function Signup() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Create Password</label>
-              <input
-                type="password"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
-                name="password" placeholder="••••••••" value={form.password} onChange={onChange} required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 pr-10 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
+                  name="password" placeholder="••••••••" value={form.password} onChange={onChange} required
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-3 flex items-center text-slate-500 hover:text-slate-700"
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.742 6.742A7.5 7.5 0 0119.5 12a7.5 7.5 0 01-1.41 4.243m-2.122 2.122A7.5 7.5 0 0112 19.5a7.5 7.5 0 01-5.303-2.16m0 0A7.5 7.5 0 014.5 12c0-1.808.63-3.468 1.697-4.777m2.5-2.5A7.5 7.5 0 0112 4.5c1.808 0 3.468.63 4.777 1.697" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-              <input
-                type="password"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
-                name="confirmPassword" placeholder="••••••••" value={form.confirmPassword} onChange={onChange} required
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 pr-10 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
+                  name="confirmPassword" placeholder="••••••••" value={form.confirmPassword} onChange={onChange} required
+                />
+                <button
+                  type="button"
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-3 flex items-center text-slate-500 hover:text-slate-700"
+                >
+                  {showConfirmPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.742 6.742A7.5 7.5 0 0119.5 12a7.5 7.5 0 01-1.41 4.243m-2.122 2.122A7.5 7.5 0 0112 19.5a7.5 7.5 0 01-5.303-2.16m0 0A7.5 7.5 0 014.5 12c0-1.808.63-3.468 1.697-4.777m2.5-2.5A7.5 7.5 0 0112 4.5c1.808 0 3.468.63 4.777 1.697" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
             {mode==='admin' && (<div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
@@ -242,10 +277,12 @@ export default function Signup() {
       open={approvalModalOpen}
       onClose={() => setApprovalModalOpen(false)}
       title="Approval Pending"
-      actions={<button onClick={()=>{ setApprovalModalOpen(false); navigate('/login') }} className="px-4 py-2 rounded-md bg-emerald-600 text-white">OK</button>}
+      actions={<button onClick={()=>{ setApprovalModalOpen(false); navigate('/login') }} className={`px-4 py-2 rounded-md text-white ${pendingRole==='admin'?'bg-indigo-600':'bg-emerald-600'}`}>OK</button>}
     >
       <div className="text-sm text-slate-700">
-        Your OTP is verified. Your Sales Person signup is pending company approval. Once approved, you will receive an email with your Sales Person ID. Use that ID with your password to log in.
+        {pendingRole === 'admin'
+          ? 'Your OTP is verified. Your Admin signup is pending approval. Once approved, you will receive an email with your Admin ID. Use that ID with your password to log in.'
+          : 'Your OTP is verified. Your Sales Person signup is pending company approval. Once approved, you will receive an email with your Sales Person ID. Use that ID with your password to log in.'}
       </div>
     </Modal>
     </>

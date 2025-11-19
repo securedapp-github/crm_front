@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getPeople, getPipeline } from '../../api/sales'
+import { Link } from 'react-router-dom'
+import { getPeople, getPipeline, markDealDone, moveDealStage } from '../../api/sales'
 import { getTasks } from '../../api/task'
 
-const STAGES = ['New', 'In Progress', 'Proposal', 'Won', 'Lost']
+const STAGES = ['New', 'In Progress', 'Proposal', 'Deal Closed', 'Lost']
 
 export default function Pipeline() {
   const [loading, setLoading] = useState(true)
@@ -25,6 +26,24 @@ export default function Pipeline() {
   }
 
   useEffect(() => { fetchAll() }, [])
+
+  const handleCloseDeal = async (dealId) => {
+    try {
+      await moveDealStage(dealId, 'In Progress')
+      await fetchAll()
+    } catch (err) {
+      console.error('Failed to move deal back to In Progress', err)
+    }
+  }
+
+  const handleMarkDone = async (dealId) => {
+    try {
+      await markDealDone(dealId)
+      await fetchAll()
+    } catch (err) {
+      console.error('Failed to mark deal completed', err)
+    }
+  }
 
   const initials = (name) =>
     (name || '')
@@ -77,6 +96,15 @@ export default function Pipeline() {
 
   return (
     <div className="space-y-6 p-4">
+      <Link 
+        to="/dashboard/sales-team" 
+        className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 transition-colors self-start mb-2"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m15 18-6-6 6-6"/>
+        </svg>
+        <span>Back </span>
+      </Link>
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-slate-900">Sales Pipeline</h2>
@@ -175,6 +203,22 @@ export default function Pipeline() {
                             <div className="font-medium text-slate-900 text-sm truncate">{friendlyTitle}</div>
                             <div className="text-xs text-slate-600">₹{Number(deal.value || 0).toLocaleString()}</div>
                           </div>
+                          {col.stage === 'Deal Closed' && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                              <button
+                                onClick={() => handleCloseDeal(deal.id)}
+                                className="rounded border border-amber-300 px-3 py-1 text-amber-700 hover:bg-amber-50"
+                              >
+                                Close
+                              </button>
+                              <button
+                                onClick={() => handleMarkDone(deal.id)}
+                                className="rounded border border-emerald-300 px-3 py-1 text-emerald-700 hover:bg-emerald-50"
+                              >
+                                Done
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )
                     })}

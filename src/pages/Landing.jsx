@@ -189,38 +189,7 @@ export default function Landing() {
             </div>
           </section>
 
-          <aside className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-slate-900">Launch a campaign</h2>
-                <p className="mt-1 text-sm text-slate-500">Capture leads instantly and route them to your team.</p>
-              </div>
-              <span className="text-3xl">🚀</span>
-            </div>
-            <ul className="mt-5 space-y-3 text-sm text-slate-600">
-              <li className="flex items-start gap-3">
-                <span className="mt-0.5 text-indigo-500">•</span>
-                <span>Create targeted marketing campaigns with budgets and timelines.</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-0.5 text-indigo-500">•</span>
-                <span>Automatically sync new leads to the marketing workspace.</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-0.5 text-indigo-500">•</span>
-                <span>Collaborate with sales using lead scoring and follow-up tasks.</span>
-              </li>
-            </ul>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-              >
-                <span>➕</span>
-                <span>Add Campaign</span>
-              </button>
-            </div>
-          </aside>
+          
         </div>
       </main>
 

@@ -15,6 +15,11 @@ export const getMe = () => api.get('/auth/me')
 export const logout = () => api.post('/auth/logout')
 export const signupSales = (data) => api.post('/auth/signup-sales', data)
 export const loginSales = (data) => api.post('/auth/login-sales', data)
+// Admin OTP signup flow
+export const signupAdminStart = (data) => api.post('/auth/signup-admin-start', data)
+export const verifyAdminOtp = (data) => api.post('/auth/verify-admin-otp', data)
+export const resendAdminOtp = (data) => api.post('/auth/resend-admin-otp', data)
+export const loginAdmin = (data) => api.post('/auth/login-admin', data)
 // Sales OTP signup flow
 export const signupSalesStart = (data) => api.post('/auth/signup-sales-start', data)
 export const verifySalesOtp = (data) => api.post('/auth/verify-sales-otp', data)
