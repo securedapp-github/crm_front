@@ -12,8 +12,6 @@ dist-ssr/
 coverage/
 .cache/
 
-# Environment variables
-.env
 
 
 # Logs
