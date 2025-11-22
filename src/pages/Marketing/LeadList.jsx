@@ -168,16 +168,17 @@ export default function LeadList() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 w-full max-w-full overflow-x-hidden px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-slate-900">Leads</h2>
-        <div className="flex items-center gap-2">
-          <input className="px-3 py-2 border rounded-md text-sm" placeholder="Search" value={query} onChange={e=>setQuery(e.target.value)} />
-          <button onClick={()=>setOpen(true)} className="px-3 py-2 rounded-md bg-indigo-600 text-white text-sm">Add Lead</button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <input className="px-3 py-2 border rounded-md text-sm flex-1 sm:flex-none sm:w-64" placeholder="Search" value={query} onChange={e=>setQuery(e.target.value)} />
+          <button onClick={()=>setOpen(true)} className="px-3 py-2 rounded-md bg-indigo-600 text-white text-sm flex-shrink-0">Add Lead</button>
         </div>
       </div>
 
-      <div className="rounded-lg border bg-white overflow-x-auto">
+      <div className="rounded-lg border bg-white overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-slate-600">
             <tr>
@@ -257,6 +258,7 @@ export default function LeadList() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <Modal

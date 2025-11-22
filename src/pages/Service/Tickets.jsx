@@ -36,14 +36,15 @@ export default function Tickets() {
   }
 
   return (
-    <div>
+    <div className="w-full max-w-full overflow-x-hidden px-4 sm:px-6 lg:px-8">
       <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Customer Service</h1>
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="text-slate-600">Ticket Management System</div>
-        <button className="px-3 py-2 rounded-md bg-indigo-600 text-white" onClick={()=>setOpen(true)}>New Ticket</button>
+        <button className="px-3 py-2 rounded-md bg-indigo-600 text-white flex-shrink-0" onClick={()=>setOpen(true)}>New Ticket</button>
       </div>
 
-      <div className="mt-4 rounded-lg border bg-white overflow-x-auto">
+      <div className="mt-4 rounded-lg border bg-white overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-slate-600">
             <tr>
@@ -78,6 +79,7 @@ export default function Tickets() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <Modal open={open} onClose={()=>setOpen(false)} title="New Ticket" actions={

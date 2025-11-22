@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getPeople, getPipeline, sendSalesEmail } from '../../api/sales'
+import { getPeople, getPipeline, sendSalesEmail, getSalesEmailHistory } from '../../api/sales'
 import { useToast } from '../../components/ToastProvider'
 
 const defaultForm = {
@@ -9,7 +9,8 @@ const defaultForm = {
   message: '',
   projectName: '',
   projectContext: '',
-  dealId: ''
+  dealId: '',
+  emailMode: 'communication'
 }
 
 export default function SalesMail() {
@@ -19,6 +20,8 @@ export default function SalesMail() {
   const [loadingDeals, setLoadingDeals] = useState(true)
   const [pipeline, setPipeline] = useState({})
   const [people, setPeople] = useState([])
+  const [history, setHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(true)
 
   const user = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}') } catch { return {} }
@@ -40,7 +43,23 @@ export default function SalesMail() {
     }
   }
 
-  useEffect(() => { fetchData() }, [])
+  const fetchHistory = async () => {
+    setHistoryLoading(true)
+    try {
+      const res = await getSalesEmailHistory()
+      setHistory(Array.isArray(res.data?.data) ? res.data.data : [])
+    } catch (err) {
+      console.error('Failed to load email history', err)
+      toast.show('Could not load email history', 'error')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
+    fetchHistory()
+  }, [])
 
   const mySalespersonId = useMemo(() => {
     const me = (people || []).find(
@@ -91,11 +110,13 @@ export default function SalesMail() {
         dealId: form.dealId ? Number(form.dealId) : undefined,
         contactId: selectedDeal?.contactId || undefined,
         projectName: form.projectName.trim() || undefined,
-        projectContext: form.projectContext.trim() || undefined
+        projectContext: form.projectContext.trim() || undefined,
+        emailMode: form.emailMode
       }
       await sendSalesEmail(payload)
       toast.show('Email sent successfully', 'success')
       setForm(defaultForm)
+      fetchHistory()
     } catch (err) {
       const msg = err?.response?.data?.message || 'Unable to send email'
       toast.show(msg, 'error')
@@ -137,6 +158,33 @@ export default function SalesMail() {
               <p className="text-sm text-slate-500">Every message is sent through the shared mailbox with your details in the reply-to.</p>
             </div>
             <form className="space-y-4" onSubmit={handleSubmit}>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Email intent</label>
+                <div className="mt-2 grid gap-3 md:grid-cols-2">
+                  {[
+                    { value: 'communication', label: 'In communication', description: 'Send a regular follow-up or update email.' },
+                    { value: 'completion', label: 'Complete deal', description: 'Send the polished “project completed” template.' }
+                  ].map((mode) => {
+                    const active = form.emailMode === mode.value
+                    return (
+                      <button
+                        type="button"
+                        key={mode.value}
+                        onClick={() => handleChange('emailMode', mode.value)}
+                        className={`rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                          active
+                            ? 'border-indigo-400 bg-indigo-50/80 text-indigo-900 shadow-sm'
+                            : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        <p className="font-semibold">{mode.label}</p>
+                        <p className="mt-1 text-xs text-slate-500">{mode.description}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-slate-700">To (client email)</label>
@@ -173,28 +221,30 @@ export default function SalesMail() {
                 />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Project / Service name</label>
-                  <input
-                    type="text"
-                    value={form.projectName}
-                    onChange={(e) => handleChange('projectName', e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                    placeholder="Interior Design for Mr. Rao"
-                  />
+              {form.emailMode === 'completion' && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">Project / Service name</label>
+                    <input
+                      type="text"
+                      value={form.projectName}
+                      onChange={(e) => handleChange('projectName', e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      placeholder="Interior Design for Mr. Rao"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">Project context (optional)</label>
+                    <textarea
+                      rows={4}
+                      value={form.projectContext}
+                      onChange={(e) => handleChange('projectContext', e.target.value)}
+                      className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      placeholder="Site visit completed on Nov 10. Waiting on revised BOQ approval."
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Project context (optional)</label>
-                  <textarea
-                    rows={4}
-                    value={form.projectContext}
-                    onChange={(e) => handleChange('projectContext', e.target.value)}
-                    className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                    placeholder="Site visit completed on Nov 10. Waiting on revised BOQ approval."
-                  />
-                </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-slate-700">Message</label>
@@ -287,6 +337,82 @@ export default function SalesMail() {
             </div>
           </aside>
         </div>
+
+        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Sent mail history</h2>
+              
+            </div>
+            <button
+              type="button"
+              onClick={fetchHistory}
+              disabled={historyLoading}
+              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium ${
+                historyLoading
+                  ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              {historyLoading ? 'Refreshing…' : 'Refresh history'}
+            </button>
+          </div>
+
+          {historyLoading ? (
+            <p className="text-sm text-slate-500">Loading email history…</p>
+          ) : history.length === 0 ? (
+            <p className="text-sm text-slate-500">No emails sent yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px] text-left text-sm">
+                <thead className="text-xs uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2">Sent on</th>
+                    <th className="px-3 py-2">To</th>
+                    <th className="px-3 py-2">Subject</th>
+                    <th className="px-3 py-2">Intent</th>
+                    <th className="px-3 py-2">Deal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {history.slice(0, 20).map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 text-slate-600">
+                        {log.sentAt ? new Date(log.sentAt).toLocaleString('en-IN', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short'
+                        }) : '—'}
+                      </td>
+                      <td className="px-3 py-2">
+                        <p className="font-medium text-slate-900">{log.toEmail}</p>
+                        {log.ccEmail && <p className="text-xs text-slate-500">CC: {log.ccEmail}</p>}
+                      </td>
+                      <td className="px-3 py-2 text-slate-700">
+                        <p className="font-medium">{log.subject}</p>
+                        <p className="text-xs text-slate-500 line-clamp-2">{log.messageBody}</p>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          log.emailMode === 'completion'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {log.emailMode === 'completion' ? 'Complete deal' : 'In communication'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">
+                        {log.dealId ? `#${log.dealId}` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {history.length > 20 && (
+                <p className="mt-3 text-xs text-slate-500">Showing the most recent 20 out of {history.length} entries.</p>
+              )}
+            </div>
+          )}
+        </section>
       </div>
     </main>
   )

@@ -24,6 +24,7 @@ export default function SalesDashboard() {
   const [noteDealId, setNoteDealId] = useState('')
   const [noteText, setNoteText] = useState('')
   const [noteSaving, setNoteSaving] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
 
   const user = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}') } catch { return {} }
@@ -121,9 +122,9 @@ export default function SalesDashboard() {
       setNoteText('')
       return
     }
-    const selected = myDeals.find(d => d.id === Number(noteDealId))
-    setNoteText(selected?.notes || '')
-  }, [noteDealId, myDeals])
+    // Don't auto-fill the textbox - keep it empty for new entries
+    setNoteText('')
+  }, [noteDealId])
 
   const setStatus = async (task, status) => {
     try {
@@ -152,10 +153,22 @@ export default function SalesDashboard() {
     return deal.title
   }
 
+  const normalise = (value) => (typeof value === 'string' ? value.trim().toLowerCase() : '')
+
   const campaignByName = useMemo(() => {
     const map = new Map()
     for (const c of campaigns) {
-      if (c?.name) map.set(String(c.name).trim().toLowerCase(), c)
+      const key = normalise(c?.name)
+      if (key && !map.has(key)) map.set(key, c)
+    }
+    return map
+  }, [campaigns])
+
+  const campaignByCompany = useMemo(() => {
+    const map = new Map()
+    for (const c of campaigns) {
+      const key = normalise(c?.accountCompany)
+      if (key && !map.has(key)) map.set(key, c)
     }
     return map
   }, [campaigns])
@@ -163,62 +176,58 @@ export default function SalesDashboard() {
   const findCampaignForDeal = (deal) => {
     if (!deal) return null
     
-    // Debug logging
-    console.log('Finding campaign for deal:', {
-      dealId: deal.id,
-      title: deal.title,
-      accountCompany: deal.accountCompany,
-      campaigns: Array.from(campaignByName.keys())
-    })
-    
-    // First try to find by exact title match (most reliable)
+    const candidateKeys = new Set()
+    const pushKey = (value) => {
+      const key = normalise(value)
+      if (key) candidateKeys.add(key)
+    }
+
     if (deal.title) {
-      // Try various patterns to extract campaign name
+      const raw = String(deal.title)
+      pushKey(raw)
+      const stripped = raw
+        .replace(/^Campaign\s*Lead\s*-\s*/i, '')
+        .replace(/\s*Opportunity$/i, '')
+        .replace(/-W\d{3}$/i, '')
+      pushKey(stripped)
+
       const patterns = [
         /^Campaign Lead -\s*(.+?)(?:\s*Opportunity)?$/i,
         /^(.+?)(?:\s*Opportunity)?$/i,
         /^Campaign:\s*(.+?)(?:\s*\|.*)?$/i,
-        /^(.+?)(?:\s*\|.*)?$/
+        /^(.+?)(?:\s*\|.*)?$/i
       ]
-      
       for (const pattern of patterns) {
-        const m = String(deal.title).match(pattern)
-        if (m && m[1]) {
-          const key = m[1].trim().toLowerCase()
-          const matched = campaignByName.get(key)
-          if (matched) {
-            console.log('Found campaign by title pattern:', { pattern: pattern.toString(), key, campaign: matched })
-            return matched
-          }
-        }
+        const match = raw.match(pattern)
+        if (match && match[1]) pushKey(match[1])
       }
     }
-    
-    // Try to find by account company name (case insensitive)
-    if (deal.accountCompany) {
-      const accountKey = String(deal.accountCompany).trim().toLowerCase()
-      const matched = Array.from(campaignByName.values()).find(camp => 
-        camp.accountCompany && String(camp.accountCompany).toLowerCase() === accountKey
-      )
-      if (matched) {
-        console.log('Found campaign by account company:', { accountKey, campaign: matched })
-        return matched
+
+    if (deal.contact) {
+      pushKey(deal.contact.name)
+      pushKey(deal.contact.company)
+      if (deal.contact.email && deal.contact.email.includes('@')) {
+        pushKey(deal.contact.email.split('@')[0])
       }
     }
-    
-    // Try to find by partial match in title
+
+    pushKey(deal.accountCompany)
+    pushKey(deal.accountDomain)
+
+    for (const key of candidateKeys) {
+      const byName = campaignByName.get(key)
+      if (byName) return byName
+      const byCompany = campaignByCompany.get(key)
+      if (byCompany) return byCompany
+    }
+
+    // Partial containment fallback
     if (deal.title) {
-      const dealTitle = String(deal.title).toLowerCase()
-      const matched = Array.from(campaignByName.entries()).find(([name]) => 
-        dealTitle.includes(name.toLowerCase())
-      )
-      if (matched) {
-        console.log('Found campaign by partial title match:', { match: matched[0], campaign: matched[1] })
-        return matched[1]
-      }
+      const dealTitle = normalise(deal.title)
+      const matched = Array.from(campaignByName.entries()).find(([name]) => dealTitle.includes(name))
+      if (matched) return matched[1]
     }
-    
-    console.log('No matching campaign found for deal')
+
     return null
   }
 
@@ -242,6 +251,7 @@ export default function SalesDashboard() {
     setNoteSaving(true)
     try {
       await updateDealNotes(Number(noteDealId), noteText)
+      setNoteText('') // Clear textbox after save
       await fetchAll()
     } finally {
       setNoteSaving(false)
@@ -432,9 +442,6 @@ export default function SalesDashboard() {
                         const dealId = String(deal.id)
                         setSelectedDealId(dealId)
                         setScheduleDealId(dealId)
-                        // Force re-render of the details section by toggling the state
-                        setSelectedDealId(null)
-                        setTimeout(() => setSelectedDealId(dealId), 10)
                       }}
                       title={deal.title}
                     >
@@ -453,17 +460,41 @@ export default function SalesDashboard() {
           </div>
         </div>
         <div className="rounded-xl border bg-white shadow-sm">
-          <div className="border-b px-4 py-3 text-sm font-semibold text-slate-900">Your Notes</div>
-          {hasStageNotes ? (
-            <div className="space-y-4 px-4 py-4">
+          <div className="border-b px-4 py-3 flex items-center justify-between">
+            <div className="text-sm font-semibold text-slate-900">Your Notes</div>
+            {hasStageNotes && (
+              <button
+                onClick={() => setShowNotes(!showNotes)}
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
+              >
+                {showNotes ? (
+                  <>
+                    <span>Hide</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  </>
+                ) : (
+                  <>
+                    <span>Show All</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+          {hasStageNotes && showNotes ? (
+            <div className="px-4 py-4 space-y-3 max-h-96 overflow-y-auto">
               {stageNotes.filter(col => col.items.length).map(col => (
                 <div key={col.stage} className="space-y-2">
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{col.stage}</div>
                   <ul className="space-y-2 text-xs text-slate-600">
                     {col.items.map(deal => (
-                      <li key={deal.id} className="rounded-md border border-slate-200 bg-slate-50/80 p-3">
+                      <li key={deal.id} className="rounded-md border border-slate-200 bg-slate-50/80 p-2">
                         <div className="font-medium text-slate-700 truncate">{friendlyTitle(deal)}</div>
-                        <p className="mt-1 whitespace-pre-wrap text-slate-600">{deal.notes}</p>
+                        <p className="mt-1 text-slate-600 line-clamp-2">{deal.notes}</p>
                         {deal.updatedAt && (
                           <span className="mt-1 block text-[10px] text-slate-400">Updated {new Date(deal.updatedAt).toLocaleString()}</span>
                         )}
@@ -473,9 +504,9 @@ export default function SalesDashboard() {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : !hasStageNotes ? (
             <div className="px-4 py-6 text-xs text-slate-400">Add a note above to have it appear here for quick reference.</div>
-          )}
+          ) : null}
         </div>
         {!myDeals.length && (
           <div className="text-xs text-slate-500">You have no assigned deals yet. Capture or convert leads to populate your pipeline.</div>
@@ -520,6 +551,19 @@ export default function SalesDashboard() {
               {noteSaving ? 'Saving…' : 'Save Update'}
             </button>
           </div>
+          
+          {/* Notes History Display */}
+          {noteDealId && (() => {
+            const selectedDeal = myDeals.find(d => d.id === Number(noteDealId));
+            const history = selectedDeal?.notes || '';
+            if (!history) return null;
+            return (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Notes History</div>
+                <div className="text-sm text-slate-700 whitespace-pre-wrap">{history}</div>
+              </div>
+            );
+          })()}
         </div>
       </section>
 

@@ -281,8 +281,8 @@ export default function Signup() {
     >
       <div className="text-sm text-slate-700">
         {pendingRole === 'admin'
-          ? 'Your OTP is verified. Your Admin signup is pending approval. Once approved, you will receive an email with your Admin ID. Use that ID with your password to log in.'
-          : 'Your OTP is verified. Your Sales Person signup is pending company approval. Once approved, you will receive an email with your Sales Person ID. Use that ID with your password to log in.'}
+          ? 'Your OTP is verified. Your Admin signup is pending approval. Once approved, you will receive an email confirmation and can log in using your email and password.'
+          : 'Your OTP is verified. Your Sales signup is pending company approval. Once approved, you will receive an email confirmation and can log in using your email and password.'}
       </div>
     </Modal>
     </>
