@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState, useRef } from 'react'
 import { getCampaigns, createCampaign, deleteCampaign, getCampaignScoring, updateCampaign } from '../../api/campaign'
 import { getDeals } from '../../api/deal'
 import Modal from '../../components/Modal'
@@ -6,6 +6,7 @@ import { useToast } from '../../components/ToastProvider'
 import { api } from '../../api/auth'
 import { resolveAccount } from '../../api/account'
 import LeadScoring from './LeadScoring'
+import * as XLSX from 'xlsx'
 
 const DetailBlock = ({ label, value, full }) => (
   <div className={`rounded-lg border border-slate-200 bg-white p-4 shadow-sm ${full ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
@@ -89,6 +90,11 @@ export default function CampaignList({ autoOpenKey = 0 }) {
   const [assigningCampaign, setAssigningCampaign] = useState(null)
   const [assignTarget, setAssignTarget] = useState('')
   const [assignSaving, setAssignSaving] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false)
+  const [bulkUploading, setBulkUploading] = useState(false)
+  const [uploadedFile, setUploadedFile] = useState(null)
+  const dropdownRef = useRef(null)
   const { show } = useToast()
   const stagePills = {
     Planned: 'bg-slate-100 text-slate-700 border border-slate-200',
@@ -191,6 +197,19 @@ export default function CampaignList({ autoOpenKey = 0 }) {
     })()
   }, [])
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false)
+      }
+    }
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showDropdown])
+
   useEffect(() => {
     if (autoOpenKey > 0) {
       setOpen(true)
@@ -289,6 +308,89 @@ export default function CampaignList({ autoOpenKey = 0 }) {
     }
   }
 
+  // Download Excel template
+  const downloadTemplate = () => {
+    const template = [
+      { 'Entity Name': '', Name: '', 'Mobile number': '', Service: '', Email: '', Description: '' }
+    ]
+    const ws = XLSX.utils.json_to_sheet(template)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Template')
+    XLSX.writeFile(wb, 'campaign_upload_template.xlsx')
+    show('Template downloaded successfully', 'success')
+  }
+
+  // Handle bulk upload
+  const handleBulkUpload = async () => {
+    if (!uploadedFile) {
+      show('Please select a file', 'error')
+      return
+    }
+
+    setBulkUploading(true)
+    try {
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        try {
+          const data = new Uint8Array(e.target.result)
+          const workbook = XLSX.read(data, { type: 'array' })
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+          const rows = XLSX.utils.sheet_to_json(firstSheet)
+
+          if (!rows || rows.length === 0) {
+            show('Excel file is empty', 'error')
+            setBulkUploading(false)
+            return
+          }
+
+          // Map Excel columns to API payload
+          const campaigns = rows.map(row => ({
+            accountCompany: row['Entity Name'] || row.entityName || row['Entity name'] || '',
+            name: row.Name || row.name || '',
+            mobile: row['Mobile number'] || row.mobile || row.Mobile || '',
+            serviceOffering: row.Service || row.service || row.serviceOffering || '',
+            email: row.Email || row.email || '',
+            description: row.Description || row.description || '',
+            channel: 'Web',
+            status: 'Planned',
+            priority: 'Medium'
+          })).filter(c => c.name || c.accountCompany) // Filter out rows without name or entity name
+
+          if (campaigns.length === 0) {
+            show('No valid campaigns found in file', 'error')
+            setBulkUploading(false)
+            return
+          }
+
+          // Send to backend
+          const response = await api.post('/campaigns/bulk', { campaigns })
+          const result = response.data?.data
+
+          if (result.success > 0) {
+            show(`Successfully created ${result.success} campaign(s)`, 'success')
+          }
+          if (result.failed > 0) {
+            show(`${result.failed} campaign(s) failed. Check console for details.`, 'warning')
+            console.error('Failed campaigns:', result.errors)
+          }
+
+          setBulkUploadOpen(false)
+          setUploadedFile(null)
+          await fetchData()
+        } catch (parseError) {
+          show('Failed to parse Excel file', 'error')
+          console.error(parseError)
+        } finally {
+          setBulkUploading(false)
+        }
+      }
+      reader.readAsArrayBuffer(uploadedFile)
+    } catch (err) {
+      show('Failed to process bulk upload', 'error')
+      setBulkUploading(false)
+    }
+  }
+
   const filtered = campaigns.filter((c) => {
     const haystack = [
       c.name,
@@ -307,16 +409,54 @@ export default function CampaignList({ autoOpenKey = 0 }) {
   })
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 w-full max-w-full overflow-x-hidden px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-slate-900">Campaigns</h2>
-        <div className="flex items-center gap-2">
-          <input className="px-3 py-2 border rounded-md text-sm" placeholder="Search" value={query} onChange={e=>setQuery(e.target.value)} />
-          <button onClick={()=>setOpen(true)} className="px-3 py-2 rounded-md bg-indigo-600 text-white">Add Campaign</button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <input className="px-3 py-2 border rounded-md text-sm flex-1 sm:flex-none sm:w-64" placeholder="Search" value={query} onChange={e=>setQuery(e.target.value)} />
+          
+          {/* Dropdown Menu for + New button */}
+          <div className="relative flex-shrink-0" ref={dropdownRef}>
+            <button 
+              onClick={() => setShowDropdown(!showDropdown)} 
+              className="px-3 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1"
+            >
+              <span>+ New</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {showDropdown && (
+              <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                <div className="py-1">
+                  <button
+                    onClick={() => { setShowDropdown(false); setOpen(true); }}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                  >
+                    📝 Manual Entry
+                  </button>
+                  <button
+                    onClick={() => { setShowDropdown(false); setBulkUploadOpen(true); }}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                  >
+                    📊 Bulk Upload (Excel)
+                  </button>
+                  <button
+                    onClick={() => { setShowDropdown(false); downloadTemplate(); }}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                  >
+                    ⬇️ Download Template
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="rounded-lg border bg-white overflow-x-auto">
+      <div className="rounded-lg border bg-white overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-slate-600">
             <tr>
@@ -331,6 +471,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
               <th className="text-left px-4 py-2">Priority</th>
               <th className="text-left px-4 py-2">Entity name</th>
               <th className="text-left px-4 py-2">Company domain</th>
+              <th className="text-left px-4 py-2">Service</th>
               <th className="text-left px-4 py-2">Mobile</th>
               <th className="text-left px-4 py-2">Email</th>
               <th className="text-left px-4 py-2">Actions</th>
@@ -366,6 +507,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                   <td className="px-4 py-3 text-slate-700">{c.priority || '-'}</td>
                   <td className="px-4 py-3 text-slate-700">{c.accountCompany || '-'}</td>
                   <td className="px-4 py-3 text-slate-700">{c.accountDomain || '-'}</td>
+                  <td className="px-4 py-3 text-slate-700">{c.serviceOffering || '-'}</td>
                   <td className="px-4 py-3 text-slate-700">{c.mobile || '-'}</td>
                   <td className="px-4 py-3 text-slate-700">
                     <div className="flex items-center gap-2">
@@ -449,6 +591,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <Modal open={open} onClose={()=>setOpen(false)} title="Add Campaign" actions={
@@ -842,6 +985,58 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                 </select>
               </div>
             </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Bulk Upload Modal */}
+      <Modal
+        open={bulkUploadOpen}
+        onClose={() => !bulkUploading && setBulkUploadOpen(false)}
+        title="Bulk Upload Campaigns"
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setBulkUploadOpen(false)}
+              disabled={bulkUploading}
+              className="px-3 py-2 rounded-md border"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleBulkUpload}
+              disabled={!uploadedFile || bulkUploading}
+              className={`px-3 py-2 rounded-md text-white ${!uploadedFile || bulkUploading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+            >
+              {bulkUploading ? 'Uploading...' : 'Upload & Create'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-slate-600 mb-3">
+              Upload an Excel file (.xlsx) with the following columns: <strong>Name</strong>, <strong>Mobile number</strong>, <strong>Service</strong>, <strong>Email</strong>, <strong>Description</strong>
+            </p>
+            <p className="text-xs text-slate-500 mb-4">
+              💡 Tip: Click "Download Template" from the menu to get a pre-formatted Excel file.
+            </p>
+          </div>
+          
+          <div>
+            <label className="block text-sm text-slate-700 mb-2">Select Excel File</label>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
+              className="w-full px-3 py-2 border rounded-md text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              disabled={bulkUploading}
+            />
+            {uploadedFile && (
+              <p className="mt-2 text-xs text-slate-600">
+                Selected: <strong>{uploadedFile.name}</strong> ({(uploadedFile.size / 1024).toFixed(2)} KB)
+              </p>
+            )}
           </div>
         </div>
       </Modal>

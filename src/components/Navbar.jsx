@@ -6,10 +6,10 @@ import logo from '../assets/securedapp-logo.png'
 export default function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [authed, setAuthed] = useState(false)
-  const [name, setName] = useState('')
-  const [role, setRole] = useState('')
   const [checking, setChecking] = useState(true)
+  const [authed, setAuthed] = useState(false)
+  const [role, setRole] = useState('')
+  const [name, setName] = useState('')
   const onDashboard = location.pathname.startsWith('/dashboard')
   const navLinks = useMemo(() => {
     const links = [{ href: '/', label: 'Home' }]
@@ -24,31 +24,53 @@ export default function Navbar() {
     return links
   }, [authed, role])
 
-  useEffect(() => {
-    let mounted = true
+  const persistUser = (value) => {
+    try {
+      if (value) {
+        localStorage.setItem('user', JSON.stringify(value))
+      } else {
+        localStorage.removeItem('user')
+      }
+    } catch {}
+  }
+
+  const refreshAuth = () => {
     setChecking(true)
-    getMe()
+    return getMe()
       .then((res) => {
-        if (!mounted) return
         if (res.data?.authenticated) {
           setAuthed(true)
           setName(res.data?.user?.name || '')
           setRole(res.data?.user?.role || '')
+          persistUser(res.data?.user || null)
         } else {
           setAuthed(false)
           setName('')
           setRole('')
+          persistUser(null)
         }
       })
       .catch(() => {
-        if (!mounted) return
         setAuthed(false)
         setName('')
         setRole('')
+        persistUser(null)
       })
-      .finally(() => mounted && setChecking(false))
-    return () => { mounted = false }
-  }, []) // Remove location.pathname dependency to prevent repeated calls
+      .finally(() => setChecking(false))
+  }
+
+  useEffect(() => {
+    let mounted = true
+    refreshAuth().finally(() => { if (!mounted) return })
+    const handleAuthChanged = () => refreshAuth()
+    window.addEventListener('auth:changed', handleAuthChanged)
+    window.addEventListener('storage', handleAuthChanged)
+    return () => {
+      mounted = false
+      window.removeEventListener('auth:changed', handleAuthChanged)
+      window.removeEventListener('storage', handleAuthChanged)
+    }
+  }, [])
 
   const onLogout = async () => {
     try {
@@ -57,6 +79,8 @@ export default function Navbar() {
     setAuthed(false)
     setName('')
     setRole('')
+    persistUser(null)
+    window.dispatchEvent(new Event('auth:changed'))
     navigate('/')
   }
 

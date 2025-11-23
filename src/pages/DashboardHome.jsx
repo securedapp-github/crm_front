@@ -9,12 +9,58 @@ export default function DashboardHome() {
   const [summary, setSummary] = useState(null)
   const [campaigns, setCampaigns] = useState([])
   const [deals, setDeals] = useState([])
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+
+  // Quick preset functions
+  const applyPreset = (preset) => {
+    const now = new Date()
+    const from = new Date()
+    
+    switch (preset) {
+      case '7d':
+        from.setDate(now.getDate() - 7)
+        break
+      case '30d':
+        from.setDate(now.getDate() - 30)
+        break
+      case '3m':
+        from.setMonth(now.getMonth() - 3)
+        break
+      case '6m':
+        from.setMonth(now.getMonth() - 6)
+        break
+      case '1y':
+        from.setFullYear(now.getFullYear() - 1)
+        break
+      default:
+        return
+    }
+    
+    setFromDate(from.toISOString().split('T')[0])
+    setToDate(now.toISOString().split('T')[0])
+  }
+
+  const clearDates = () => {
+    setFromDate('')
+    setToDate('')
+  }
 
   const fetchSummary = async () => {
     setLoading(true)
     try {
+      const params = new URLSearchParams()
+      if (fromDate) params.append('from', new Date(fromDate).toISOString())
+      if (toDate) {
+        const endOfDay = new Date(toDate)
+        endOfDay.setHours(23, 59, 59, 999)
+        params.append('to', endOfDay.toISOString())
+      }
+      const queryString = params.toString()
+      const summaryUrl = queryString ? `/analytics/summary?${queryString}` : '/analytics/summary'
+      
       const [summaryRes, campaignsRes, dealsRes] = await Promise.all([
-        api.get('/analytics/summary'),
+        api.get(summaryUrl),
         getCampaigns(),
         getDeals(),
       ])
@@ -24,7 +70,7 @@ export default function DashboardHome() {
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchSummary() }, [])
+  useEffect(() => { fetchSummary() }, [fromDate, toDate])
 
   const leadFunnelData = useMemo(() => {
     if (!summary) return []
@@ -125,9 +171,78 @@ export default function DashboardHome() {
 
         <section className="grid gap-4 xl:grid-cols-3">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-slate-900">Funnel & Pipeline Health</h2>
-              <span className="text-xs text-slate-500">Live capture → qualification → close metrics</span>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Funnel & Pipeline Health</h2>
+                  <span className="text-xs text-slate-500">Live capture → qualification → close metrics</span>
+                </div>
+              </div>
+              
+              {/* Date Range Filter */}
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="flex-1 min-w-[140px]">
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">From Date</label>
+                    <input
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[140px]">
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">To Date</label>
+                    <input
+                      type="date"
+                      value={toDate}
+                      onChange={(e) => setToDate(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                  </div>
+                  <button
+                    onClick={clearDates}
+                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:border-slate-300"
+                  >
+                    Clear
+                  </button>
+                </div>
+                
+                {/* Quick Presets */}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="text-xs font-medium text-slate-500 self-center">Quick:</span>
+                  <button
+                    onClick={() => applyPreset('7d')}
+                    className="rounded-lg bg-white border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700"
+                  >
+                    7 Days
+                  </button>
+                  <button
+                    onClick={() => applyPreset('30d')}
+                    className="rounded-lg bg-white border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700"
+                  >
+                    30 Days
+                  </button>
+                  <button
+                    onClick={() => applyPreset('3m')}
+                    className="rounded-lg bg-white border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700"
+                  >
+                    3 Months
+                  </button>
+                  <button
+                    onClick={() => applyPreset('6m')}
+                    className="rounded-lg bg-white border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700"
+                  >
+                    6 Months
+                  </button>
+                  <button
+                    onClick={() => applyPreset('1y')}
+                    className="rounded-lg bg-white border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700"
+                  >
+                    1 Year
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="mt-6 grid gap-6 md:grid-cols-2">
               <div>

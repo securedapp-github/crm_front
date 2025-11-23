@@ -6,8 +6,8 @@ import Modal from '../components/Modal'
 export default function Login() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
-  const [adminForm, setAdminForm] = useState({ adminId: '', password: '' })
-  const [salesForm, setSalesForm] = useState({ salesId: '', password: '' })
+  const [adminForm, setAdminForm] = useState({ email: '', password: '' })
+  const [salesForm, setSalesForm] = useState({ email: '', password: '' })
   const [mode, setMode] = useState('admin') // 'admin' | 'sales'
   const [error, setError] = useState('')
   const [fpOpen, setFpOpen] = useState(false)
@@ -15,13 +15,28 @@ export default function Login() {
   const [fpEmail, setFpEmail] = useState('')
   const [fpOtp, setFpOtp] = useState('')
   const [fpNew, setFpNew] = useState('')
+  const [fpConfirm, setFpConfirm] = useState('')
   const [fpLoading, setFpLoading] = useState(false)
   const [fpMsg, setFpMsg] = useState('')
   const [resendLoading, setResendLoading] = useState(false)
   const [showAdminPassword, setShowAdminPassword] = useState(false)
   const [showSalesPassword, setShowSalesPassword] = useState(false)
+  const [showFpNewPassword, setShowFpNewPassword] = useState(false)
+  const [showFpConfirmPassword, setShowFpConfirmPassword] = useState(false)
+  const [fpContext, setFpContext] = useState('admin')
 
-  const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
+  const openForgotPasswordModal = (context) => {
+    setFpContext(context)
+    setFpOpen(true)
+    setFpStep(1)
+    setFpEmail(context === 'admin' ? adminForm.email : salesForm.email)
+    setFpOtp('')
+    setFpNew('')
+    setFpConfirm('')
+    setShowFpNewPassword(false)
+    setShowFpConfirmPassword(false)
+    setFpMsg('')
+  }
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -32,6 +47,7 @@ export default function Login() {
       const user = res.data?.user
       if (!user?.id || user?.role !== 'admin') throw new Error('Invalid admin login response')
       localStorage.setItem('user', JSON.stringify(user))
+      window.dispatchEvent(new Event('auth:changed'))
       navigate('/dashboard')
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Login failed')
@@ -49,6 +65,7 @@ export default function Login() {
       const user = res.data?.user
       if (!user?.id || user?.role !== 'sales') throw new Error('Invalid sales login response')
       localStorage.setItem('user', JSON.stringify(user))
+      window.dispatchEvent(new Event('auth:changed'))
       navigate('/dashboard/sales-dashboard')
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Login failed')
@@ -89,6 +106,10 @@ export default function Login() {
     if (fpStep === 3) {
       if (!fpNew || fpNew.length < 6) {
         setFpMsg('Password must be at least 6 characters')
+        return
+      }
+      if (fpNew !== fpConfirm) {
+        setFpMsg('Passwords do not match')
         return
       }
       setFpLoading(true)
@@ -138,13 +159,14 @@ export default function Login() {
             {mode === 'admin' ? (
             <form onSubmit={onSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Admin ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
                 <input
                   className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
-                  name="adminId"
-                  placeholder="AD-25ABC123"
-                  value={adminForm.adminId}
-                  onChange={(e)=>setAdminForm(s=>({ ...s, adminId: e.target.value }))}
+                  type="email"
+                  name="email"
+                  placeholder="admin@company.com"
+                  value={adminForm.email}
+                  onChange={(e)=>setAdminForm(s=>({ ...s, email: e.target.value }))}
                   required
                 />
               </div>
@@ -180,7 +202,7 @@ export default function Login() {
                   </button>
                 </div>
                 <div className="mt-2 text-right">
-                  <button type="button" className="text-sm text-indigo-600 hover:underline" onClick={() => { setFpOpen(true); setFpStep(1); setFpEmail(''); setFpOtp(''); setFpNew(''); setFpMsg(''); }}>
+                  <button type="button" className="text-sm text-indigo-600 hover:underline" onClick={() => openForgotPasswordModal('admin')}>
                     Forgot password?
                   </button>
                 </div>
@@ -199,13 +221,14 @@ export default function Login() {
             ) : (
             <form onSubmit={onSubmitSales} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sales Person ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sales Email</label>
                 <input
                   className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition"
-                  name="salesId"
-                  placeholder="SP-25ABC123"
-                  value={salesForm.salesId}
-                  onChange={(e)=>setSalesForm(s=>({ ...s, salesId: e.target.value }))}
+                  type="email"
+                  name="email"
+                  placeholder="sales@company.com"
+                  value={salesForm.email}
+                  onChange={(e)=>setSalesForm(s=>({ ...s, email: e.target.value }))}
                   required
                 />
               </div>
@@ -239,6 +262,11 @@ export default function Login() {
                     )}
                   </button>
                 </div>
+                <div className="mt-2 text-right">
+                  <button type="button" className="text-sm text-emerald-600 hover:underline" onClick={() => openForgotPasswordModal('sales')}>
+                    Forgot password?
+                  </button>
+                </div>
               </div>
               {error && <div className="text-sm text-red-600">{error}</div>}
               <button
@@ -248,7 +276,7 @@ export default function Login() {
               >
                 {loading ? 'Signing in...' : 'Sign In as Sales Person'}
               </button>
-              <div className="text-xs text-slate-600 text-center">Don’t have a Sales Person ID? <Link to="/signup" className="text-emerald-700 underline">Sign up</Link></div>
+              <div className="text-xs text-slate-600 text-center">Need access? <Link to="/signup" className="text-emerald-700 underline">Sign up</Link></div>
             </form>
             )}
 
@@ -275,7 +303,7 @@ export default function Login() {
       <Modal
         open={fpOpen}
         onClose={() => setFpOpen(false)}
-        title={fpStep === 1 ? 'Reset password' : fpStep === 2 ? 'Enter OTP' : fpStep === 3 ? 'Set new password' : 'Success'}
+        title={fpStep === 1 ? `Reset ${fpContext === 'admin' ? 'Admin' : 'Sales'} password` : fpStep === 2 ? 'Enter OTP' : fpStep === 3 ? 'Set new password' : 'Success'}
         actions={
           fpStep === 4 ? (
             <button onClick={() => setFpOpen(false)} className="px-4 py-2 rounded-md bg-indigo-600 text-white">Close</button>
@@ -334,16 +362,66 @@ export default function Login() {
           </div>
         )}
         {fpStep === 3 && (
-          <div className="space-y-2">
-            <label className="block text-sm text-slate-700">New password</label>
-            <input
-              className="w-full rounded-md border border-gray-300 px-3 py-2"
-              type="password"
-              value={fpNew}
-              onChange={(e) => setFpNew(e.target.value)}
-              placeholder="••••••••"
-            />
-            {fpMsg && <div className="text-sm text-red-600 mt-1">{fpMsg}</div>}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-slate-700">New password</label>
+              <div className="relative">
+                <input
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 pr-10"
+                  type={showFpNewPassword ? 'text' : 'password'}
+                  value={fpNew}
+                  onChange={(e) => setFpNew(e.target.value)}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  aria-label={showFpNewPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowFpNewPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-3 flex items-center text-slate-500 hover:text-slate-700"
+                >
+                  {showFpNewPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.742 6.742A7.5 7.5 0 0119.5 12a7.5 7.5 0 01-1.41 4.243m-2.122 2.122A7.5 7.5 0 0112 19.5a7.5 7.5 0 01-5.303-2.16m0 0A7.5 7.5 0 014.5 12c0-1.808.63-3.468 1.697-4.777m2.5-2.5A7.5 7.5 0 0112 4.5c1.808 0 3.468.63 4.777 1.697" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-slate-700">Confirm password</label>
+              <div className="relative">
+                <input
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 pr-10"
+                  type={showFpConfirmPassword ? 'text' : 'password'}
+                  value={fpConfirm}
+                  onChange={(e) => setFpConfirm(e.target.value)}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  aria-label={showFpConfirmPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowFpConfirmPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-3 flex items-center text-slate-500 hover:text-slate-700"
+                >
+                  {showFpConfirmPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.742 6.742A7.5 7.5 0 0119.5 12a7.5 7.5 0 01-1.41 4.243m-2.122 2.122A7.5 7.5 0 0112 19.5a7.5 7.5 0 01-5.303-2.16m0 0A7.5 7.5 0 014.5 12c0-1.808.63-3.468 1.697-4.777m2.5-2.5A7.5 7.5 0 0112 4.5c1.808 0 3.468.63 4.777 1.697" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            {fpMsg && <div className="text-sm text-red-600">{fpMsg}</div>}
           </div>
         )}
         {fpStep === 4 && (
