@@ -12,24 +12,24 @@ export default function Pipeline() {
   const [salespeople, setSalespeople] = useState([])
   const [data, setData] = useState(() => STAGES.reduce((acc, s) => ({ ...acc, [s]: [] }), {}))
   const [tasks, setTasks] = useState([])
-  
+
   // Offboarding state
   const [offboardModalOpen, setOffboardModalOpen] = useState(false)
   const [allSalesUsers, setAllSalesUsers] = useState([])
   const [selectedOffboardUser, setSelectedOffboardUser] = useState('')
   const [offboarding, setOffboarding] = useState(false)
   const [offboardResult, setOffboardResult] = useState(null)
-  
+
   // Report download state
   const [selectedReportSP, setSelectedReportSP] = useState('')
   const [downloading, setDownloading] = useState(false)
-  
+
   // Check if user is admin
   const user = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}') } catch { return {} }
   }, [])
   const isAdmin = user?.role === 'admin'
-  
+
   // Notes visibility state - object mapping salesperson ID to visibility
   const [notesOpen, setNotesOpen] = useState({})
 
@@ -38,16 +38,16 @@ export default function Pipeline() {
     try {
       const promises = [getPeople(), getPipeline(), getTasks()]
       if (isAdmin) promises.push(getAllSalespeople())
-      
+
       const results = await Promise.all(promises)
       const [peopleRes, pipeRes, tasksRes, salesUsersRes] = results
-      
+
       const rawPeople = Array.isArray(peopleRes.data?.data) ? peopleRes.data.data : []
       const filteredPeople = rawPeople.filter(sp => !/@example\.com$/i.test(sp?.email || ''))
       setSalespeople(filteredPeople)
       setData(pipeRes.data?.data || {})
       setTasks(tasksRes.data?.data || [])
-      
+
       if (salesUsersRes) {
         // CRITICAL: Store ALL users (both active and inactive) to properly filter
         const allUsers = salesUsersRes.data?.data || [];
@@ -79,7 +79,7 @@ export default function Pipeline() {
       setOffboarding(false)
     }
   }
-  
+
   const handleDownloadReport = async () => {
     if (!selectedReportSP) return
     setDownloading(true)
@@ -161,9 +161,9 @@ export default function Pipeline() {
       console.log(`Salesperson ${sp.name} (${sp.email}): userRecord=`, userRecord, 'isActive=', isActive);
       return isActive;
     });
-    
+
     console.log('Total salespeople:', salespeople.length, 'Active:', activeSalespeople.length);
-    
+
     return activeSalespeople.map(sp => {
       const byStage = STAGES.map(stage => {
         const items = (data[stage] || []).filter(d => d.assignedTo === sp.id)
@@ -177,11 +177,11 @@ export default function Pipeline() {
       return { sp, byStage, stageNotes }
     })
   }, [salespeople, data, allSalesUsers])
-  
+
   // Get inactive/offboarded salespeople
   const offboardedSalespeople = useMemo(() => {
     if (!isAdmin || !allSalesUsers.length) return [];
-    
+
     return salespeople.filter(sp => {
       const userRecord = allSalesUsers.find(u => u.email === sp.email);
       return userRecord && userRecord.isActive === false;
@@ -194,17 +194,17 @@ export default function Pipeline() {
       return { sp, byStage }
     });
   }, [salespeople, data, allSalesUsers, isAdmin])
-  
+
   const [showOffboarded, setShowOffboarded] = useState(false)
 
   return (
     <div className="space-y-6 p-4">
-      <Link 
-        to="/dashboard/sales-team" 
+      <Link
+        to="/dashboard/sales-team"
         className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 transition-colors self-start mb-2"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m15 18-6-6 6-6"/>
+          <path d="m15 18-6-6 6-6" />
         </svg>
         <span>Back </span>
       </Link>
@@ -213,17 +213,16 @@ export default function Pipeline() {
         <h2 className="text-2xl font-semibold text-slate-900">Sales Pipeline</h2>
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            className={`px-4 py-2 rounded-lg border text-sm transition ${
-              loading
+            className={`px-4 py-2 rounded-lg border text-sm transition ${loading
                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                 : 'bg-indigo-600 text-white hover:bg-indigo-700'
-            }`}
+              }`}
             onClick={fetchAll}
             disabled={loading}
           >
             {loading ? 'Refreshing...' : 'Refresh Data'}
           </button>
-          
+
           {isAdmin && (
             <>
               {/* Report Download */}
@@ -241,16 +240,15 @@ export default function Pipeline() {
                 <button
                   onClick={handleDownloadReport}
                   disabled={!selectedReportSP || downloading}
-                  className={`px-4 py-2 rounded-lg text-sm ${
-                    !selectedReportSP || downloading
+                  className={`px-4 py-2 rounded-lg text-sm ${!selectedReportSP || downloading
                       ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                       : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  }`}
+                    }`}
                 >
                   {downloading ? 'Downloading...' : 'Download Report'}
                 </button>
               </div>
-              
+
               {/* Offboard Button */}
               <button
                 onClick={() => setOffboardModalOpen(true)}
@@ -295,8 +293,8 @@ export default function Pipeline() {
       </section>
 
       {/* Totals header */}
-      <div className="rounded-xl border bg-white shadow-sm">
-        <div className="grid grid-cols-6 gap-0 text-sm">
+      <div className="rounded-xl border bg-white shadow-sm overflow-x-auto">
+        <div className="min-w-[800px] grid grid-cols-6 gap-0 text-sm">
           <div className="col-span-1 px-4 py-3 border-r font-medium text-slate-700">Salesperson</div>
           {STAGES.map(s => {
             const t = totals.find(t => t.stage === s)
@@ -313,8 +311,8 @@ export default function Pipeline() {
       {/* Rows per salesperson with stage columns */}
       <div className="space-y-4">
         {perSalesperson.map(row => (
-          <div key={row.sp.id} className="rounded-xl border bg-white shadow-sm">
-            <div className="grid grid-cols-6 gap-0">
+          <div key={row.sp.id} className="rounded-xl border bg-white shadow-sm overflow-x-auto">
+            <div className="min-w-[800px] grid grid-cols-6 gap-0">
               <div className="col-span-1 px-4 py-3 border-r flex items-center gap-3">
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
                   {initials(row.sp.name)}
@@ -345,7 +343,7 @@ export default function Pipeline() {
                             <div className="font-medium text-slate-900 text-sm truncate">{friendlyTitle}</div>
                             <div className="text-xs text-slate-600">₹{Number(deal.value || 0).toLocaleString()}</div>
                           </div>
-                          
+
                           {/* Display activity timestamps */}
                           {(deal.startedAt || deal.closedAt || deal.lostAt) && (
                             <div className="mt-1 space-y-0.5">
@@ -366,7 +364,7 @@ export default function Pipeline() {
                               )}
                             </div>
                           )}
-                          
+
                           {col.stage === 'Deal Closed' && (
                             <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
                               <button
@@ -442,7 +440,7 @@ export default function Pipeline() {
           </div>
         ))}
       </div>
-      
+
       {/* Offboarded Salespeople Section */}
       {isAdmin && offboardedSalespeople.length > 0 && (
         <div className="mt-8 rounded-xl border bg-white shadow-sm">
@@ -472,7 +470,7 @@ export default function Pipeline() {
               )}
             </button>
           </div>
-          
+
           {showOffboarded && (
             <div className="p-4 space-y-4">
               {offboardedSalespeople.map(row => (
@@ -510,7 +508,7 @@ export default function Pipeline() {
           )}
         </div>
       )}
-      
+
       {/* Offboarding Modal */}
       {isAdmin && (
         <Modal
@@ -539,11 +537,10 @@ export default function Pipeline() {
                 <button
                   onClick={handleOffboard}
                   disabled={!selectedOffboardUser || offboarding}
-                  className={`px-4 py-2 rounded-md text-sm text-white ${
-                    !selectedOffboardUser || offboarding
+                  className={`px-4 py-2 rounded-md text-sm text-white ${!selectedOffboardUser || offboarding
                       ? 'bg-rose-300 cursor-not-allowed'
                       : 'bg-rose-600 hover:bg-rose-700'
-                  }`}
+                    }`}
                 >
                   {offboarding ? 'Offboarding...' : 'Confirm Offboard'}
                 </button>
@@ -556,7 +553,7 @@ export default function Pipeline() {
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
                 ⚠️ <strong>Warning:</strong> This will deactivate the salesperson's account and reassign all their pending deals.
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Select Salesperson to Offboard
@@ -585,7 +582,7 @@ export default function Pipeline() {
                   <p><strong>Deals Reassigned:</strong> {offboardResult.dealsReassigned}</p>
                 </div>
               </div>
-              
+
               {offboardResult.reassignments && offboardResult.reassignments.length > 0 && (
                 <div className="max-h-60 overflow-y-auto rounded-lg border bg-slate-50 p-3">
                   <div className="text-xs font-semibold uppercase text-slate-500 mb-2">Reassignments</div>

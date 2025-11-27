@@ -67,7 +67,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
       if (m) { const n = parseInt(m[1], 10); if (!isNaN(n)) max = Math.max(max, n) }
     })
     const seq = max || 1
-    return `${base}-W${String(seq).padStart(3,'0')}`
+    return `${base}-W${String(seq).padStart(3, '0')}`
   }
 
   const [expanded, setExpanded] = useState(null)
@@ -184,7 +184,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
         setExpanded(id)
         if (!scoringById[id]) fetchScoring(id)
       }
-    } catch {}
+    } catch { }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -193,7 +193,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
       try {
         const res = await api.get('/auth/users')
         setUsers(Array.isArray(res.data?.data) ? res.data.data : [])
-      } catch {}
+      } catch { }
     })()
   }, [])
 
@@ -241,7 +241,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
       const res = await getCampaignScoring(id)
       const scoring = res.data?.scoring
       if (scoring) setScoringById(prev => ({ ...prev, [id]: scoring }))
-    } catch {}
+    } catch { }
     finally { setScoringLoading(null) }
   }
 
@@ -413,12 +413,12 @@ export default function CampaignList({ autoOpenKey = 0 }) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-slate-900">Campaigns</h2>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <input className="px-3 py-2 border rounded-md text-sm flex-1 sm:flex-none sm:w-64" placeholder="Search" value={query} onChange={e=>setQuery(e.target.value)} />
-          
+          <input className="px-3 py-2 border rounded-md text-sm flex-1 sm:flex-none sm:w-64" placeholder="Search" value={query} onChange={e => setQuery(e.target.value)} />
+
           {/* Dropdown Menu for + New button */}
           <div className="relative flex-shrink-0" ref={dropdownRef}>
-            <button 
-              onClick={() => setShowDropdown(!showDropdown)} 
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
               className="px-3 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1"
             >
               <span>+ New</span>
@@ -426,7 +426,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            
+
             {showDropdown && (
               <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
                 <div className="py-1">
@@ -457,262 +457,270 @@ export default function CampaignList({ autoOpenKey = 0 }) {
 
       <div className="rounded-lg border bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
-            <tr>
-              <th className="text-left px-4 py-2 w-12"></th>
-              <th className="text-left px-4 py-2">Name</th>
-              <th className="text-left px-4 py-2">Channel</th>
-              <th className="text-left px-4 py-2">Dates</th>
-              <th className="text-left px-4 py-2">Budget</th>
-              <th className="text-left px-4 py-2">Campaign stage</th>
-              <th className="text-left px-4 py-2">Leads</th>
-              <th className="text-left px-4 py-2">Owner</th>
-              <th className="text-left px-4 py-2">Priority</th>
-              <th className="text-left px-4 py-2">Entity name</th>
-              <th className="text-left px-4 py-2">Company domain</th>
-              <th className="text-left px-4 py-2">Service</th>
-              <th className="text-left px-4 py-2">Mobile</th>
-              <th className="text-left px-4 py-2">Email</th>
-              <th className="text-left px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">{
-            loading ? (
-              <tr><td className="px-4 py-3" colSpan={14}>Loading...</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td className="px-4 py-3 text-slate-500" colSpan={14}>No campaigns</td></tr>
-            ) : filtered.map(c=> (
-              <Fragment key={c.id}>
-                <tr className="hover:bg-slate-50">
-                  <td className="px-4 py-3 align-top">
-                    <button
-                      onClick={() => toggleExpand(c.id)}
-                      className="h-6 w-6 rounded-full border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                    >
-                      {expanded === c.id ? '−' : '+'}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-slate-900">{c.name}</td>
-                  <td className="px-4 py-3 text-slate-700">{c.channel || '-'}</td>
-                  <td className="px-4 py-3 text-slate-700">{[c.startDate, c.endDate].filter(Boolean).join(' → ') || '-'}</td>
-                  <td className="px-4 py-3 text-slate-900">{c.budget != null ? `${c.currency || 'USD'} ${Number(c.budget).toLocaleString()}` : '-'}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${stagePills[c.status] || 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
-                      {c.status || '—'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{c.leadsGenerated ?? 0}</td>
-                  <td className="px-4 py-3 text-slate-700">{c.owner?.name || '-'}</td>
-                  <td className="px-4 py-3 text-slate-700">{c.priority || '-'}</td>
-                  <td className="px-4 py-3 text-slate-700">{c.accountCompany || '-'}</td>
-                  <td className="px-4 py-3 text-slate-700">{c.accountDomain || '-'}</td>
-                  <td className="px-4 py-3 text-slate-700">{c.serviceOffering || '-'}</td>
-                  <td className="px-4 py-3 text-slate-700">{c.mobile || '-'}</td>
-                  <td className="px-4 py-3 text-slate-700">
-                    <div className="flex items-center gap-2">
-                      <span>{c.email || '-'}</span>
-                      {(() => { const id = workIdFor(c.email || c.accountCompany || c.name); return id ? (<span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 border border-slate-200" title={id}>{id}</span>) : null })()}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={()=>{ setAssigningCampaign(c); setAssignTarget(String(c.campaignOwnerId || '')); setAssignOpen(true) }}
-                        className="text-xs px-2 py-1 rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                      >
-                        Assign
-                      </button>
-                      <button onClick={()=>{ setEditingId(c.id); setEditForm({
-                        name: c.name||'', code: c.code||'', objective: c.objective||'', channel: c.channel||'Email', audienceSegment: c.audienceSegment||'', productLine: c.productLine||'', startDate: c.startDate||'', endDate: c.endDate||'', budget: c.budget??'', expectedSpend: c.expectedSpend??'', currency: c.currency||'USD', status: c.status||'Planned', priority: c.priority||'Medium', description: c.description||'', complianceChecklist: c.complianceChecklist||'', externalCampaignId: c.externalCampaignId||'', utmSource: c.utmSource||'', utmMedium: c.utmMedium||'', utmCampaign: c.utmCampaign||'', accountCompany: c.accountCompany||'', accountDomain: c.accountDomain||'', mobile: c.mobile||'', email: c.email||'', serviceOffering: c.serviceOffering||'', callDate: c.callDate||'', callTime: c.callTime||''
-                      }); setEditOpen(true); }} className="text-xs px-2 py-1 rounded border border-slate-200 text-slate-700 hover:bg-slate-50">Edit</button>
-                      <button onClick={()=>setConfirmDeleteId(c.id)} className="text-xs px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50">Delete</button>
-                    </div>
-                  </td>
+          <div className="min-w-[1200px]">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th className="text-left px-4 py-2 w-12"></th>
+                  <th className="text-left px-4 py-2">Name</th>
+                  <th className="text-left px-4 py-2">Channel</th>
+                  <th className="text-left px-4 py-2">Dates</th>
+                  <th className="text-left px-4 py-2">Budget</th>
+                  <th className="text-left px-4 py-2">Campaign stage</th>
+                  <th className="text-left px-4 py-2">Leads</th>
+                  <th className="text-left px-4 py-2">Owner</th>
+                  <th className="text-left px-4 py-2">Priority</th>
+                  <th className="text-left px-4 py-2">Entity name</th>
+                  <th className="text-left px-4 py-2">Company domain</th>
+                  <th className="text-left px-4 py-2">Service</th>
+                  <th className="text-left px-4 py-2">Mobile</th>
+                  <th className="text-left px-4 py-2">Email</th>
+                  <th className="text-left px-4 py-2">Actions</th>
                 </tr>
-                {expanded === c.id && (
-                  <tr className="bg-slate-50/60">
-                    <td colSpan={14} className="px-6 py-5">
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        <DetailBlock label="Objective" value={c.objective} />
-                        <DetailBlock label="Audience segment" value={c.audienceSegment} />
-                        <DetailBlock label="Product line" value={c.productLine} />
-                        <DetailBlock label="Expected spend" value={c.expectedSpend != null ? `${c.currency || 'USD'} ${Number(c.expectedSpend).toLocaleString()}` : null} />
-                        <DetailBlock label="Planned leads" value={c.plannedLeads != null ? Number(c.plannedLeads).toLocaleString() : null} />
-                        <DetailBlock label="Campaign code" value={c.code} />
-                        <DetailBlock label="External campaign ID" value={c.externalCampaignId} />
-                        <DetailBlock label="UTM source" value={c.utmSource} />
-                        <DetailBlock label="UTM medium" value={c.utmMedium} />
-                        <DetailBlock label="UTM campaign" value={c.utmCampaign} />
-                        <DetailBlock label="Service offering" value={c.serviceOffering} />
-                        <DetailBlock label="Call schedule" value={[c.callDate, c.callTime].filter(Boolean).join(' ')} />
-                      </div>
-                      <div className="mt-4 grid grid-cols-1 gap-4">
-                        <DetailBlock label="Description" value={c.description} full />
-                        <DetailBlock label="Compliance checklist" value={c.complianceChecklist} full />
-                      </div>
-                      <div className="mt-5 rounded-lg border border-slate-200 bg-white p-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-semibold text-slate-900">Scoring</h4>
-                          {scoringLoading === c.id && <span className="text-xs text-slate-500">Calculating…</span>}
+              </thead>
+              <tbody className="divide-y">{
+                loading ? (
+                  <tr><td className="px-4 py-3" colSpan={14}>Loading...</td></tr>
+                ) : filtered.length === 0 ? (
+                  <tr><td className="px-4 py-3 text-slate-500" colSpan={14}>No campaigns</td></tr>
+                ) : filtered.map(c => (
+                  <Fragment key={c.id}>
+                    <tr className="hover:bg-slate-50">
+                      <td className="px-4 py-3 align-top">
+                        <button
+                          onClick={() => toggleExpand(c.id)}
+                          className="h-6 w-6 rounded-full border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                        >
+                          {expanded === c.id ? '−' : '+'}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-slate-900">{c.name}</td>
+                      <td className="px-4 py-3 text-slate-700">{c.channel || '-'}</td>
+                      <td className="px-4 py-3 text-slate-700">{[c.startDate, c.endDate].filter(Boolean).join(' → ') || '-'}</td>
+                      <td className="px-4 py-3 text-slate-900">{c.budget != null ? `${c.currency || 'USD'} ${Number(c.budget).toLocaleString()}` : '-'}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${stagePills[c.status] || 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
+                          {c.status || '—'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">{c.leadsGenerated ?? 0}</td>
+                      <td className="px-4 py-3 text-slate-700">{c.owner?.name || '-'}</td>
+                      <td className="px-4 py-3 text-slate-700">{c.priority || '-'}</td>
+                      <td className="px-4 py-3 text-slate-700">{c.accountCompany || '-'}</td>
+                      <td className="px-4 py-3 text-slate-700">{c.accountDomain || '-'}</td>
+                      <td className="px-4 py-3 text-slate-700">{c.serviceOffering || '-'}</td>
+                      <td className="px-4 py-3 text-slate-700">{c.mobile || '-'}</td>
+                      <td className="px-4 py-3 text-slate-700">
+                        <div className="flex items-center gap-2">
+                          <span>{c.email || '-'}</span>
+                          {(() => { const id = workIdFor(c.email || c.accountCompany || c.name); return id ? (<span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 border border-slate-200" title={id}>{id}</span>) : null })()}
                         </div>
-                        {(() => { const s = scoringById[c.id]; return s ? (
-                          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            <div className="rounded-md border px-3 py-2">
-                              <div className="text-xs text-slate-500">Score</div>
-                              <div className="text-lg font-semibold text-slate-900">{s.total_score}</div>
-                            </div>
-                            <div className="rounded-md border px-3 py-2">
-                              <div className="text-xs text-slate-500">Grade</div>
-                              <div className="text-lg font-semibold text-slate-900">{s.grade}</div>
-                            </div>
-                            <div className="rounded-md border px-3 py-2">
-                              <div className="text-xs text-slate-500">Status</div>
-                              <div className="text-sm font-medium text-slate-800">{s.status}</div>
-                            </div>
-                            <div className="rounded-md border px-3 py-2 flex items-center gap-2">
-                              <div className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${s.total_score > 70 ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
-                                {s.total_score > 70 ? 'Hot Campaign' : 'Not Hot'}
-                              </div>
-                            </div>
-                            <div className="sm:col-span-2 lg:col-span-4 rounded-md border px-3 py-2">
-                              <div className="text-xs text-slate-500">Recommendation</div>
-                              <div className="text-sm text-slate-800">{s.recommendation}</div>
-                            </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => { setAssigningCampaign(c); setAssignTarget(String(c.campaignOwnerId || '')); setAssignOpen(true) }}
+                            className="text-xs px-2 py-1 rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                          >
+                            Assign
+                          </button>
+                          <button onClick={() => {
+                            setEditingId(c.id); setEditForm({
+                              name: c.name || '', code: c.code || '', objective: c.objective || '', channel: c.channel || 'Email', audienceSegment: c.audienceSegment || '', productLine: c.productLine || '', startDate: c.startDate || '', endDate: c.endDate || '', budget: c.budget ?? '', expectedSpend: c.expectedSpend ?? '', currency: c.currency || 'USD', status: c.status || 'Planned', priority: c.priority || 'Medium', description: c.description || '', complianceChecklist: c.complianceChecklist || '', externalCampaignId: c.externalCampaignId || '', utmSource: c.utmSource || '', utmMedium: c.utmMedium || '', utmCampaign: c.utmCampaign || '', accountCompany: c.accountCompany || '', accountDomain: c.accountDomain || '', mobile: c.mobile || '', email: c.email || '', serviceOffering: c.serviceOffering || '', callDate: c.callDate || '', callTime: c.callTime || ''
+                            }); setEditOpen(true);
+                          }} className="text-xs px-2 py-1 rounded border border-slate-200 text-slate-700 hover:bg-slate-50">Edit</button>
+                          <button onClick={() => setConfirmDeleteId(c.id)} className="text-xs px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50">Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                    {expanded === c.id && (
+                      <tr className="bg-slate-50/60">
+                        <td colSpan={14} className="px-6 py-5">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <DetailBlock label="Objective" value={c.objective} />
+                            <DetailBlock label="Audience segment" value={c.audienceSegment} />
+                            <DetailBlock label="Product line" value={c.productLine} />
+                            <DetailBlock label="Expected spend" value={c.expectedSpend != null ? `${c.currency || 'USD'} ${Number(c.expectedSpend).toLocaleString()}` : null} />
+                            <DetailBlock label="Planned leads" value={c.plannedLeads != null ? Number(c.plannedLeads).toLocaleString() : null} />
+                            <DetailBlock label="Campaign code" value={c.code} />
+                            <DetailBlock label="External campaign ID" value={c.externalCampaignId} />
+                            <DetailBlock label="UTM source" value={c.utmSource} />
+                            <DetailBlock label="UTM medium" value={c.utmMedium} />
+                            <DetailBlock label="UTM campaign" value={c.utmCampaign} />
+                            <DetailBlock label="Service offering" value={c.serviceOffering} />
+                            <DetailBlock label="Call schedule" value={[c.callDate, c.callTime].filter(Boolean).join(' ')} />
                           </div>
-                        ) : (
-                          <div className="mt-2 text-sm text-slate-600">No scoring available.</div>
-                        ); })()}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
+                          <div className="mt-4 grid grid-cols-1 gap-4">
+                            <DetailBlock label="Description" value={c.description} full />
+                            <DetailBlock label="Compliance checklist" value={c.complianceChecklist} full />
+                          </div>
+                          <div className="mt-5 rounded-lg border border-slate-200 bg-white p-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-semibold text-slate-900">Scoring</h4>
+                              {scoringLoading === c.id && <span className="text-xs text-slate-500">Calculating…</span>}
+                            </div>
+                            {(() => {
+                              const s = scoringById[c.id]; return s ? (
+                                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                  <div className="rounded-md border px-3 py-2">
+                                    <div className="text-xs text-slate-500">Score</div>
+                                    <div className="text-lg font-semibold text-slate-900">{s.total_score}</div>
+                                  </div>
+                                  <div className="rounded-md border px-3 py-2">
+                                    <div className="text-xs text-slate-500">Grade</div>
+                                    <div className="text-lg font-semibold text-slate-900">{s.grade}</div>
+                                  </div>
+                                  <div className="rounded-md border px-3 py-2">
+                                    <div className="text-xs text-slate-500">Status</div>
+                                    <div className="text-sm font-medium text-slate-800">{s.status}</div>
+                                  </div>
+                                  <div className="rounded-md border px-3 py-2 flex items-center gap-2">
+                                    <div className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${s.total_score > 70 ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
+                                      {s.total_score > 70 ? 'Hot Campaign' : 'Not Hot'}
+                                    </div>
+                                  </div>
+                                  <div className="sm:col-span-2 lg:col-span-4 rounded-md border px-3 py-2">
+                                    <div className="text-xs text-slate-500">Recommendation</div>
+                                    <div className="text-sm text-slate-800">{s.recommendation}</div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="mt-2 text-sm text-slate-600">No scoring available.</div>
+                              );
+                            })()}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <Modal open={open} onClose={()=>setOpen(false)} title="Add Campaign" actions={
+      <Modal open={open} onClose={() => setOpen(false)} title="Add Campaign" actions={
         <div className="flex items-center gap-2">
-          <button onClick={()=>setOpen(false)} className="px-3 py-2 rounded-md border">Cancel</button>
+          <button onClick={() => setOpen(false)} className="px-3 py-2 rounded-md border">Cancel</button>
           <button onClick={onCreate} disabled={!!domainError} className={`px-3 py-2 rounded-md text-white ${domainError ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600'}`}>Save & View</button>
         </div>
       }>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div className="md:col-span-2 xl:col-span-3">
             <label className="block text-sm text-slate-700">Name</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={form.name} onChange={e=>setForm(f=>({...f, name:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           </div>
           <div className="md:col-span-2 xl:col-span-1">
             <label className="block text-sm text-slate-700">Campaign code</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={form.code} onChange={e=>setForm(f=>({...f, code:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Objective</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={form.objective} onChange={e=>setForm(f=>({...f, objective:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={form.objective} onChange={e => setForm(f => ({ ...f, objective: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Channel</label>
-            <select className="w-full px-3 py-2 border rounded-md" value={form.channel} onChange={e=>setForm(f=>({...f, channel:e.target.value}))}>
+            <select className="w-full px-3 py-2 border rounded-md" value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))}>
               {channelOptions.map(option => <option key={option} value={option}>{option}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-sm text-slate-700">Audience segment</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={form.audienceSegment} onChange={e=>setForm(f=>({...f, audienceSegment:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={form.audienceSegment} onChange={e => setForm(f => ({ ...f, audienceSegment: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Product line</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={form.productLine} onChange={e=>setForm(f=>({...f, productLine:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={form.productLine} onChange={e => setForm(f => ({ ...f, productLine: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Budget</label>
-            <input className="w-full px-3 py-2 border rounded-md" type="number" value={form.budget} onChange={e=>setForm(f=>({...f, budget:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" type="number" value={form.budget} onChange={e => setForm(f => ({ ...f, budget: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Expected spend</label>
-            <input className="w-full px-3 py-2 border rounded-md" type="number" value={form.expectedSpend} onChange={e=>setForm(f=>({...f, expectedSpend:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" type="number" value={form.expectedSpend} onChange={e => setForm(f => ({ ...f, expectedSpend: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Currency</label>
-            <select className="w-full px-3 py-2 border rounded-md" value={form.currency} onChange={e=>setForm(f=>({...f, currency:e.target.value}))}>
+            <select className="w-full px-3 py-2 border rounded-md" value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}>
               {currencyOptions.map(option => <option key={option} value={option}>{option}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-sm text-slate-700">Start date</label>
-            <input className="w-full px-3 py-2 border rounded-md" type="date" value={form.startDate} onChange={e=>setForm(f=>({...f, startDate:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">End date</label>
-            <input className="w-full px-3 py-2 border rounded-md" type="date" value={form.endDate} onChange={e=>setForm(f=>({...f, endDate:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} />
           </div>
           <div>
             <label className="flex items-center gap-2 text-sm text-slate-700">Campaign stage
               <span className={`h-2.5 w-2.5 rounded-full ${stageDots[form.status] || 'bg-slate-400'}`} aria-hidden="true" />
             </label>
-            <select className={`w-full rounded-md border bg-white px-3 py-2 transition focus:outline-none focus:ring ${selectStageBg[form.status] || 'border-slate-200 text-slate-900 focus:border-slate-300 focus:ring-slate-200'}`} value={form.status} onChange={e=>setForm(f=>({...f, status:e.target.value}))}>
-              {['Planned','Active','Completed','On Hold'].map(s=> <option key={s} value={s}>{s}</option>)}
+            <select className={`w-full rounded-md border bg-white px-3 py-2 transition focus:outline-none focus:ring ${selectStageBg[form.status] || 'border-slate-200 text-slate-900 focus:border-slate-300 focus:ring-slate-200'}`} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+              {['Planned', 'Active', 'Completed', 'On Hold'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-sm text-slate-700">Priority</label>
-            <select className="w-full px-3 py-2 border rounded-md" value={form.priority} onChange={e=>setForm(f=>({...f, priority:e.target.value}))}>
+            <select className="w-full px-3 py-2 border rounded-md" value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
               {priorityOptions.map(option => <option key={option} value={option}>{option}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-sm text-slate-700">External campaign ID</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={form.externalCampaignId} onChange={e=>setForm(f=>({...f, externalCampaignId:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={form.externalCampaignId} onChange={e => setForm(f => ({ ...f, externalCampaignId: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">UTM source</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={form.utmSource} onChange={e=>setForm(f=>({...f, utmSource:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={form.utmSource} onChange={e => setForm(f => ({ ...f, utmSource: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">UTM medium</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={form.utmMedium} onChange={e=>setForm(f=>({...f, utmMedium:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={form.utmMedium} onChange={e => setForm(f => ({ ...f, utmMedium: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">UTM campaign</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={form.utmCampaign} onChange={e=>setForm(f=>({...f, utmCampaign:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={form.utmCampaign} onChange={e => setForm(f => ({ ...f, utmCampaign: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Preferred call date</label>
-            <input className="w-full px-3 py-2 border rounded-md" type="date" value={form.callDate||''} onChange={e=>setForm(f=>({...f, callDate:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={form.callDate || ''} onChange={e => setForm(f => ({ ...f, callDate: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Preferred call time</label>
-            {(() => { const { hour, mer } = parseTime(form.callTime); return (
-              <div className="flex items-center gap-2">
-                <select className="px-3 py-2 border rounded-md" value={hour} onChange={e=>{ const h=e.target.value; setForm(f=>({...f, callTime: composeTime(h, parseTime(f.callTime).mer)})) }}>
-                  {['','1','2','3','4','5','6','7','8','9','10','11','12'].map(h=> <option key={h} value={h}>{h || '—'}</option>)}
-                </select>
-                <select className="px-3 py-2 border rounded-md" value={mer} onChange={e=>{ const m=e.target.value; setForm(f=>({...f, callTime: composeTime(parseTime(f.callTime).hour, m)})) }}>
-                  {['AM','PM'].map(m=> <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-            )})()}
+            {(() => {
+              const { hour, mer } = parseTime(form.callTime); return (
+                <div className="flex items-center gap-2">
+                  <select className="px-3 py-2 border rounded-md" value={hour} onChange={e => { const h = e.target.value; setForm(f => ({ ...f, callTime: composeTime(h, parseTime(f.callTime).mer) })) }}>
+                    {['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'].map(h => <option key={h} value={h}>{h || '—'}</option>)}
+                  </select>
+                  <select className="px-3 py-2 border rounded-md" value={mer} onChange={e => { const m = e.target.value; setForm(f => ({ ...f, callTime: composeTime(parseTime(f.callTime).hour, m) })) }}>
+                    {['AM', 'PM'].map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              )
+            })()}
           </div>
           <div className="md:col-span-2 xl:col-span-3">
             <label className="block text-sm text-slate-700">Description</label>
-            <textarea className="w-full px-3 py-2 border rounded-md" rows={3} value={form.description} onChange={e=>setForm(f=>({...f, description:e.target.value}))} />
+            <textarea className="w-full px-3 py-2 border rounded-md" rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           </div>
           <div className="md:col-span-2 xl:col-span-3">
             <label className="block text-sm text-slate-700">Compliance checklist</label>
-            <textarea className="w-full px-3 py-2 border rounded-md" rows={2} value={form.complianceChecklist} onChange={e=>setForm(f=>({...f, complianceChecklist:e.target.value}))} />
+            <textarea className="w-full px-3 py-2 border rounded-md" rows={2} value={form.complianceChecklist} onChange={e => setForm(f => ({ ...f, complianceChecklist: e.target.value }))} />
           </div>
           <div className="md:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <div>
                 <label className="block text-sm text-slate-700">Entity name</label>
-                <input className="w-full px-3 py-2 border rounded-md" value={form.accountCompany} onChange={e=>setForm(f=>({...f, accountCompany:e.target.value}))} />
+                <input className="w-full px-3 py-2 border rounded-md" value={form.accountCompany} onChange={e => setForm(f => ({ ...f, accountCompany: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm text-slate-700">Company domain</label>
-                <input className="w-full px-3 py-2 border rounded-md" placeholder="example.com" value={form.accountDomain} onChange={e=>setForm(f=>({...f, accountDomain:e.target.value}))} />
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="example.com" value={form.accountDomain} onChange={e => setForm(f => ({ ...f, accountDomain: e.target.value }))} />
                 {form.accountDomain ? (
                   <div className="mt-1 text-xs">
                     {domainError && <div className="text-rose-600">{domainError}</div>}
@@ -724,18 +732,18 @@ export default function CampaignList({ autoOpenKey = 0 }) {
               </div>
               <div>
                 <label className="block text-sm text-slate-700">Mobile number</label>
-                <input className="w-full px-3 py-2 border rounded-md" placeholder="9876543210" value={form.mobile} onChange={e=>setForm(f=>({...f, mobile:e.target.value}))} />
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="9876543210" value={form.mobile} onChange={e => setForm(f => ({ ...f, mobile: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm text-slate-700">Email</label>
-                <input className="w-full px-3 py-2 border rounded-md" placeholder="name@gmail.com" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} />
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="name@gmail.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm text-slate-700">Choose a Service</label>
                 <select
                   className="w-full px-3 py-2 border rounded-md"
                   value={form.serviceOffering}
-                  onChange={e=>setForm(f=>({...f, serviceOffering: e.target.value}))}
+                  onChange={e => setForm(f => ({ ...f, serviceOffering: e.target.value }))}
                 >
                   {serviceOptions.map(option => (
                     <option key={option} value={option}>{option}</option>
@@ -747,11 +755,11 @@ export default function CampaignList({ autoOpenKey = 0 }) {
         </div>
       </Modal>
 
-      <Modal open={assignOpen} onClose={()=>!assignSaving && setAssignOpen(false)} title="Assign Campaign" actions={
+      <Modal open={assignOpen} onClose={() => !assignSaving && setAssignOpen(false)} title="Assign Campaign" actions={
         <div className="flex items-center gap-2">
-          <button onClick={()=>setAssignOpen(false)} disabled={assignSaving} className="px-3 py-2 rounded border">Cancel</button>
+          <button onClick={() => setAssignOpen(false)} disabled={assignSaving} className="px-3 py-2 rounded border">Cancel</button>
           <button
-            onClick={async ()=>{
+            onClick={async () => {
               if (!assigningCampaign || !assignTarget) return
               setAssignSaving(true)
               try {
@@ -779,7 +787,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
             <select
               className="mt-1 w-full rounded-md border px-3 py-2"
               value={assignTarget}
-              onChange={(e)=>setAssignTarget(e.target.value)}
+              onChange={(e) => setAssignTarget(e.target.value)}
             >
               <option value="">Select teammate…</option>
               {users
@@ -825,14 +833,14 @@ export default function CampaignList({ autoOpenKey = 0 }) {
         <p className="text-sm text-slate-600">This will remove the campaign permanently. Are you sure?</p>
       </Modal>
 
-      <Modal open={editOpen} onClose={()=>setEditOpen(false)} title="Edit Campaign" actions={
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Campaign" actions={
         <div className="flex items-center gap-2">
-          <button onClick={()=>setEditOpen(false)} className="px-3 py-2 rounded-md border">Cancel</button>
-          <button onClick={async ()=>{
+          <button onClick={() => setEditOpen(false)} className="px-3 py-2 rounded-md border">Cancel</button>
+          <button onClick={async () => {
             if (!editingId) return; setEditSaving(true);
             try {
               const payload = { ...editForm };
-              Object.entries(payload).forEach(([k,v])=>{ if (v === '' || v === null) delete payload[k] })
+              Object.entries(payload).forEach(([k, v]) => { if (v === '' || v === null) delete payload[k] })
               if (payload.currency) payload.currency = String(payload.currency).toUpperCase();
               if (payload.mobile) payload.mobile = String(payload.mobile).trim();
               if (payload.email) payload.email = String(payload.email).trim();
@@ -853,131 +861,133 @@ export default function CampaignList({ autoOpenKey = 0 }) {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div className="md:col-span-2 xl:col-span-3">
             <label className="block text-sm text-slate-700">Name</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={editForm.name} onChange={e=>setEditForm(f=>({...f, name:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
           </div>
           <div className="md:col-span-2 xl:col-span-1">
             <label className="block text-sm text-slate-700">Campaign code</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={editForm.code} onChange={e=>setEditForm(f=>({...f, code:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.code} onChange={e => setEditForm(f => ({ ...f, code: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Objective</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={editForm.objective} onChange={e=>setEditForm(f=>({...f, objective:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.objective} onChange={e => setEditForm(f => ({ ...f, objective: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Channel</label>
-            <select className="w-full px-3 py-2 border rounded-md" value={editForm.channel} onChange={e=>setEditForm(f=>({...f, channel:e.target.value}))}>
+            <select className="w-full px-3 py-2 border rounded-md" value={editForm.channel} onChange={e => setEditForm(f => ({ ...f, channel: e.target.value }))}>
               {channelOptions.map(option => <option key={option} value={option}>{option}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-sm text-slate-700">Audience segment</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={editForm.audienceSegment} onChange={e=>setEditForm(f=>({...f, audienceSegment:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.audienceSegment} onChange={e => setEditForm(f => ({ ...f, audienceSegment: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Product line</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={editForm.productLine} onChange={e=>setEditForm(f=>({...f, productLine:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.productLine} onChange={e => setEditForm(f => ({ ...f, productLine: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Budget</label>
-            <input className="w-full px-3 py-2 border rounded-md" type="number" value={editForm.budget} onChange={e=>setEditForm(f=>({...f, budget:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" type="number" value={editForm.budget} onChange={e => setEditForm(f => ({ ...f, budget: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Expected spend</label>
-            <input className="w-full px-3 py-2 border rounded-md" type="number" value={editForm.expectedSpend} onChange={e=>setEditForm(f=>({...f, expectedSpend:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" type="number" value={editForm.expectedSpend} onChange={e => setEditForm(f => ({ ...f, expectedSpend: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Currency</label>
-            <select className="w-full px-3 py-2 border rounded-md" value={editForm.currency} onChange={e=>setEditForm(f=>({...f, currency:e.target.value}))}>
+            <select className="w-full px-3 py-2 border rounded-md" value={editForm.currency} onChange={e => setEditForm(f => ({ ...f, currency: e.target.value }))}>
               {currencyOptions.map(option => <option key={option} value={option}>{option}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-sm text-slate-700">Start date</label>
-            <input className="w-full px-3 py-2 border rounded-md" type="date" value={editForm.startDate} onChange={e=>setEditForm(f=>({...f, startDate:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={editForm.startDate} onChange={e => setEditForm(f => ({ ...f, startDate: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">End date</label>
-            <input className="w-full px-3 py-2 border rounded-md" type="date" value={editForm.endDate} onChange={e=>setEditForm(f=>({...f, endDate:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={editForm.endDate} onChange={e => setEditForm(f => ({ ...f, endDate: e.target.value }))} />
           </div>
           <div>
             <label className="flex items-center gap-2 text-sm text-slate-700">Campaign stage
               <span className={`h-2.5 w-2.5 rounded-full ${stageDots[editForm.status] || 'bg-slate-400'}`} aria-hidden="true" />
             </label>
-            <select className={`w-full rounded-md border bg-white px-3 py-2 transition focus:outline-none focus:ring ${selectStageBg[editForm.status] || 'border-slate-200 text-slate-900 focus:border-slate-300 focus:ring-slate-200'}`} value={editForm.status} onChange={e=>setEditForm(f=>({...f, status:e.target.value}))}>
-              {['Planned','Active','Completed','On Hold'].map(s=> <option key={s} value={s}>{s}</option>)}
+            <select className={`w-full rounded-md border bg-white px-3 py-2 transition focus:outline-none focus:ring ${selectStageBg[editForm.status] || 'border-slate-200 text-slate-900 focus:border-slate-300 focus:ring-slate-200'}`} value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}>
+              {['Planned', 'Active', 'Completed', 'On Hold'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-sm text-slate-700">Priority</label>
-            <select className="w-full px-3 py-2 border rounded-md" value={editForm.priority} onChange={e=>setEditForm(f=>({...f, priority:e.target.value}))}>
+            <select className="w-full px-3 py-2 border rounded-md" value={editForm.priority} onChange={e => setEditForm(f => ({ ...f, priority: e.target.value }))}>
               {priorityOptions.map(option => <option key={option} value={option}>{option}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-sm text-slate-700">External campaign ID</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={editForm.externalCampaignId} onChange={e=>setEditForm(f=>({...f, externalCampaignId:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.externalCampaignId} onChange={e => setEditForm(f => ({ ...f, externalCampaignId: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">UTM source</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={editForm.utmSource} onChange={e=>setEditForm(f=>({...f, utmSource:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.utmSource} onChange={e => setEditForm(f => ({ ...f, utmSource: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">UTM medium</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={editForm.utmMedium} onChange={e=>setEditForm(f=>({...f, utmMedium:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.utmMedium} onChange={e => setEditForm(f => ({ ...f, utmMedium: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">UTM campaign</label>
-            <input className="w-full px-3 py-2 border rounded-md" value={editForm.utmCampaign} onChange={e=>setEditForm(f=>({...f, utmCampaign:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" value={editForm.utmCampaign} onChange={e => setEditForm(f => ({ ...f, utmCampaign: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Preferred call date</label>
-            <input className="w-full px-3 py-2 border rounded-md" type="date" value={editForm.callDate||''} onChange={e=>setEditForm(f=>({...f, callDate:e.target.value}))} />
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={editForm.callDate || ''} onChange={e => setEditForm(f => ({ ...f, callDate: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm text-slate-700">Preferred call time</label>
-            {(() => { const { hour, mer } = parseTime(editForm.callTime); return (
-              <div className="flex items-center gap-2">
-                <select className="px-3 py-2 border rounded-md" value={hour} onChange={e=>{ const h=e.target.value; setEditForm(f=>({...f, callTime: composeTime(h, parseTime(f.callTime).mer)})) }}>
-                  {['','1','2','3','4','5','6','7','8','9','10','11','12'].map(h=> <option key={h} value={h}>{h || '—'}</option>)}
-                </select>
-                <select className="px-3 py-2 border rounded-md" value={mer} onChange={e=>{ const m=e.target.value; setEditForm(f=>({...f, callTime: composeTime(parseTime(f.callTime).hour, m)})) }}>
-                  {['AM','PM'].map(m=> <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-            )})()}
+            {(() => {
+              const { hour, mer } = parseTime(editForm.callTime); return (
+                <div className="flex items-center gap-2">
+                  <select className="px-3 py-2 border rounded-md" value={hour} onChange={e => { const h = e.target.value; setEditForm(f => ({ ...f, callTime: composeTime(h, parseTime(f.callTime).mer) })) }}>
+                    {['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'].map(h => <option key={h} value={h}>{h || '—'}</option>)}
+                  </select>
+                  <select className="px-3 py-2 border rounded-md" value={mer} onChange={e => { const m = e.target.value; setEditForm(f => ({ ...f, callTime: composeTime(parseTime(f.callTime).hour, m) })) }}>
+                    {['AM', 'PM'].map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              )
+            })()}
           </div>
           <div className="md:col-span-2 xl:col-span-3">
             <label className="block text-sm text-slate-700">Description</label>
-            <textarea className="w-full px-3 py-2 border rounded-md" rows={3} value={editForm.description} onChange={e=>setEditForm(f=>({...f, description:e.target.value}))} />
+            <textarea className="w-full px-3 py-2 border rounded-md" rows={3} value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
           </div>
           <div className="md:col-span-2 xl:col-span-3">
             <label className="block text-sm text-slate-700">Compliance checklist</label>
-            <textarea className="w-full px-3 py-2 border rounded-md" rows={2} value={editForm.complianceChecklist} onChange={e=>setEditForm(f=>({...f, complianceChecklist:e.target.value}))} />
+            <textarea className="w-full px-3 py-2 border rounded-md" rows={2} value={editForm.complianceChecklist} onChange={e => setEditForm(f => ({ ...f, complianceChecklist: e.target.value }))} />
           </div>
           <div className="md:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <div>
                 <label className="block text-sm text-slate-700">Entity name</label>
-                <input className="w-full px-3 py-2 border rounded-md" value={editForm.accountCompany} onChange={e=>setEditForm(f=>({...f, accountCompany:e.target.value}))} />
+                <input className="w-full px-3 py-2 border rounded-md" value={editForm.accountCompany} onChange={e => setEditForm(f => ({ ...f, accountCompany: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm text-slate-700">Company domain</label>
-                <input className="w-full px-3 py-2 border rounded-md" placeholder="example.com" value={editForm.accountDomain} onChange={e=>setEditForm(f=>({...f, accountDomain:e.target.value}))} />
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="example.com" value={editForm.accountDomain} onChange={e => setEditForm(f => ({ ...f, accountDomain: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm text-slate-700">Mobile number</label>
-                <input className="w-full px-3 py-2 border rounded-md" placeholder="9876543210" value={editForm.mobile} onChange={e=>setEditForm(f=>({...f, mobile:e.target.value}))} />
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="9876543210" value={editForm.mobile} onChange={e => setEditForm(f => ({ ...f, mobile: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm text-slate-700">Email</label>
-                <input className="w-full px-3 py-2 border rounded-md" placeholder="name@gmail.com" value={editForm.email} onChange={e=>setEditForm(f=>({...f, email:e.target.value}))} />
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="name@gmail.com" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm text-slate-700">Choose a Service</label>
                 <select
                   className="w-full px-3 py-2 border rounded-md"
                   value={editForm.serviceOffering}
-                  onChange={e=>setEditForm(f=>({...f, serviceOffering: e.target.value}))}
+                  onChange={e => setEditForm(f => ({ ...f, serviceOffering: e.target.value }))}
                 >
                   {serviceOptions.map(option => (
                     <option key={option} value={option}>{option}</option>
@@ -1022,7 +1032,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
               💡 Tip: Click "Download Template" from the menu to get a pre-formatted Excel file.
             </p>
           </div>
-          
+
           <div>
             <label className="block text-sm text-slate-700 mb-2">Select Excel File</label>
             <input

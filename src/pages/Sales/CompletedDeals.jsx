@@ -14,7 +14,7 @@ export default function CompletedDeals() {
   const applyPreset = (preset) => {
     const now = new Date()
     const from = new Date()
-    
+
     switch (preset) {
       case '7d':
         from.setDate(now.getDate() - 7)
@@ -34,7 +34,7 @@ export default function CompletedDeals() {
       default:
         return
     }
-    
+
     setFromDate(from.toISOString().split('T')[0])
     setToDate(now.toISOString().split('T')[0])
   }
@@ -54,7 +54,7 @@ export default function CompletedDeals() {
         endOfDay.setHours(23, 59, 59, 999)
         params.to = endOfDay.toISOString()
       }
-      
+
       const [dealRes, peopleRes] = await Promise.all([getCompletedDeals(params), getPeople()])
       setDeals(Array.isArray(dealRes.data?.data) ? dealRes.data.data : [])
       setSalespeople(Array.isArray(peopleRes.data?.data) ? peopleRes.data.data : [])
@@ -147,7 +147,7 @@ export default function CompletedDeals() {
                 Clear
               </button>
             </div>
-            
+
             {/* Quick Presets */}
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="text-xs font-medium text-slate-500 self-center">Quick:</span>
@@ -187,32 +187,34 @@ export default function CompletedDeals() {
 
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b px-4 py-3 text-sm font-semibold text-slate-900">Completed deal history</div>
-          <div className="max-h-[70vh] overflow-auto">
+          <div className="max-h-[70vh] overflow-auto overflow-x-auto">
             {loading ? (
               <div className="px-4 py-6 text-sm text-slate-500">Loading…</div>
             ) : deals.length === 0 ? (
               <div className="px-4 py-6 text-sm text-slate-500">No completed deals yet. Mark deals as done in the pipeline to see them here.</div>
             ) : (
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-50 text-slate-600">
-                  <tr>
-                    <th className="px-4 py-2 text-left">Deal</th>
-                    <th className="px-4 py-2 text-left">Value</th>
-                    <th className="px-4 py-2 text-left">Client Email</th>
-                    <th className="px-4 py-2 text-left">Completed at</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {deals.map((deal) => (
-                    <tr key={deal.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-2 font-medium text-slate-900">{deal.title}</td>
-                      <td className="px-4 py-2 text-slate-700">₹{Number(deal.value || 0).toLocaleString()}</td>
-                      <td className="px-4 py-2 text-slate-600">{deal.contact?.email || '—'}</td>
-                      <td className="px-4 py-2 text-slate-600">{deal.completedAt ? new Date(deal.completedAt).toLocaleString() : '—'}</td>
+              <div className="min-w-[800px]">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Deal</th>
+                      <th className="px-4 py-2 text-left">Value</th>
+                      <th className="px-4 py-2 text-left">Client Email</th>
+                      <th className="px-4 py-2 text-left">Completed at</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y">
+                    {deals.map((deal) => (
+                      <tr key={deal.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-2 font-medium text-slate-900">{deal.title}</td>
+                        <td className="px-4 py-2 text-slate-700">₹{Number(deal.value || 0).toLocaleString()}</td>
+                        <td className="px-4 py-2 text-slate-600">{deal.contact?.email || '—'}</td>
+                        <td className="px-4 py-2 text-slate-600">{deal.completedAt ? new Date(deal.completedAt).toLocaleString() : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </section>

@@ -1,23 +1,34 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/auth'
 import { getCampaigns } from '../api/campaign'
 import { getDeals } from '../api/deal'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts'
 
 export default function DashboardHome() {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [summary, setSummary] = useState(null)
   const [campaigns, setCampaigns] = useState([])
   const [deals, setDeals] = useState([])
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
 
   // Quick preset functions
   const applyPreset = (preset) => {
     const now = new Date()
     const from = new Date()
-    
+
     switch (preset) {
+      case 'today':
+        // from/to are already today by default in the logic below if we just set them
+        break
+      case 'yesterday':
+        from.setDate(now.getDate() - 1)
+        now.setDate(now.getDate() - 1)
+        break
       case '7d':
         from.setDate(now.getDate() - 7)
         break
@@ -36,7 +47,7 @@ export default function DashboardHome() {
       default:
         return
     }
-    
+
     setFromDate(from.toISOString().split('T')[0])
     setToDate(now.toISOString().split('T')[0])
   }
@@ -58,7 +69,7 @@ export default function DashboardHome() {
       }
       const queryString = params.toString()
       const summaryUrl = queryString ? `/analytics/summary?${queryString}` : '/analytics/summary'
-      
+
       const [summaryRes, campaignsRes, dealsRes] = await Promise.all([
         api.get(summaryUrl),
         getCampaigns(),
@@ -71,6 +82,31 @@ export default function DashboardHome() {
   }
 
   useEffect(() => { fetchSummary() }, [fromDate, toDate])
+
+  // Search logic
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([])
+      return
+    }
+    const query = searchQuery.toLowerCase()
+
+    // Search in campaigns (leads)
+    const matchedCampaigns = campaigns.filter(c =>
+      (c.name && c.name.toLowerCase().includes(query)) ||
+      (c.mobile && c.mobile.includes(query)) ||
+      (c.email && c.email.toLowerCase().includes(query))
+    ).map(c => ({ type: 'Lead', ...c }))
+
+    // Search in deals
+    const matchedDeals = deals.filter(d =>
+      (d.title && d.title.toLowerCase().includes(query)) ||
+      (d.contact?.email && d.contact.email.toLowerCase().includes(query)) ||
+      (d.contact?.name && d.contact.name.toLowerCase().includes(query))
+    ).map(d => ({ type: 'Deal', ...d }))
+
+    setSearchResults([...matchedCampaigns, ...matchedDeals])
+  }, [searchQuery, campaigns, deals])
 
   const leadFunnelData = useMemo(() => {
     if (!summary) return []
@@ -141,6 +177,55 @@ export default function DashboardHome() {
               <span>{loading ? 'Refreshing…' : 'Refresh Snapshot'}</span>
             </button>
           </div>
+
+          {/* Search Bar */}
+          <div className="mt-6">
+            <div className="relative max-w-md">
+              <input
+                type="text"
+                placeholder="Search leads by mobile, email, or name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-xl border-0 bg-white/20 py-3 pl-10 pr-4 text-white placeholder-indigo-200 backdrop-blur-sm focus:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
+              />
+              <span className="absolute left-3 top-3.5 text-indigo-200">🔍</span>
+            </div>
+
+            {/* Search Results Dropdown */}
+            {searchQuery && (
+              <div className="absolute z-50 mt-1 w-full max-w-md rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                {searchResults.length === 0 ? (
+                  <div className="p-3 text-sm text-slate-500">No matches found</div>
+                ) : (
+                  <ul className="max-h-60 overflow-y-auto">
+                    {searchResults.map((item, idx) => (
+                      <li key={idx} className="border-b border-slate-50 last:border-0">
+                        <div
+                          className="flex items-center justify-between px-3 py-2 hover:bg-slate-50 rounded-lg cursor-pointer"
+                          onClick={() => {
+                            if (item.type === 'Lead') {
+                              navigate(`/dashboard/marketing?expandId=${item.id}`)
+                            } else if (item.type === 'Deal') {
+                              navigate(`/dashboard/sales/deals/${item.id}`)
+                            }
+                            setSearchQuery('')
+                          }}
+                        >
+                          <div>
+                            <div className="font-medium text-slate-900">{item.name || item.title}</div>
+                            <div className="text-xs text-slate-500">
+                              {item.type} • {item.mobile || item.email || item.contact?.email || 'No contact info'}
+                            </div>
+                          </div>
+                          <span className="text-xs font-medium text-indigo-600">{item.status || item.stage}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-2xl bg-white/15 p-4 backdrop-blur">
               <div className="text-xs uppercase tracking-wide text-indigo-100/80">Capture</div>
@@ -178,7 +263,7 @@ export default function DashboardHome() {
                   <span className="text-xs text-slate-500">Live capture → qualification → close metrics</span>
                 </div>
               </div>
-              
+
               {/* Date Range Filter */}
               <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
                 <div className="flex flex-wrap items-end gap-3">
@@ -207,10 +292,22 @@ export default function DashboardHome() {
                     Clear
                   </button>
                 </div>
-                
+
                 {/* Quick Presets */}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <span className="text-xs font-medium text-slate-500 self-center">Quick:</span>
+                  <button
+                    onClick={() => applyPreset('today')}
+                    className="rounded-lg bg-white border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => applyPreset('yesterday')}
+                    className="rounded-lg bg-white border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700"
+                  >
+                    Yesterday
+                  </button>
                   <button
                     onClick={() => applyPreset('7d')}
                     className="rounded-lg bg-white border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700"
@@ -259,7 +356,7 @@ export default function DashboardHome() {
                         <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                         <Tooltip cursor={{ fill: 'rgba(99,102,241,0.05)' }} />
                         <Legend iconType="circle" />
-                        <Bar dataKey="count" name="Leads" fill="#6366f1" radius={[6,6,0,0]} />
+                        <Bar dataKey="count" name="Leads" fill="#6366f1" radius={[6, 6, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   )}
@@ -279,7 +376,7 @@ export default function DashboardHome() {
                         <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                         <Tooltip cursor={{ fill: 'rgba(16,185,129,0.05)' }} />
                         <Legend iconType="circle" />
-                        <Bar dataKey="count" name="Deals" fill="#10b981" radius={[6,6,0,0]} />
+                        <Bar dataKey="count" name="Deals" fill="#10b981" radius={[6, 6, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   )}
@@ -342,8 +439,16 @@ export default function DashboardHome() {
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">Sales Management</h2>
-              <span className="text-[11px] text-slate-400">Performance highlights</span>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Sales Management</h2>
+                <span className="text-[11px] text-slate-400">Performance highlights</span>
+              </div>
+              <button
+                onClick={() => navigate('/dashboard/marketing')}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors"
+              >
+                Go to Lead Management →
+              </button>
             </div>
             <div className="mt-6 space-y-4">
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
@@ -374,7 +479,11 @@ export default function DashboardHome() {
               {loading ? 'Loading…' : !teamPerformance.length ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No salespeople yet</div>
               ) : teamPerformance.map(item => (
-                <div key={item.id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                <div
+                  key={item.id}
+                  onClick={() => navigate(`/dashboard/team/${item.id}`)}
+                  className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 cursor-pointer transition hover:border-indigo-200 hover:bg-indigo-50/30 hover:shadow-sm"
+                >
                   <div className="flex items-center justify-between text-sm font-medium text-slate-800">
                     <span>{item.name}</span>
                     <span className="text-xs text-slate-500">{item.leads} leads</span>

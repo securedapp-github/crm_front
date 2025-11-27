@@ -140,11 +140,10 @@ export default function SalesMail() {
             <button
               onClick={fetchData}
               disabled={loadingDeals}
-              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium ${
-                loadingDeals
+              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium ${loadingDeals
                   ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
                   : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50'
-              }`}
+                }`}
             >
               {loadingDeals ? 'Refreshing…' : 'Refresh deals'}
             </button>
@@ -171,11 +170,10 @@ export default function SalesMail() {
                         type="button"
                         key={mode.value}
                         onClick={() => handleChange('emailMode', mode.value)}
-                        className={`rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                          active
+                        className={`rounded-2xl border px-4 py-3 text-left text-sm transition ${active
                             ? 'border-indigo-400 bg-indigo-50/80 text-indigo-900 shadow-sm'
                             : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
-                        }`}
+                          }`}
                       >
                         <p className="font-semibold">{mode.label}</p>
                         <p className="mt-1 text-xs text-slate-500">{mode.description}</p>
@@ -263,9 +261,8 @@ export default function SalesMail() {
                 <button
                   type="submit"
                   disabled={sending}
-                  className={`inline-flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold text-white shadow-sm transition ${
-                    sending ? 'bg-indigo-300' : 'bg-indigo-600 hover:bg-indigo-700'
-                  }`}
+                  className={`inline-flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold text-white shadow-sm transition ${sending ? 'bg-indigo-300' : 'bg-indigo-600 hover:bg-indigo-700'
+                    }`}
                 >
                   {sending ? 'Sending…' : 'Send email'}
                 </button>
@@ -296,9 +293,8 @@ export default function SalesMail() {
                   {myDeals.slice(0, 6).map((deal) => (
                     <li
                       key={deal.id}
-                      className={`rounded-xl border px-3 py-2 ${
-                        String(deal.id) === form.dealId ? 'border-indigo-200 bg-indigo-50/60' : 'border-slate-100 bg-slate-50'
-                      }`}
+                      className={`rounded-xl border px-3 py-2 ${String(deal.id) === form.dealId ? 'border-indigo-200 bg-indigo-50/60' : 'border-slate-100 bg-slate-50'
+                        }`}
                     >
                       <div className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
                         <span>{deal.stage || 'New'}</span>
@@ -342,17 +338,16 @@ export default function SalesMail() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Sent mail history</h2>
-              
+
             </div>
             <button
               type="button"
               onClick={fetchHistory}
               disabled={historyLoading}
-              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium ${
-                historyLoading
+              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium ${historyLoading
                   ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
                   : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-              }`}
+                }`}
             >
               {historyLoading ? 'Refreshing…' : 'Refresh history'}
             </button>
@@ -364,49 +359,50 @@ export default function SalesMail() {
             <p className="text-sm text-slate-500">No emails sent yet.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px] text-left text-sm">
-                <thead className="text-xs uppercase tracking-wider text-slate-500">
-                  <tr>
-                    <th className="px-3 py-2">Sent on</th>
-                    <th className="px-3 py-2">To</th>
-                    <th className="px-3 py-2">Subject</th>
-                    <th className="px-3 py-2">Intent</th>
-                    <th className="px-3 py-2">Deal</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {history.slice(0, 20).map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 text-slate-600">
-                        {log.sentAt ? new Date(log.sentAt).toLocaleString('en-IN', {
-                          dateStyle: 'medium',
-                          timeStyle: 'short'
-                        }) : '—'}
-                      </td>
-                      <td className="px-3 py-2">
-                        <p className="font-medium text-slate-900">{log.toEmail}</p>
-                        {log.ccEmail && <p className="text-xs text-slate-500">CC: {log.ccEmail}</p>}
-                      </td>
-                      <td className="px-3 py-2 text-slate-700">
-                        <p className="font-medium">{log.subject}</p>
-                        <p className="text-xs text-slate-500 line-clamp-2">{log.messageBody}</p>
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          log.emailMode === 'completion'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {log.emailMode === 'completion' ? 'Complete deal' : 'In communication'}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-slate-600">
-                        {log.dealId ? `#${log.dealId}` : '—'}
-                      </td>
+              <div className="min-w-[700px]">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-xs uppercase tracking-wider text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2">Sent on</th>
+                      <th className="px-3 py-2">To</th>
+                      <th className="px-3 py-2">Subject</th>
+                      <th className="px-3 py-2">Intent</th>
+                      <th className="px-3 py-2">Deal</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {history.slice(0, 20).map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-50">
+                        <td className="px-3 py-2 text-slate-600">
+                          {log.sentAt ? new Date(log.sentAt).toLocaleString('en-IN', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short'
+                          }) : '—'}
+                        </td>
+                        <td className="px-3 py-2">
+                          <p className="font-medium text-slate-900">{log.toEmail}</p>
+                          {log.ccEmail && <p className="text-xs text-slate-500">CC: {log.ccEmail}</p>}
+                        </td>
+                        <td className="px-3 py-2 text-slate-700">
+                          <p className="font-medium">{log.subject}</p>
+                          <p className="text-xs text-slate-500 line-clamp-2">{log.messageBody}</p>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${log.emailMode === 'completion'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-slate-100 text-slate-700'
+                            }`}>
+                            {log.emailMode === 'completion' ? 'Complete deal' : 'In communication'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-slate-600">
+                          {log.dealId ? `#${log.dealId}` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               {history.length > 20 && (
                 <p className="mt-3 text-xs text-slate-500">Showing the most recent 20 out of {history.length} entries.</p>
               )}

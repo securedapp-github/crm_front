@@ -34,7 +34,7 @@ export default function LeadScoring({ initialQuery = '' }) {
           const r = await getCampaignScoring(c.id)
           const s = r.data?.scoring
           if (s) setCampScores(prev => ({ ...prev, [c.id]: s }))
-        } catch {}
+        } catch { }
       })
       await Promise.allSettled(promises)
     } finally { setCampLoading(false) }
@@ -44,11 +44,11 @@ export default function LeadScoring({ initialQuery = '' }) {
     try {
       const res = await getPeople()
       setSalespeople(res.data?.data || [])
-    } catch {}
+    } catch { }
   }
 
-  useEffect(()=>{ fetchData(); fetchCampaigns(); fetchSalesPeople() }, [])
-  useEffect(()=>{ setQuery(initialQuery || '') }, [initialQuery])
+  useEffect(() => { fetchData(); fetchCampaigns(); fetchSalesPeople() }, [])
+  useEffect(() => { setQuery(initialQuery || '') }, [initialQuery])
 
   const filtered = useMemo(() => {
     return deals.filter(d => [
@@ -90,59 +90,61 @@ export default function LeadScoring({ initialQuery = '' }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-slate-900">Lead Scoring & Qualification</h2>
-        <input className="px-3 py-2 border rounded-md text-sm" placeholder="Search" value={query} onChange={e=>setQuery(e.target.value)} />
+        <input className="w-full sm:w-auto px-3 py-2 border rounded-md text-sm" placeholder="Search" value={query} onChange={e => setQuery(e.target.value)} />
       </div>
       <div className="rounded-lg border bg-white overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
-            <tr>
-              <th className="text-left px-4 py-2">Lead</th>
-              <th className="text-left px-4 py-2">Status</th>
-              <th className="text-left px-4 py-2">Salesperson</th>
-              <th className="text-left px-4 py-2">Score</th>
-              <th className="text-left px-4 py-2">Grade</th>
-              <th className="text-left px-4 py-2">Hot</th>
-              <th className="text-left px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {loading ? (
-              <tr><td className="px-4 py-3" colSpan={6}>Loading...</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td className="px-4 py-3 text-slate-500" colSpan={6}>No leads</td></tr>
-            ) : filtered.map(d => {
-              const campId = matchCampaignIdFromDeal(d)
-              const cs = campId ? campScores[campId] : null
-              return (
-                <tr key={d.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <div className="text-slate-900 font-medium">{d.contact?.name || d.title}</div>
-                    <div className="text-xs text-slate-500">Deal: {d.title}</div>
-                  </td>
-                  <td className="px-4 py-3">{d.stage}</td>
-                  <td className="px-4 py-3 text-slate-700 text-xs">{(() => { const sp = salespeople.find(p => p.id === d.assignedTo); return sp ? sp.name : '—' })()}</td>
-                  <td className="px-4 py-3">
-                    <input className="w-24 border rounded px-2 py-1 bg-slate-50" type="number" min={0} max={100} value={(cs?.total_score ?? d.score ?? 0)} readOnly disabled />
-                  </td>
-                  <td className="px-4 py-3">{cs?.grade || d.grade || computeGrade(d.score)}</td>
-                  <td className="px-4 py-3 space-x-2">
-                    {cs && cs.total_score > 70 && (
-                      <span className={`text-xs px-2 py-1 rounded border bg-amber-100 text-amber-700 border-amber-200`}>
-                        Hot
-                      </span>
-                    )}
-                    <button className={`text-xs px-2 py-1 rounded border ${d.isHot ? 'bg-amber-100 text-amber-700 border-amber-200' : ''}`} onClick={()=>toggleHot(d)}>
-                      {d.isHot ? 'Hot' : 'Mark Hot'}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-500">Scores {'>'} 70 are Hot</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <div className="min-w-[800px]">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-slate-600">
+              <tr>
+                <th className="text-left px-4 py-2">Lead</th>
+                <th className="text-left px-4 py-2">Status</th>
+                <th className="text-left px-4 py-2">Salesperson</th>
+                <th className="text-left px-4 py-2">Score</th>
+                <th className="text-left px-4 py-2">Grade</th>
+                <th className="text-left px-4 py-2">Hot</th>
+                <th className="text-left px-4 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {loading ? (
+                <tr><td className="px-4 py-3" colSpan={6}>Loading...</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td className="px-4 py-3 text-slate-500" colSpan={6}>No leads</td></tr>
+              ) : filtered.map(d => {
+                const campId = matchCampaignIdFromDeal(d)
+                const cs = campId ? campScores[campId] : null
+                return (
+                  <tr key={d.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <div className="text-slate-900 font-medium">{d.contact?.name || d.title}</div>
+                      <div className="text-xs text-slate-500">Deal: {d.title}</div>
+                    </td>
+                    <td className="px-4 py-3">{d.stage}</td>
+                    <td className="px-4 py-3 text-slate-700 text-xs">{(() => { const sp = salespeople.find(p => p.id === d.assignedTo); return sp ? sp.name : '—' })()}</td>
+                    <td className="px-4 py-3">
+                      <input className="w-24 border rounded px-2 py-1 bg-slate-50" type="number" min={0} max={100} value={(cs?.total_score ?? d.score ?? 0)} readOnly disabled />
+                    </td>
+                    <td className="px-4 py-3">{cs?.grade || d.grade || computeGrade(d.score)}</td>
+                    <td className="px-4 py-3 space-x-2">
+                      {cs && cs.total_score > 70 && (
+                        <span className={`text-xs px-2 py-1 rounded border bg-amber-100 text-amber-700 border-amber-200`}>
+                          Hot
+                        </span>
+                      )}
+                      <button className={`text-xs px-2 py-1 rounded border ${d.isHot ? 'bg-amber-100 text-amber-700 border-amber-200' : ''}`} onClick={() => toggleHot(d)}>
+                        {d.isHot ? 'Hot' : 'Mark Hot'}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500">Scores {'>'} 70 are Hot</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
     </div>

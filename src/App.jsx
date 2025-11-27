@@ -21,6 +21,7 @@ import OperationsTeam from './pages/Teams/OperationsTeam'
 import TechTeam from './pages/Teams/TechTeam'
 import HRTeam from './pages/Teams/HRTeam'
 import { ToastProvider } from './components/ToastProvider'
+import TeamMemberDetail from './components/TeamMemberDetail'
 
 function App() {
   return (
@@ -52,6 +53,7 @@ function App() {
             <Route path="operations-team" element={<OperationsTeam />} />
             <Route path="tech-team" element={<TechTeam />} />
             <Route path="hr-team" element={<HRTeam />} />
+            <Route path="team/:id" element={<TeamMemberDetail />} />
           </Route>
         </Routes>
       </ToastProvider>

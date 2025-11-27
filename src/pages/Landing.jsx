@@ -82,7 +82,7 @@ export default function Landing() {
       try {
         const res = await api.get('/auth/users')
         setUsers(Array.isArray(res.data?.data) ? res.data.data : [])
-      } catch {}
+      } catch { }
     })()
   }, [])
 
@@ -170,7 +170,7 @@ export default function Landing() {
   return (
     <>
       <main className="min-h-[calc(100vh-56px)] bg-gradient-to-tr from-indigo-50 via-white to-slate-100">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-14 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-8 md:py-14 md:flex-row md:items-center md:justify-between">
           <section className="max-w-2xl space-y-6">
             <span className="inline-flex items-center rounded-full bg-indigo-100 px-4 py-1 text-sm font-medium text-indigo-700">
               Modern CRM for growing teams
@@ -189,7 +189,7 @@ export default function Landing() {
             </div>
           </section>
 
-          
+
         </div>
       </main>
 
@@ -220,7 +220,7 @@ export default function Landing() {
               className={`rounded-md px-4 py-2 text-sm font-semibold text-white shadow disabled:cursor-not-allowed disabled:opacity-70 ${domainError ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
               disabled={saving || !!domainError}
             >
-              {saving ? 'Saving...' : 'Save & View' }
+              {saving ? 'Saving...' : 'Save & View'}
             </button>
           </div>
         }
@@ -302,26 +302,28 @@ export default function Landing() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">Preferred call time</label>
-            {(() => { const { hour, mer } = parseTime(form.callTime); return (
-              <div className="mt-1 flex items-center gap-2">
-                <select
-                  className="rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  value={hour}
-                  onChange={(e)=>{ const h=e.target.value; setForm(prev=>({...prev, callTime: composeTime(h, parseTime(prev.callTime).mer)})) }}
-                  disabled={saving}
-                >
-                  {['','1','2','3','4','5','6','7','8','9','10','11','12'].map(h=> <option key={h} value={h}>{h || '—'}</option>)}
-                </select>
-                <select
-                  className="rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  value={mer}
-                  onChange={(e)=>{ const m=e.target.value; setForm(prev=>({...prev, callTime: composeTime(parseTime(prev.callTime).hour, m)})) }}
-                  disabled={saving}
-                >
-                  {['AM','PM'].map(m=> <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-            )})()}
+            {(() => {
+              const { hour, mer } = parseTime(form.callTime); return (
+                <div className="mt-1 flex items-center gap-2">
+                  <select
+                    className="rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    value={hour}
+                    onChange={(e) => { const h = e.target.value; setForm(prev => ({ ...prev, callTime: composeTime(h, parseTime(prev.callTime).mer) })) }}
+                    disabled={saving}
+                  >
+                    {['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'].map(h => <option key={h} value={h}>{h || '—'}</option>)}
+                  </select>
+                  <select
+                    className="rounded-md border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    value={mer}
+                    onChange={(e) => { const m = e.target.value; setForm(prev => ({ ...prev, callTime: composeTime(parseTime(prev.callTime).hour, m) })) }}
+                    disabled={saving}
+                  >
+                    {['AM', 'PM'].map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              )
+            })()}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">Start date</label>
@@ -472,7 +474,7 @@ export default function Landing() {
             />
           </div>
           <div className="sm:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
-            
+
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div>
                 <label className="block text-sm font-medium text-slate-700">Entity name</label>

@@ -33,7 +33,7 @@ export default function SalesDashboard() {
   const myEmail = useMemo(() => String(user?.email || '').trim().toLowerCase(), [user])
   const mySalespersonId = useMemo(() => {
     // people endpoint returns items with userId (app user) and base Salesperson id
-    const me = (people || []).find(p => (Number(p.userId || 0) === myUserId) || (String(p.email||'').toLowerCase() === myEmail))
+    const me = (people || []).find(p => (Number(p.userId || 0) === myUserId) || (String(p.email || '').toLowerCase() === myEmail))
     return Number(me?.id || 0)
   }, [people, myUserId, myEmail])
 
@@ -132,26 +132,26 @@ export default function SalesDashboard() {
     try {
       await updateTask(task.id, { status })
       await fetchAll()
-    } catch {}
+    } catch { }
   }
 
   const friendlyTitle = (deal) => {
     if (!deal || !deal.title) return 'Untitled Deal'
-    
+
     // Try different patterns to extract a cleaner title
     const patterns = [
       /^Campaign Lead -\s*(.+?)(?:\s*Opportunity)?$/i,
       /^Campaign:\s*(.+?)(?:\s*\|.*)?$/i,
       /^(.+?)(?:\s*\|.*)?$/
     ]
-    
+
     for (const pattern of patterns) {
       const match = String(deal.title).match(pattern)
       if (match && match[1]) {
         return match[1].trim()
       }
     }
-    
+
     return deal.title
   }
 
@@ -185,7 +185,7 @@ export default function SalesDashboard() {
 
   const findCampaignForDeal = (deal) => {
     if (!deal) return null
-    
+
     const candidateKeys = new Set()
     const pushKey = (value) => {
       const key = normalise(value)
@@ -251,7 +251,7 @@ export default function SalesDashboard() {
       if (!payload?.id) return
       await moveDealStage(payload.id, stage)
       await fetchAll()
-    } catch {}
+    } catch { }
   }
 
   const onDragOver = (e) => e.preventDefault()
@@ -304,7 +304,7 @@ export default function SalesDashboard() {
       })
       setScheduleDealId('')
       await fetchAll()
-    } catch {}
+    } catch { }
   }
 
   const onCalendarSubmit = async () => {
@@ -330,7 +330,7 @@ export default function SalesDashboard() {
     <div className="space-y-6 p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-slate-900">Sales Dashboard</h2>
-        <button onClick={fetchAll} disabled={loading} className={`px-4 py-2 rounded-lg text-sm ${loading?'bg-slate-100 text-slate-400':'bg-indigo-600 text-white hover:bg-indigo-700'}`}>{loading?'Refreshing...':'Refresh Data'}</button>
+        <button onClick={fetchAll} disabled={loading} className={`px-4 py-2 rounded-lg text-sm ${loading ? 'bg-slate-100 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>{loading ? 'Refreshing...' : 'Refresh Data'}</button>
       </div>
 
       <section className="rounded-xl border bg-white p-4 shadow-sm">
@@ -341,12 +341,12 @@ export default function SalesDashboard() {
               <select
                 className="min-w-[240px] rounded-md border px-3 py-2 text-sm"
                 value={scheduleDealId}
-                onChange={(e)=>{ setScheduleDealId(e.target.value); setSelectedDealId(e.target.value); }}
+                onChange={(e) => { setScheduleDealId(e.target.value); setSelectedDealId(e.target.value); }}
               >
                 <option value="">Select your deal…</option>
                 {myDeals.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
               </select>
-              <button disabled={!scheduleDealId} onClick={openCalendar} className={`rounded-md px-3 py-2 text-sm font-medium ${scheduleDealId? 'border border-emerald-500 text-emerald-700 hover:bg-emerald-50':'border border-emerald-200 text-emerald-300 cursor-not-allowed'}`}>Pick date &amp; time…</button>
+              <button disabled={!scheduleDealId} onClick={openCalendar} className={`rounded-md px-3 py-2 text-sm font-medium ${scheduleDealId ? 'border border-emerald-500 text-emerald-700 hover:bg-emerald-50' : 'border border-emerald-200 text-emerald-300 cursor-not-allowed'}`}>Pick date &amp; time…</button>
             </div>
           </div>
           <div className="text-sm text-slate-600">Logged in as <span className="font-medium">{user?.name || 'Sales Person'}</span></div>
@@ -414,8 +414,8 @@ export default function SalesDashboard() {
           <h3 className="text-base font-semibold text-slate-900">My Pipeline</h3>
           <p className="text-xs text-slate-500">Drag deals across stages as you progress them</p>
         </div>
-        <div className="rounded-xl border bg-white shadow-sm">
-          <div className="grid grid-cols-6 text-sm">
+        <div className="rounded-xl border bg-white shadow-sm overflow-x-auto">
+          <div className="min-w-[800px] grid grid-cols-6 text-sm">
             <div className="col-span-1 border-r px-4 py-3 font-medium text-slate-700">Stage</div>
             {stageTotals.map(item => (
               <div key={item.stage} className="flex items-center justify-between border-r px-4 py-3 text-slate-700 last:border-r-0">
@@ -426,8 +426,8 @@ export default function SalesDashboard() {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white shadow-sm">
-          <div className="grid grid-cols-6">
+        <div className="rounded-xl border bg-white shadow-sm overflow-x-auto">
+          <div className="min-w-[800px] grid grid-cols-6">
             <div className="col-span-1 border-r px-4 py-3">
               <div className="flex items-center gap-3">
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
@@ -558,7 +558,7 @@ export default function SalesDashboard() {
               {noteSaving ? 'Saving…' : 'Save Update'}
             </button>
           </div>
-          
+
           {/* Notes History Display */}
           {noteDealId && (() => {
             const selectedDeal = myDeals.find(d => d.id === Number(noteDealId));
@@ -616,8 +616,8 @@ export default function SalesDashboard() {
                         <div className="text-xs text-slate-600">{new Date(t.dueDate).toLocaleString()}</div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={()=>setStatus(t,'Closed')} className="rounded-md border px-2 py-1 text-xs text-slate-700 border-slate-200 hover:bg-slate-50">Close</button>
-                        <button onClick={()=>setStatus(t,'Completed')} className="rounded-md border px-2 py-1 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50">Completed</button>
+                        <button onClick={() => setStatus(t, 'Closed')} className="rounded-md border px-2 py-1 text-xs text-slate-700 border-slate-200 hover:bg-slate-50">Close</button>
+                        <button onClick={() => setStatus(t, 'Completed')} className="rounded-md border px-2 py-1 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50">Completed</button>
                       </div>
                     </div>
                   </li>
@@ -673,7 +673,7 @@ export default function SalesDashboard() {
               type="date"
               className="w-full rounded-md border px-3 py-2"
               value={calendarDate}
-              onChange={(e)=>setCalendarDate(e.target.value)}
+              onChange={(e) => setCalendarDate(e.target.value)}
             />
           </div>
           <div>
@@ -686,12 +686,12 @@ export default function SalesDashboard() {
                 placeholder="hh:mm"
                 className="w-full rounded-md border px-3 py-2"
                 value={calendarTime}
-                onChange={(e)=>setCalendarTime(e.target.value)}
+                onChange={(e) => setCalendarTime(e.target.value)}
               />
               <select
                 className="rounded-md border px-2 py-2 text-sm"
                 value={calendarAmPm}
-                onChange={(e)=>setCalendarAmPm(e.target.value)}
+                onChange={(e) => setCalendarAmPm(e.target.value)}
               >
                 <option value="AM">AM</option>
                 <option value="PM">PM</option>

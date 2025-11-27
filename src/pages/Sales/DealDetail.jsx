@@ -50,12 +50,12 @@ export default function DealDetail() {
   }
 
   const updateQuoteRow = async (qid, patch) => {
-    try { await updateQuote(qid, patch); show('Quote updated', 'success'); fetchAll() } 
+    try { await updateQuote(qid, patch); show('Quote updated', 'success'); fetchAll() }
     catch { show('Failed to update quote', 'error') }
   }
 
   const deleteQuoteRow = async (qid) => {
-    try { await deleteQuote(qid); show('Quote deleted', 'success'); fetchAll() } 
+    try { await deleteQuote(qid); show('Quote deleted', 'success'); fetchAll() }
     catch { show('Failed to delete quote', 'error') }
   }
 
@@ -119,70 +119,72 @@ export default function DealDetail() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm border-collapse">
-            <thead className="bg-slate-50 text-slate-600 border-b">
-              <tr>
-                <th className="text-left px-4 py-2 font-medium">ID</th>
-                <th className="text-left px-4 py-2 font-medium">Amount</th>
-                <th className="text-left px-4 py-2 font-medium">Status</th>
-                <th className="text-left px-4 py-2 font-medium">URL</th>
-                <th className="text-left px-4 py-2 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {quotes.length === 0 ? (
+          <div className="min-w-[600px]">
+            <table className="min-w-full text-sm border-collapse">
+              <thead className="bg-slate-50 text-slate-600 border-b">
                 <tr>
-                  <td colSpan={5} className="text-center py-6 text-slate-500">
-                    No quotes found
-                  </td>
+                  <th className="text-left px-4 py-2 font-medium">ID</th>
+                  <th className="text-left px-4 py-2 font-medium">Amount</th>
+                  <th className="text-left px-4 py-2 font-medium">Status</th>
+                  <th className="text-left px-4 py-2 font-medium">URL</th>
+                  <th className="text-left px-4 py-2 font-medium">Actions</th>
                 </tr>
-              ) : (
-                quotes.map((q) => (
-                  <tr key={q.id} className="border-b hover:bg-slate-50 transition">
-                    <td className="px-4 py-2">{q.id}</td>
-                    <td className="px-4 py-2">₹{Number(q.amount).toLocaleString()}</td>
-                    <td className="px-4 py-2">
-                      <select
-                        className="border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500"
-                        value={q.status}
-                        onChange={(e) => updateQuoteRow(q.id, { status: e.target.value })}
-                      >
-                        {['Draft', 'Sent', 'Accepted', 'Rejected'].map((s) => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-2">
-                      <a
-                        href={q.url || '#'}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-indigo-600 underline hover:text-indigo-800"
-                      >
-                        {q.url || '-'}
-                      </a>
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="text-xs px-3 py-1 rounded-lg border hover:bg-slate-100 transition"
-                          onClick={() => updateQuoteRow(q.id, { amount: q.amount, url: q.url, notes: q.notes })}
-                        >
-                          Save
-                        </button>
-                        <button
-                          className="text-xs px-3 py-1 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 transition"
-                          onClick={() => deleteQuoteRow(q.id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
+              </thead>
+              <tbody>
+                {quotes.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-6 text-slate-500">
+                      No quotes found
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  quotes.map((q) => (
+                    <tr key={q.id} className="border-b hover:bg-slate-50 transition">
+                      <td className="px-4 py-2">{q.id}</td>
+                      <td className="px-4 py-2">₹{Number(q.amount).toLocaleString()}</td>
+                      <td className="px-4 py-2">
+                        <select
+                          className="border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500"
+                          value={q.status}
+                          onChange={(e) => updateQuoteRow(q.id, { status: e.target.value })}
+                        >
+                          {['Draft', 'Sent', 'Accepted', 'Rejected'].map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-2">
+                        <a
+                          href={q.url || '#'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-indigo-600 underline hover:text-indigo-800"
+                        >
+                          {q.url || '-'}
+                        </a>
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="text-xs px-3 py-1 rounded-lg border hover:bg-slate-100 transition"
+                            onClick={() => updateQuoteRow(q.id, { amount: q.amount, url: q.url, notes: q.notes })}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="text-xs px-3 py-1 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 transition"
+                            onClick={() => deleteQuoteRow(q.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

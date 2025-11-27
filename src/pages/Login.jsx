@@ -92,7 +92,7 @@ export default function Login() {
       }
       return
     }
-    
+
     if (fpStep === 2) {
       if (!fpOtp) {
         setFpMsg('Please enter the OTP')
@@ -102,7 +102,7 @@ export default function Login() {
       setFpStep(3)
       return
     }
-    
+
     if (fpStep === 3) {
       if (!fpNew || fpNew.length < 6) {
         setFpMsg('Password must be at least 6 characters')
@@ -142,7 +142,7 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-slate-100 px-4 py-10">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-slate-100 px-4 py-6 md:py-10">
       <div className="w-full max-w-5xl bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2">
           {/* Left Section */}
@@ -153,131 +153,131 @@ export default function Login() {
             <p className="text-gray-600 mb-8">Welcome back! Please log in to your account.</p>
 
             <div className="mb-4 flex items-center justify-center gap-2 text-sm">
-              <button type="button" onClick={()=>setMode('admin')} className={`px-3 py-1.5 rounded-md border ${mode==='admin'?'bg-indigo-600 text-white':'bg-white text-slate-700'}`}>Admin Login</button>
-              <button type="button" onClick={()=>setMode('sales')} className={`px-3 py-1.5 rounded-md border ${mode==='sales'?'bg-emerald-600 text-white':'bg-white text-slate-700'}`}>Sales Person Login</button>
+              <button type="button" onClick={() => setMode('admin')} className={`px-3 py-1.5 rounded-md border ${mode === 'admin' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700'}`}>Admin Login</button>
+              <button type="button" onClick={() => setMode('sales')} className={`px-3 py-1.5 rounded-md border ${mode === 'sales' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700'}`}>Sales Person Login</button>
             </div>
             {mode === 'admin' ? (
-            <form onSubmit={onSubmit} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
-                <input
-                  className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
-                  type="email"
-                  name="email"
-                  placeholder="admin@company.com"
-                  value={adminForm.email}
-                  onChange={(e)=>setAdminForm(s=>({ ...s, email: e.target.value }))}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <div className="relative">
+              <form onSubmit={onSubmit} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
                   <input
-                    className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 pr-12 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
-                    name="password"
-                    type={showAdminPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={adminForm.password}
-                    onChange={(e)=>setAdminForm(s=>({ ...s, password: e.target.value }))}
+                    className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
+                    type="email"
+                    name="email"
+                    placeholder="admin@company.com"
+                    value={adminForm.email}
+                    onChange={(e) => setAdminForm(s => ({ ...s, email: e.target.value }))}
                     required
                   />
-                  <button
-                    type="button"
-                    aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
-                    onClick={() => setShowAdminPassword((prev) => !prev)}
-                    className="absolute inset-y-0 right-3 flex items-center text-slate-500 hover:text-slate-700"
-                  >
-                    {showAdminPassword ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.742 6.742A7.5 7.5 0 0119.5 12a7.5 7.5 0 01-1.41 4.243m-2.122 2.122A7.5 7.5 0 0112 19.5a7.5 7.5 0 01-5.303-2.16m0 0A7.5 7.5 0 014.5 12c0-1.808.63-3.468 1.697-4.777m2.5-2.5A7.5 7.5 0 0112 4.5c1.808 0 3.468.63 4.777 1.697" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
-                      </svg>
-                    )}
-                  </button>
                 </div>
-                <div className="mt-2 text-right">
-                  <button type="button" className="text-sm text-indigo-600 hover:underline" onClick={() => openForgotPasswordModal('admin')}>
-                    Forgot password?
-                  </button>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <div className="relative">
+                    <input
+                      className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 pr-12 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition"
+                      name="password"
+                      type={showAdminPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={adminForm.password}
+                      onChange={(e) => setAdminForm(s => ({ ...s, password: e.target.value }))}
+                      required
+                    />
+                    <button
+                      type="button"
+                      aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
+                      onClick={() => setShowAdminPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-3 flex items-center text-slate-500 hover:text-slate-700"
+                    >
+                      {showAdminPassword ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.742 6.742A7.5 7.5 0 0119.5 12a7.5 7.5 0 01-1.41 4.243m-2.122 2.122A7.5 7.5 0 0112 19.5a7.5 7.5 0 01-5.303-2.16m0 0A7.5 7.5 0 014.5 12c0-1.808.63-3.468 1.697-4.777m2.5-2.5A7.5 7.5 0 0112 4.5c1.808 0 3.468.63 4.777 1.697" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  <div className="mt-2 text-right">
+                    <button type="button" className="text-sm text-indigo-600 hover:underline" onClick={() => openForgotPasswordModal('admin')}>
+                      Forgot password?
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {error && <div className="text-sm text-red-600">{error}</div>}
+                {error && <div className="text-sm text-red-600">{error}</div>}
 
-              <button
-                type="submit"
-                className="w-full rounded-md bg-indigo-600 text-white py-3 font-semibold shadow hover:bg-indigo-700 transition disabled:opacity-70"
-                disabled={loading}
-              >
-                {loading ? 'Signing in...' : 'Sign In'}
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  className="w-full rounded-md bg-indigo-600 text-white py-3 font-semibold shadow hover:bg-indigo-700 transition disabled:opacity-70"
+                  disabled={loading}
+                >
+                  {loading ? 'Signing in...' : 'Sign In'}
+                </button>
+              </form>
             ) : (
-            <form onSubmit={onSubmitSales} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sales Email</label>
-                <input
-                  className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition"
-                  type="email"
-                  name="email"
-                  placeholder="sales@company.com"
-                  value={salesForm.email}
-                  onChange={(e)=>setSalesForm(s=>({ ...s, email: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <div className="relative">
+              <form onSubmit={onSubmitSales} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sales Email</label>
                   <input
-                    className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 pr-12 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition"
-                    name="password"
-                    type={showSalesPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={salesForm.password}
-                    onChange={(e)=>setSalesForm(s=>({ ...s, password: e.target.value }))}
+                    className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition"
+                    type="email"
+                    name="email"
+                    placeholder="sales@company.com"
+                    value={salesForm.email}
+                    onChange={(e) => setSalesForm(s => ({ ...s, email: e.target.value }))}
                     required
                   />
-                  <button
-                    type="button"
-                    aria-label={showSalesPassword ? 'Hide password' : 'Show password'}
-                    onClick={() => setShowSalesPassword((prev) => !prev)}
-                    className="absolute inset-y-0 right-3 flex items-center text-slate-500 hover:text-slate-700"
-                  >
-                    {showSalesPassword ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.742 6.742A7.5 7.5 0 0119.5 12a7.5 7.5 0 01-1.41 4.243m-2.122 2.122A7.5 7.5 0 0112 19.5a7.5 7.5 0 01-5.303-2.16m0 0A7.5 7.5 0 014.5 12c0-1.808.63-3.468 1.697-4.777m2.5-2.5A7.5 7.5 0 0112 4.5c1.808 0 3.468.63 4.777 1.697" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
-                      </svg>
-                    )}
-                  </button>
                 </div>
-                <div className="mt-2 text-right">
-                  <button type="button" className="text-sm text-emerald-600 hover:underline" onClick={() => openForgotPasswordModal('sales')}>
-                    Forgot password?
-                  </button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <div className="relative">
+                    <input
+                      className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 pr-12 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition"
+                      name="password"
+                      type={showSalesPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={salesForm.password}
+                      onChange={(e) => setSalesForm(s => ({ ...s, password: e.target.value }))}
+                      required
+                    />
+                    <button
+                      type="button"
+                      aria-label={showSalesPassword ? 'Hide password' : 'Show password'}
+                      onClick={() => setShowSalesPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-3 flex items-center text-slate-500 hover:text-slate-700"
+                    >
+                      {showSalesPassword ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.742 6.742A7.5 7.5 0 0119.5 12a7.5 7.5 0 01-1.41 4.243m-2.122 2.122A7.5 7.5 0 0112 19.5a7.5 7.5 0 01-5.303-2.16m0 0A7.5 7.5 0 014.5 12c0-1.808.63-3.468 1.697-4.777m2.5-2.5A7.5 7.5 0 0112 4.5c1.808 0 3.468.63 4.777 1.697" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  <div className="mt-2 text-right">
+                    <button type="button" className="text-sm text-emerald-600 hover:underline" onClick={() => openForgotPasswordModal('sales')}>
+                      Forgot password?
+                    </button>
+                  </div>
                 </div>
-              </div>
-              {error && <div className="text-sm text-red-600">{error}</div>}
-              <button
-                type="submit"
-                className="w-full rounded-md bg-emerald-600 text-white py-3 font-semibold shadow hover:bg-emerald-700 transition disabled:opacity-70"
-                disabled={loading}
-              >
-                {loading ? 'Signing in...' : 'Sign In as Sales Person'}
-              </button>
-              <div className="text-xs text-slate-600 text-center">Need access? <Link to="/signup" className="text-emerald-700 underline">Sign up</Link></div>
-            </form>
+                {error && <div className="text-sm text-red-600">{error}</div>}
+                <button
+                  type="submit"
+                  className="w-full rounded-md bg-emerald-600 text-white py-3 font-semibold shadow hover:bg-emerald-700 transition disabled:opacity-70"
+                  disabled={loading}
+                >
+                  {loading ? 'Signing in...' : 'Sign In as Sales Person'}
+                </button>
+                <div className="text-xs text-slate-600 text-center">Need access? <Link to="/signup" className="text-emerald-700 underline">Sign up</Link></div>
+              </form>
             )}
 
             <p className="mt-6 text-sm text-gray-600 text-center">
@@ -314,8 +314,8 @@ export default function Login() {
                   <button onClick={() => setFpStep(fpStep - 1)} className="px-3 py-2 rounded-md border border-slate-300">Back</button>
                 )}
                 {fpStep === 2 && (
-                  <button 
-                    onClick={onResendOTP} 
+                  <button
+                    onClick={onResendOTP}
                     className="px-3 py-2 rounded-md border border-slate-300 text-sm"
                     disabled={resendLoading}
                   >
