@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getPeople, getPipeline, markDealDone, moveDealStage } from '../../api/sales'
+import { getPeople, getPipeline, markDealDone, moveDealStage, deleteDeal, getDeletedDeals } from '../../api/sales'
 import { getTasks } from '../../api/task'
 import { getAllSalespeople, offboardSalesperson, downloadSalespersonReportCSV } from '../../api/user'
 import Modal from '../../components/Modal'
 
-const STAGES = ['New', 'In Progress', 'Proposal', 'Deal Closed', 'Lost']
+const STAGES = ['New', 'In Progress', 'Proposal', 'Deal Completed', 'Lost Opportunity']
 
 export default function Pipeline() {
   const [loading, setLoading] = useState(true)
   const [salespeople, setSalespeople] = useState([])
   const [data, setData] = useState(() => STAGES.reduce((acc, s) => ({ ...acc, [s]: [] }), {}))
   const [tasks, setTasks] = useState([])
+  const [deletedCount, setDeletedCount] = useState(0)
 
   // Offboarding state
   const [offboardModalOpen, setOffboardModalOpen] = useState(false)
@@ -36,17 +37,18 @@ export default function Pipeline() {
   const fetchAll = async () => {
     setLoading(true)
     try {
-      const promises = [getPeople(), getPipeline(), getTasks()]
+      const promises = [getPeople(), getPipeline(), getTasks(), getDeletedDeals()]
       if (isAdmin) promises.push(getAllSalespeople())
 
       const results = await Promise.all(promises)
-      const [peopleRes, pipeRes, tasksRes, salesUsersRes] = results
+      const [peopleRes, pipeRes, tasksRes, deletedRes, salesUsersRes] = results
 
       const rawPeople = Array.isArray(peopleRes.data?.data) ? peopleRes.data.data : []
       const filteredPeople = rawPeople.filter(sp => !/@example\.com$/i.test(sp?.email || ''))
       setSalespeople(filteredPeople)
       setData(pipeRes.data?.data || {})
       setTasks(tasksRes.data?.data || [])
+      setDeletedCount(deletedRes?.data?.data?.length || 0)
 
       if (salesUsersRes) {
         // CRITICAL: Store ALL users (both active and inactive) to properly filter
@@ -115,6 +117,17 @@ export default function Pipeline() {
       await fetchAll()
     } catch (err) {
       console.error('Failed to mark deal completed', err)
+    }
+  }
+
+  const handleDeleteDeal = async (dealId) => {
+    if (!window.confirm('Are you sure you want to delete this deal? It will be moved to Deleted Deals.')) return
+    try {
+      await deleteDeal(dealId)
+      await fetchAll()
+    } catch (err) {
+      console.error('Failed to delete deal', err)
+      alert('Failed to delete deal')
     }
   }
 
@@ -210,12 +223,14 @@ export default function Pipeline() {
       </Link>
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-2xl font-semibold text-slate-900">Sales Pipeline</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-semibold text-slate-900">Sales Pipeline</h2>
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
             className={`px-4 py-2 rounded-lg border text-sm transition ${loading
-                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+              : 'bg-indigo-600 text-white hover:bg-indigo-700'
               }`}
             onClick={fetchAll}
             disabled={loading}
@@ -241,8 +256,8 @@ export default function Pipeline() {
                   onClick={handleDownloadReport}
                   disabled={!selectedReportSP || downloading}
                   className={`px-4 py-2 rounded-lg text-sm ${!selectedReportSP || downloading
-                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
                     }`}
                 >
                   {downloading ? 'Downloading...' : 'Download Report'}
@@ -357,27 +372,39 @@ export default function Pipeline() {
                                   ✅ Closed: {new Date(deal.closedAt).toLocaleString()}
                                 </div>
                               )}
-                              {deal.lostAt && (
-                                <div className="text-[10px] text-rose-600">
-                                  ❌ Lost: {new Date(deal.lostAt).toLocaleString()}
-                                </div>
-                              )}
                             </div>
                           )}
 
-                          {col.stage === 'Deal Closed' && (
+                          {col.stage === 'Deal Completed' && (
                             <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
                               <button
                                 onClick={() => handleCloseDeal(deal.id)}
                                 className="rounded border border-amber-300 px-3 py-1 text-amber-700 hover:bg-amber-50"
                               >
-                                Close
+                                Cancel
                               </button>
                               <button
                                 onClick={() => handleMarkDone(deal.id)}
                                 className="rounded border border-emerald-300 px-3 py-1 text-emerald-700 hover:bg-emerald-50"
                               >
                                 Done
+                              </button>
+                            </div>
+                          )}
+
+                          {col.stage === 'Lost Opportunity' && isAdmin && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                              <button
+                                onClick={() => handleCloseDeal(deal.id)}
+                                className="rounded border border-amber-300 px-3 py-1 text-amber-700 hover:bg-amber-50"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => handleDeleteDeal(deal.id)}
+                                className="rounded border border-rose-300 px-3 py-1 text-rose-700 hover:bg-rose-50"
+                              >
+                                Delete
                               </button>
                             </div>
                           )}
@@ -538,8 +565,8 @@ export default function Pipeline() {
                   onClick={handleOffboard}
                   disabled={!selectedOffboardUser || offboarding}
                   className={`px-4 py-2 rounded-md text-sm text-white ${!selectedOffboardUser || offboarding
-                      ? 'bg-rose-300 cursor-not-allowed'
-                      : 'bg-rose-600 hover:bg-rose-700'
+                    ? 'bg-rose-300 cursor-not-allowed'
+                    : 'bg-rose-600 hover:bg-rose-700'
                     }`}
                 >
                   {offboarding ? 'Offboarding...' : 'Confirm Offboard'}

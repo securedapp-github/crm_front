@@ -9,7 +9,7 @@ export default function Signup() {
   const [error, setError] = useState('')
   const [agree, setAgree] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', phone: '' })
-  const [mode, setMode] = useState('admin') // 'admin' | 'sales'
+  const [mode, setMode] = useState('sales') // 'admin' | 'sales'
   const [otpOpen, setOtpOpen] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [otpMsg, setOtpMsg] = useState('')
@@ -128,8 +128,8 @@ export default function Signup() {
               <p className="text-gray-500 mt-2 text-sm">Create your account to access your CRM dashboard</p>
             </div>
             <div className="mb-4 flex items-center justify-center gap-2 text-sm">
-              <button type="button" onClick={() => setMode('admin')} className={`px-3 py-1.5 rounded-md border ${mode === 'admin' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700'}`}>Admin Signup</button>
               <button type="button" onClick={() => setMode('sales')} className={`px-3 py-1.5 rounded-md border ${mode === 'sales' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700'}`}>Sales Person Signup</button>
+              <button type="button" onClick={() => setMode('admin')} className={`px-3 py-1.5 rounded-md border ${mode === 'admin' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700'}`}>Admin Signup</button>
             </div>
             <form className="space-y-5" onSubmit={onSubmit}>
               <div>

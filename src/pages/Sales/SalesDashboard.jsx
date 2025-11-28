@@ -6,7 +6,7 @@ import { updateDealNotes } from '../../api/deal'
 import { getCampaigns } from '../../api/campaign'
 import Modal from '../../components/Modal'
 
-const STAGES = ['New', 'In Progress', 'Proposal', 'Deal Closed', 'Lost']
+const STAGES = ['New', 'In Progress', 'Proposal', 'Deal Completed', 'Lost Opportunity']
 
 export default function SalesDashboard() {
   const navigate = useNavigate()

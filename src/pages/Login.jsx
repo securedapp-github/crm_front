@@ -8,7 +8,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [adminForm, setAdminForm] = useState({ email: '', password: '' })
   const [salesForm, setSalesForm] = useState({ email: '', password: '' })
-  const [mode, setMode] = useState('admin') // 'admin' | 'sales'
+  const [mode, setMode] = useState('sales') // 'admin' | 'sales'
   const [error, setError] = useState('')
   const [fpOpen, setFpOpen] = useState(false)
   const [fpStep, setFpStep] = useState(1)
@@ -153,8 +153,8 @@ export default function Login() {
             <p className="text-gray-600 mb-8">Welcome back! Please log in to your account.</p>
 
             <div className="mb-4 flex items-center justify-center gap-2 text-sm">
-              <button type="button" onClick={() => setMode('admin')} className={`px-3 py-1.5 rounded-md border ${mode === 'admin' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700'}`}>Admin Login</button>
               <button type="button" onClick={() => setMode('sales')} className={`px-3 py-1.5 rounded-md border ${mode === 'sales' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700'}`}>Sales Person Login</button>
+              <button type="button" onClick={() => setMode('admin')} className={`px-3 py-1.5 rounded-md border ${mode === 'admin' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700'}`}>Admin Login</button>
             </div>
             {mode === 'admin' ? (
               <form onSubmit={onSubmit} className="space-y-5">

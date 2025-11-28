@@ -414,6 +414,34 @@ export default function DashboardHome() {
           </div>
         </section>
 
+        <section>
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900">Member Performance</h2>
+              <span className="text-[11px] text-slate-400">Assigned vs Working On</span>
+            </div>
+            <div className="mt-6">
+              {loading ? 'Loading…' : !teamPerformance.length ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No data available</div>
+              ) : (
+                <div className="max-h-[600px] overflow-y-auto pr-2">
+                  <ResponsiveContainer width="100%" height={Math.max(240, teamPerformance.length * 60)}>
+                    <BarChart data={teamPerformance} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11 }} />
+                      <Tooltip cursor={{ fill: 'rgba(99,102,241,0.05)' }} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                      <Bar dataKey="leads" name="Assigned Leads" fill="#94a3b8" radius={[0, 4, 4, 0]} barSize={12} />
+                      <Bar dataKey="workingOn" name="Working On" fill="#10b981" radius={[0, 4, 4, 0]} barSize={12} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
         <section className="grid gap-4 lg:grid-cols-3">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between">
@@ -448,6 +476,12 @@ export default function DashboardHome() {
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors"
               >
                 Go to Lead Management →
+              </button>
+              <button
+                onClick={() => navigate('/dashboard/sales/deleted')}
+                className="ml-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-rose-600 transition-colors"
+              >
+                Deleted Deals →
               </button>
             </div>
             <div className="mt-6 space-y-4">
