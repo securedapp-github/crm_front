@@ -29,3 +29,4 @@ export const resetPassword = (payload) => api.post('/auth/reset-password', paylo
 export const requestForgotPasswordOtp = (email) => api.post('/auth/forgot-password-otp', { email })
 export const resetPasswordWithOtp = (payload) => api.post('/auth/reset-password-otp', payload)
 export const resendForgotOtp = (email) => api.post('/auth/resend-forgot-otp', { email })
+export const permanentLogout = () => api.delete('/users/permanent-logout')

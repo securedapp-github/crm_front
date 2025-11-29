@@ -21,6 +21,9 @@ export default function Navbar() {
     } else {
       links.push({ href: '/dashboard', label: 'Dashboard', protected: true })
     }
+    if (authed && role !== 'sales') {
+      links.push({ href: '/dashboard/settings', label: 'Settings', protected: true })
+    }
     return links
   }, [authed, role])
 

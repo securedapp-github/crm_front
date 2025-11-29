@@ -23,6 +23,7 @@ import TechTeam from './pages/Teams/TechTeam'
 import HRTeam from './pages/Teams/HRTeam'
 import { ToastProvider } from './components/ToastProvider'
 import TeamMemberDetail from './components/TeamMemberDetail'
+import Settings from './pages/Settings'
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
             <Route path="tech-team" element={<TechTeam />} />
             <Route path="hr-team" element={<HRTeam />} />
             <Route path="team/:id" element={<TeamMemberDetail />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
       </ToastProvider>
