@@ -16,6 +16,7 @@ import DeletedDeals from './pages/Sales/DeletedDeals'
 import Tickets from './pages/Service/Tickets'
 import Notes from './pages/Collaboration/Notes'
 import SalesTeam from './pages/Teams/SalesTeam'
+import SalesPersonDetails from './pages/Teams/SalesPersonDetails'
 import MarketingTeam from './pages/Teams/MarketingTeam'
 import GrowthTeam from './pages/Teams/GrowthTeam'
 import OperationsTeam from './pages/Teams/OperationsTeam'
@@ -51,6 +52,7 @@ function App() {
             <Route path="sales/deleted" element={<DeletedDeals />} />
             <Route path="sales/deals/:id" element={<DealDetail />} />
             <Route path="sales-team" element={<SalesTeam />} />
+            <Route path="sales-team/details" element={<SalesPersonDetails />} />
             <Route path="marketing-team" element={<MarketingTeam />} />
             <Route path="growth-team" element={<GrowthTeam />} />
             <Route path="operations-team" element={<OperationsTeam />} />

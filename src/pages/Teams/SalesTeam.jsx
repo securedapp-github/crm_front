@@ -65,6 +65,24 @@ export default function SalesTeam() {
               <span className="text-xl text-slate-300">→</span>
             </div>
           </Link>
+
+          <Link
+            to="/dashboard/sales-team/details"
+            className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition hover:border-emerald-300 hover:shadow-md"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-base font-semibold text-slate-900">
+                  <span className="text-lg">🕒</span>
+                  <span>Sales Person Details</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  Review who is login counts, and total time spent by the team.
+                </p>
+              </div>
+              <span className="text-xl text-slate-300">→</span>
+            </div>
+          </Link>
         </section>
       </div>
     </main>
