@@ -482,14 +482,15 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                   <th className="text-left px-4 py-2">Mobile</th>
                   <th className="text-left px-4 py-2">Email</th>
                   <th className="text-left px-4 py-2">Assigned</th>
+                  <th className="text-left px-4 py-2">Created At</th>
                   <th className="text-left px-4 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">{
                 loading ? (
-                  <tr><td className="px-4 py-3" colSpan={14}>Loading...</td></tr>
+                  <tr><td className="px-4 py-3" colSpan={15}>Loading...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td className="px-4 py-3 text-slate-500" colSpan={14}>No campaigns</td></tr>
+                  <tr><td className="px-4 py-3 text-slate-500" colSpan={15}>No campaigns</td></tr>
                 ) : filtered.map(c => (
                   <Fragment key={c.id}>
                     <tr className="hover:bg-slate-50">
@@ -547,6 +548,14 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                           })()}
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {c.createdAt ? (
+                          <div className="text-xs">
+                            <div className="font-medium">{new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                            <div className="text-slate-500">{new Date(c.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</div>
+                          </div>
+                        ) : '-'}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <button
@@ -566,7 +575,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                     </tr>
                     {expanded === c.id && (
                       <tr className="bg-slate-50/60">
-                        <td colSpan={14} className="px-6 py-5">
+                        <td colSpan={15} className="px-6 py-5">
                           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <DetailBlock label="Objective" value={c.objective} />
                             <DetailBlock label="Audience segment" value={c.audienceSegment} />

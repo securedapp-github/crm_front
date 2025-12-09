@@ -256,14 +256,15 @@ export default function LeadList() {
                   <th className="text-left px-4 py-2">Company domain</th>
                   <th className="text-left px-4 py-2">Mobile number</th>
                   <th className="text-left px-4 py-2">Email</th>
+                  <th className="text-left px-4 py-2">Created At</th>
                   <th className="text-left px-4 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {loading ? (
-                  <tr><td className="px-4 py-3" colSpan={8}>Loading...</td></tr>
+                  <tr><td className="px-4 py-3" colSpan={9}>Loading...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td className="px-4 py-3 text-slate-500" colSpan={8}>No leads</td></tr>
+                  <tr><td className="px-4 py-3 text-slate-500" colSpan={9}>No leads</td></tr>
                 ) : filtered.map(l => (
                   <Fragment key={l.id}>
                     <tr className="hover:bg-slate-50">
@@ -288,6 +289,14 @@ export default function LeadList() {
                           {(() => { const id = workIdFor(l.email || l.company || l.name); return id ? (<span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 border border-slate-200" title={id}>{id}</span>) : null })()}
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {l.createdAt ? (
+                          <div className="text-xs">
+                            <div className="font-medium">{new Date(l.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                            <div className="text-slate-500">{new Date(l.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</div>
+                          </div>
+                        ) : '-'}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <button className="text-xs px-2 py-1 rounded border" onClick={() => { setEditingId(l.id); setEditForm({ name: l.name || '', company: l.company || '', accountDomain: l.accountDomain || '', phone: l.phone || '', email: l.email || '', description: '' }); setEditOpen(true) }}>Edit</button>
@@ -297,7 +306,7 @@ export default function LeadList() {
                     </tr>
                     {expanded === l.id && (
                       <tr className="bg-slate-50/60">
-                        <td colSpan={8} className="px-6 py-5">
+                        <td colSpan={9} className="px-6 py-5">
                           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Description</p>
