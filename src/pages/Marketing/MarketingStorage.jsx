@@ -260,23 +260,37 @@ export default function MarketingStorage() {
 
                 <form onSubmit={handleUpload} className="space-y-6">
                     {/* Drag & Drop File Zone */}
-                    <div
-                        className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-all ${files.length > 0 ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-200 bg-slate-50 hover:bg-slate-100/50 hover:border-slate-300'
-                            }`}
-                    >
-                        <input
-                            type="file"
-                            onChange={handleFileChange}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            multiple
-                        />
-                        <div className="flex bg-indigo-50 text-indigo-600 rounded-full p-3 mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                    {/* Upload Choice Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Single Upload */}
+                        <div className="relative flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50/30 transition-all group cursor-pointer bg-slate-50">
+                            <input
+                                type="file"
+                                onChange={handleFileChange}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                            />
+                            <div className="flex bg-white text-indigo-600 rounded-full p-3 mb-3 shadow-sm group-hover:scale-110 transition-transform ring-1 ring-slate-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                            </div>
+                            <h3 className="font-semibold text-slate-900 mb-1">Upload File</h3>
+                            <p className="text-xs text-slate-500 text-center">Click or drag to upload a single file</p>
                         </div>
-                        <div className="text-center">
-                            <p className="text-sm font-medium text-slate-700">Click to upload or drag and drop</p>
-                            <p className="text-xs text-slate-500 mt-1">Images, Videos, or Documents (Max 100MB per file)</p>
-                            <p className="text-xs text-indigo-600 mt-2 font-medium">Bulk upload supported</p>
+
+                        {/* Bulk Upload */}
+                        <div className="relative flex flex-col items-center justify-center p-6 border-2 border-dashed border-indigo-200 rounded-xl bg-indigo-50/20 hover:bg-indigo-50/50 hover:border-indigo-400 transition-all group cursor-pointer">
+                            <input
+                                type="file"
+                                onChange={handleFileChange}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                multiple
+                                accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                            />
+                            <div className="flex bg-indigo-100 text-indigo-600 rounded-full p-3 mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4" /><polyline points="14 2 14 8 20 8" /><path d="M3 15h6" /><path d="M6 12v6" /></svg>
+                            </div>
+                            <h3 className="font-semibold text-indigo-900 mb-1">Bulk Upload</h3>
+                            <p className="text-xs text-indigo-600 text-center">Click or drag to upload multiple files</p>
                         </div>
                     </div>
 
