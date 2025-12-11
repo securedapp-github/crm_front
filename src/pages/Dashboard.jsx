@@ -10,6 +10,7 @@ const SALES_SECTIONS = [
   { href: "/dashboard/sales-dashboard", label: "Sales Dashboard", icon: "🧭" },
   { href: "/dashboard/sales/mail", label: "Send Mail", icon: "✉️" },
   { href: "/dashboard/sales/completed", label: "Completed Deals", icon: "✅" },
+  { href: "/dashboard/company-assets", label: "Company Assets", icon: "📂" },
 ]
 
 export default function Dashboard() {
@@ -44,7 +45,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (checking) return
     if (user?.role === 'sales') {
-      const allowedPrefixes = ['/dashboard/sales-dashboard', '/dashboard/sales/completed', '/dashboard/sales/mail']
+      const allowedPrefixes = ['/dashboard/sales-dashboard', '/dashboard/sales/completed', '/dashboard/sales/mail', '/dashboard/company-assets']
       const isAllowed = allowedPrefixes.some((prefix) => location.pathname.startsWith(prefix))
       if (!isAllowed) {
         navigate('/dashboard/sales-dashboard', { replace: true })
@@ -80,11 +81,10 @@ export default function Dashboard() {
           onClick={() => {
             if (onNavigate) onNavigate()
           }}
-          className={`group flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-all ${
-            active
-              ? "border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm"
-              : "border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600"
-          }`}
+          className={`group flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-all ${active
+            ? "border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm"
+            : "border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600"
+            }`}
         >
           <span className="flex items-center gap-3 text-left">
             <span className="text-lg">{item.icon}</span>
@@ -112,21 +112,19 @@ export default function Dashboard() {
               onClick={() => {
                 if (onNavigate) onNavigate()
               }}
-              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
-                location.pathname.startsWith('/dashboard/sales-team')
-                  ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-                  : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-              }`}
+              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${location.pathname.startsWith('/dashboard/sales-team')
+                ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+                : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+                }`}
             >
               <span className="flex items-center gap-3">
                 <span className="text-lg">👥</span>
                 <span>Sales Team</span>
               </span>
-              <span className={`text-xs transition ${
-                location.pathname.startsWith('/dashboard/sales-team')
-                  ? 'text-indigo-500'
-                  : 'text-slate-300 group-hover:text-indigo-400'
-              }`}>
+              <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/sales-team')
+                ? 'text-indigo-500'
+                : 'text-slate-300 group-hover:text-indigo-400'
+                }`}>
                 →
               </span>
             </Link>
@@ -136,21 +134,19 @@ export default function Dashboard() {
               onClick={() => {
                 if (onNavigate) onNavigate()
               }}
-              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
-                location.pathname.startsWith('/dashboard/marketing-team')
-                  ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-                  : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-              }`}
+              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${location.pathname.startsWith('/dashboard/marketing-team')
+                ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+                : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+                }`}
             >
               <span className="flex items-center gap-3">
                 <span className="text-lg">📣</span>
                 <span>Marketing Team</span>
               </span>
-              <span className={`text-xs transition ${
-                location.pathname.startsWith('/dashboard/marketing-team')
-                  ? 'text-indigo-500'
-                  : 'text-slate-300 group-hover:text-indigo-400'
-              }`}>
+              <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/marketing-team')
+                ? 'text-indigo-500'
+                : 'text-slate-300 group-hover:text-indigo-400'
+                }`}>
                 →
               </span>
             </Link>
@@ -160,21 +156,19 @@ export default function Dashboard() {
               onClick={() => {
                 if (onNavigate) onNavigate()
               }}
-              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
-                location.pathname.startsWith('/dashboard/growth-team')
-                  ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-                  : 'border-transparent text-slate-600 hover-border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-              }`}
+              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${location.pathname.startsWith('/dashboard/growth-team')
+                ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+                : 'border-transparent text-slate-600 hover-border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+                }`}
             >
               <span className="flex items-center gap-3">
                 <span className="text-lg">📈</span>
                 <span>Growth Team</span>
               </span>
-              <span className={`text-xs transition ${
-                location.pathname.startsWith('/dashboard/growth-team')
-                  ? 'text-indigo-500'
-                  : 'text-slate-300 group-hover:text-indigo-400'
-              }`}>
+              <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/growth-team')
+                ? 'text-indigo-500'
+                : 'text-slate-300 group-hover:text-indigo-400'
+                }`}>
                 →
               </span>
             </Link>
@@ -184,21 +178,19 @@ export default function Dashboard() {
               onClick={() => {
                 if (onNavigate) onNavigate()
               }}
-              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
-                location.pathname.startsWith('/dashboard/operations-team')
-                  ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-                  : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-              }`}
+              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${location.pathname.startsWith('/dashboard/operations-team')
+                ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+                : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+                }`}
             >
               <span className="flex items-center gap-3">
                 <span className="text-lg">🏭</span>
                 <span>Operations Team</span>
               </span>
-              <span className={`text-xs transition ${
-                location.pathname.startsWith('/dashboard/operations-team')
-                  ? 'text-indigo-500'
-                  : 'text-slate-300 group-hover:text-indigo-400'
-              }`}>
+              <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/operations-team')
+                ? 'text-indigo-500'
+                : 'text-slate-300 group-hover:text-indigo-400'
+                }`}>
                 →
               </span>
             </Link>
@@ -208,21 +200,19 @@ export default function Dashboard() {
               onClick={() => {
                 if (onNavigate) onNavigate()
               }}
-              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
-                location.pathname.startsWith('/dashboard/tech-team')
-                  ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-                  : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-              }`}
+              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${location.pathname.startsWith('/dashboard/tech-team')
+                ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+                : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+                }`}
             >
               <span className="flex items-center gap-3">
                 <span className="text-lg">💻</span>
                 <span>Tech Team</span>
               </span>
-              <span className={`text-xs transition ${
-                location.pathname.startsWith('/dashboard/tech-team')
-                  ? 'text-indigo-500'
-                  : 'text-slate-300 group-hover:text-indigo-400'
-              }`}>
+              <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/tech-team')
+                ? 'text-indigo-500'
+                : 'text-slate-300 group-hover:text-indigo-400'
+                }`}>
                 →
               </span>
             </Link>
@@ -232,21 +222,19 @@ export default function Dashboard() {
               onClick={() => {
                 if (onNavigate) onNavigate()
               }}
-              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
-                location.pathname.startsWith('/dashboard/hr-team')
-                  ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-                  : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-              }`}
+              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${location.pathname.startsWith('/dashboard/hr-team')
+                ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+                : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+                }`}
             >
               <span className="flex items-center gap-3">
                 <span className="text-lg">🧑‍💼</span>
                 <span>HR Team</span>
               </span>
-              <span className={`text-xs transition ${
-                location.pathname.startsWith('/dashboard/hr-team')
-                  ? 'text-indigo-500'
-                  : 'text-slate-300 group-hover:text-indigo-400'
-              }`}>
+              <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/hr-team')
+                ? 'text-indigo-500'
+                : 'text-slate-300 group-hover:text-indigo-400'
+                }`}>
                 →
               </span>
             </Link>
@@ -265,9 +253,8 @@ export default function Dashboard() {
           onClick={() => setMobileOpen(false)}
         />
         <aside
-          className={`absolute left-0 top-0 h-full w-72 transform bg-white shadow-2xl transition-transform duration-300 ${
-            mobileOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+          className={`absolute left-0 top-0 h-full w-72 transform bg-white shadow-2xl transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
         >
           <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <h2 className="text-base font-semibold text-slate-900">Menu</h2>

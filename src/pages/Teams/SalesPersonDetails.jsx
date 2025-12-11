@@ -14,12 +14,17 @@ const formatDateTime = (value) => {
 const formatHours = (hrs) => `${Number(hrs || 0).toFixed(1)}h`
 const formatDuration = (minutes = 0) => {
   const totalMinutes = Math.max(0, Math.floor(minutes))
-  const hours = Math.floor(totalMinutes / 60)
-  const mins = totalMinutes % 60
-  if (hours > 0) {
-    return `${hours}h ${mins.toString().padStart(2, '0')}m`
-  }
-  return `${mins}m`
+  const days = Math.floor(totalMinutes / (24 * 60))
+  const remainingMinutes = totalMinutes % (24 * 60)
+  const hours = Math.floor(remainingMinutes / 60)
+  const mins = remainingMinutes % 60
+
+  const parts = []
+  if (days > 0) parts.push(`${days}d`)
+  if (hours > 0) parts.push(`${hours}h`)
+  if (mins > 0 || parts.length === 0) parts.push(`${mins}m`)
+
+  return parts.join(' ')
 }
 
 export default function SalesPersonDetails() {
@@ -28,6 +33,38 @@ export default function SalesPersonDetails() {
   const [activity, setActivity] = useState(null)
   const [activityFetchedAt, setActivityFetchedAt] = useState(null)
   const [nowTick, setNowTick] = useState(Date.now())
+  const [filters, setFilters] = useState({ startDate: '', endDate: '' })
+
+  // Quick filter helpers
+  const applyFilter = (type) => {
+    const now = new Date()
+    let start = new Date()
+    let end = new Date() // default end is today
+
+    if (type === 'today') {
+      start = now
+    } else if (type === 'yesterday') {
+      start.setDate(now.getDate() - 1)
+      end.setDate(now.getDate() - 1)
+    } else if (type === '7d') {
+      start.setDate(now.getDate() - 7)
+    } else if (type === '30d') {
+      start.setDate(now.getDate() - 30)
+    } else if (type === '3m') {
+      start.setMonth(now.getMonth() - 3)
+    } else if (type === '6m') {
+      start.setMonth(now.getMonth() - 6)
+    } else if (type === '1y') {
+      start.setFullYear(now.getFullYear() - 1)
+    }
+
+    setFilters({
+      startDate: start.toISOString().split('T')[0],
+      endDate: end.toISOString().split('T')[0]
+    })
+  }
+
+  const clearFilters = () => setFilters({ startDate: '', endDate: '' })
 
   const user = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}') } catch { return {} }
@@ -42,7 +79,12 @@ export default function SalesPersonDetails() {
         setError('')
       }
       try {
-        const res = await getSalesActivity()
+        // Pass empty object if filters are empty to rely on backend defaults, or pass explicit strings
+        const params = {}
+        if (filters.startDate) params.startDate = filters.startDate
+        if (filters.endDate) params.endDate = filters.endDate
+
+        const res = await getSalesActivity(params)
         setActivity(res.data?.data || null)
         setActivityFetchedAt(Date.now())
       } catch (err) {
@@ -53,7 +95,7 @@ export default function SalesPersonDetails() {
         }
       }
     },
-    [isAdmin]
+    [isAdmin, filters]
   )
 
   useEffect(() => {
@@ -128,6 +170,48 @@ export default function SalesPersonDetails() {
           </div>
         )}
 
+        {/* Date Filter Section */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-slate-700">From Date</label>
+              <input
+                type="date"
+                className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                value={filters.startDate}
+                onChange={e => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-slate-700">To Date</label>
+              <input
+                type="date"
+                className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                value={filters.endDate}
+                onChange={e => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+              />
+            </div>
+            <div>
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 rounded-md border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 items-center">
+            <span className="text-sm font-medium text-slate-700 mr-2">Quick:</span>
+            <button onClick={() => applyFilter('today')} className="px-3 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600">Today</button>
+            <button onClick={() => applyFilter('yesterday')} className="px-3 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600">Yesterday</button>
+            <button onClick={() => applyFilter('7d')} className="px-3 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600">7 Days</button>
+            <button onClick={() => applyFilter('30d')} className="px-3 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600">30 Days</button>
+            <button onClick={() => applyFilter('3m')} className="px-3 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600">3 Months</button>
+            <button onClick={() => applyFilter('6m')} className="px-3 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600">6 Months</button>
+            <button onClick={() => applyFilter('1y')} className="px-3 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600">1 Year</button>
+          </div>
+        </section>
+
         <section className="grid gap-4 md:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-slate-500">Total Salespeople</p>
@@ -137,7 +221,7 @@ export default function SalesPersonDetails() {
           {hasActivity && (
             <>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Logged In (7d)</p>
+                <p className="text-xs uppercase tracking-wide text-slate-500">Logged In {filters.startDate || filters.endDate ? '(Custom)' : '(7d)'}</p>
                 <p className="mt-2 text-2xl font-semibold text-slate-900">{summary.loggedInInWindow ?? '—'}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -145,8 +229,8 @@ export default function SalesPersonDetails() {
                 <p className="mt-2 text-2xl font-semibold text-slate-900">{summary.currentlyOnline ?? '—'}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Total Hours (7d)</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900">{summary.totalHours ? formatHours(summary.totalHours) : '—'}</p>
+                <p className="text-xs uppercase tracking-wide text-slate-500">Total Hours {filters.startDate || filters.endDate ? '(Custom)' : '(7d)'}</p>
+                <p className="mt-2 text-2xl font-semibold text-slate-900">{summary.totalHours ? formatDuration(summary.totalHours * 60) : '—'}</p>
               </div>
             </>
           )}
@@ -175,7 +259,7 @@ export default function SalesPersonDetails() {
                         Logged in: {formatDateTime(person.lastLoginAt)}
                       </p>
                       <p className="text-xs font-medium text-emerald-700">
-                        Session time: {person.hours}
+                        Session time: {formatDuration(person.currentSessionMinutes || 0)}
                       </p>
                     </div>
                     <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">

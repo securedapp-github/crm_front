@@ -16,7 +16,8 @@ export default function Navbar() {
     if (authed && role === 'sales') {
       links.push(
         { href: '/dashboard/sales-dashboard', label: 'Sales Dashboard', protected: true },
-        { href: '/dashboard/sales/completed', label: 'Completed Deals', protected: true }
+        { href: '/dashboard/sales/completed', label: 'Completed Deals', protected: true },
+        { href: '/dashboard/sales-team', label: 'Team', protected: true }
       )
     } else {
       links.push({ href: '/dashboard', label: 'Dashboard', protected: true })

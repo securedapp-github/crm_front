@@ -414,6 +414,20 @@ export default function CampaignList({ autoOpenKey = 0 }) {
     return haystack.some(value => value.includes(query.toLowerCase()))
   })
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+  const totalPages = Math.ceil(filtered.length / itemsPerPage)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [query])
+
+  const paginatedCampaigns = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return filtered.slice(start, start + itemsPerPage)
+  }, [filtered, currentPage])
+
   return (
     <div className="space-y-4 w-full max-w-full overflow-x-hidden px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -491,7 +505,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                   <tr><td className="px-4 py-3" colSpan={15}>Loading...</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr><td className="px-4 py-3 text-slate-500" colSpan={15}>No campaigns</td></tr>
-                ) : filtered.map(c => (
+                ) : paginatedCampaigns.map(c => (
                   <Fragment key={c.id}>
                     <tr className="hover:bg-slate-50">
                       <td className="px-4 py-3 align-top">
@@ -526,25 +540,28 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col items-center justify-center gap-1">
-                          {c.owner ? (
-                            <div
-                              onClick={() => show(`Working on it: ${c.owner.name}`, 'success')}
-                              className="h-3 w-3 rounded-full bg-emerald-500 cursor-pointer shadow-sm hover:ring-4 hover:ring-emerald-100 transition-all"
-                              title={`Assigned to ${c.owner.name}`}
-                            />
-                          ) : (
-                            <span className="text-slate-400 text-xs">—</span>
-                          )}
                           {(() => {
                             const deal = getDealFor(c)
-                            if (deal && deal.stage && deal.stage !== 'New') {
-                              return (
-                                <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 whitespace-nowrap">
-                                  {deal.stage}
-                                </span>
-                              )
-                            }
-                            return null
+                            const isAssigned = c.owner || deal
+
+                            return (
+                              <>
+                                {isAssigned ? (
+                                  <div
+                                    onClick={() => c.owner && show(`Working on it: ${c.owner.name}`, 'success')}
+                                    className="h-3 w-3 rounded-full bg-emerald-500 cursor-pointer shadow-sm hover:ring-4 hover:ring-emerald-100 transition-all"
+                                    title={c.owner ? `Assigned to ${c.owner.name}` : 'Assigned (Deal Linked)'}
+                                  />
+                                ) : (
+                                  <span className="text-slate-400 text-xs">—</span>
+                                )}
+                                {deal && deal.stage && deal.stage !== 'New' && (
+                                  <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 whitespace-nowrap">
+                                    {deal.stage}
+                                  </span>
+                                )}
+                              </>
+                            )
                           })()}
                         </div>
                       </td>
@@ -638,6 +655,62 @@ export default function CampaignList({ autoOpenKey = 0 }) {
             </table>
           </div>
         </div>
+
+        {/* Pagination Controls */}
+        {!loading && filtered.length > 0 && (
+          <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-6">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="relative ml-3 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-slate-700">
+                  Showing <span className="font-medium">{Math.min((currentPage - 1) * itemsPerPage + 1, filtered.length)}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filtered.length)}</span> of <span className="font-medium">{filtered.length}</span> results
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                  >
+                    <span className="sr-only">Previous</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 focus:outline-offset-0">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                  >
+                    <span className="sr-only">Next</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Add Campaign" actions={
@@ -831,7 +904,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
             >
               <option value="">Select teammate…</option>
               {users
-                .filter(u => u.role !== 'sales' ? true : true)
+                .filter(u => u.role === 'sales')
                 .map(user => (
                   <option key={user.id} value={user.id}>{user.name || user.email || `User #${user.id}`}</option>
                 ))}
@@ -840,12 +913,14 @@ export default function CampaignList({ autoOpenKey = 0 }) {
         </div>
       </Modal>
 
-      {showScoring && (
-        <div className="mt-6 rounded-lg border bg-white p-4">
-          <h3 className="mb-2 text-base font-semibold text-slate-900">Lead Scoring & Qualification</h3>
-          <LeadScoring initialQuery={scoringQuery} />
-        </div>
-      )}
+      {
+        showScoring && (
+          <div className="mt-6 rounded-lg border bg-white p-4">
+            <h3 className="mb-2 text-base font-semibold text-slate-900">Lead Scoring & Qualification</h3>
+            <LeadScoring initialQuery={scoringQuery} />
+          </div>
+        )
+      }
 
       <Modal
         open={confirmDeleteId != null}
@@ -1091,6 +1166,6 @@ export default function CampaignList({ autoOpenKey = 0 }) {
         </div>
       </Modal>
 
-    </div>
+    </div >
   )
 }

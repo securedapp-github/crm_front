@@ -4,6 +4,8 @@ export default function SalesTeam() {
   return (
     <main className="min-h-[calc(100vh-112px)] bg-slate-50">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 pb-12 pt-10 md:px-8">
+
+        {/* Navigation / Header Area */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h1 className="text-2xl font-semibold text-slate-900">Sales Team</h1>
           <p className="mt-2 text-sm text-slate-600">
@@ -11,6 +13,7 @@ export default function SalesTeam() {
           </p>
         </section>
 
+        {/* Menu Grid View */}
         <section className="grid gap-4 md:grid-cols-3">
           <Link
             to="/dashboard/marketing"
@@ -84,6 +87,7 @@ export default function SalesTeam() {
             </div>
           </Link>
         </section>
+
       </div>
     </main>
   )

@@ -577,13 +577,13 @@ export default function Pipeline() {
         >
           {!offboardResult ? (
             <div className="space-y-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                ⚠️ <strong>Warning:</strong> This will deactivate the salesperson's account and reassign all their pending deals.
+              <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-sm text-rose-800">
+                ⚠️ <strong>Permanent Deletion:</strong> This will <strong>permanently delete</strong> the user's account and reassign all their pending deals. This action cannot be undone.
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Select Salesperson to Offboard
+                  Select User to Offboard
                 </label>
                 <select
                   className="w-full px-3 py-2 border rounded-md"
@@ -603,9 +603,9 @@ export default function Pipeline() {
           ) : (
             <div className="space-y-3">
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                <div className="text-emerald-800 font-semibold">✅ {offboardResult.message}</div>
+                <div className="text-emerald-800 font-semibold">✅ User Deleted Successfully</div>
                 <div className="mt-2 text-sm text-emerald-700">
-                  <p><strong>Deactivated:</strong> {offboardResult.deactivated?.userName}</p>
+                  <p><strong>Deleted User:</strong> {offboardResult.deactivated?.userName}</p>
                   <p><strong>Deals Reassigned:</strong> {offboardResult.dealsReassigned}</p>
                 </div>
               </div>

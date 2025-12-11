@@ -236,14 +236,14 @@ export default function SalesDashboard() {
       const dealTitle = normalise(deal.title)
       const matched = Array.from(campaignByName.entries()).find(([name]) => dealTitle.includes(name))
       if (matched) return matched[1]
-      
+
       // Try to match by email if title looks like an email
       // e.g. sumit@example.com-W001 -> sumit@example.com
       const emailMatch = dealTitle.match(/^([a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6})/);
       if (emailMatch && emailMatch[1]) {
-         // Check if we have a campaign with this email
-         const campaignByEmail = campaigns.find(c => normalise(c.email) === normalise(emailMatch[1]));
-         if (campaignByEmail) return campaignByEmail;
+        // Check if we have a campaign with this email
+        const campaignByEmail = campaigns.find(c => normalise(c.email) === normalise(emailMatch[1]));
+        if (campaignByEmail) return campaignByEmail;
       }
     }
 

@@ -1,7 +1,60 @@
+import { useState } from 'react'
+import MarketingStorage from '../Marketing/MarketingStorage'
+import { Link } from 'react-router-dom'
+
 export default function MarketingTeam() {
+  const [view, setView] = useState('menu') // 'menu' or 'assets'
+
   return (
     <main className="min-h-[calc(100vh-112px)] bg-slate-50">
-      <h1>Marketing Team</h1>
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-12 pt-10 md:px-8">
+
+        {/* Breadcrumb / Back Navigation */}
+        <div className="flex items-center gap-2">
+          <Link
+            to="/dashboard/sales-team"
+            className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 transition-colors self-start mb-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+            <span>Back</span>
+          </Link>
+        </div>
+
+        <div className="space-y-3">
+          <h1 className="text-3xl font-semibold text-slate-900 md:text-4xl">
+            Marketing Team
+          </h1>
+          <p className="max-w-3xl text-sm text-slate-600 md:text-base">
+            Collaborate on marketing initiatives, manage assets, and track team performance.
+          </p>
+        </div>
+
+        {/* Menu Grid View */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {/* Company Assets Card */}
+          <Link
+            to="/dashboard/company-assets"
+            className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-indigo-300 hover:shadow-md"
+          >
+            <div className="space-y-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">Company Assets</h3>
+                <p className="mt-2 text-sm text-slate-500">
+                  Upload and manage posters, videos, and marketing collateral in one place.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex items-center justify-end text-slate-400 group-hover:text-indigo-600 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+            </div>
+          </Link>
+        </div>
+      </div>
     </main>
   )
 }
