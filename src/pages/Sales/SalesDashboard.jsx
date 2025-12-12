@@ -710,6 +710,6 @@ export default function SalesDashboard() {
           <p className="text-xs text-slate-500">Your follow-up will be visible in both dashboards.</p>
         </div>
       </Modal>
-    </div>
+    </div >
   )
 }

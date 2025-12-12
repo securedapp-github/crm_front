@@ -26,6 +26,8 @@ import { ToastProvider } from './components/ToastProvider'
 import TeamMemberDetail from './components/TeamMemberDetail'
 import Settings from './pages/Settings'
 import CompanyAssets from './pages/CompanyAssets'
+import ActivitiesPage from './pages/Marketing/ActivitiesPage'
+import SalesMarketingActivities from './pages/Sales/SalesMarketingActivities'
 
 function App() {
   return (
@@ -62,6 +64,8 @@ function App() {
             <Route path="team/:id" element={<TeamMemberDetail />} />
             <Route path="settings" element={<Settings />} />
             <Route path="company-assets" element={<CompanyAssets />} />
+            <Route path="marketing-team/activities" element={<ActivitiesPage />} />
+            <Route path="sales/activities" element={<SalesMarketingActivities />} />
           </Route>
         </Routes>
       </ToastProvider>
