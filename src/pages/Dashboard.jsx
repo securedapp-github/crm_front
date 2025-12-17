@@ -12,6 +12,7 @@ const SALES_SECTIONS = [
   { href: "/dashboard/sales/completed", label: "Completed Deals", icon: "✅" },
   { href: "/dashboard/company-assets", label: "Company Assets", icon: "📂" },
   { href: "/dashboard/sales/activities", label: "My Marketing Activities", icon: "📢" },
+  { href: "/dashboard/sales-dashboard/sequences", label: "Email Sequences", icon: "📨" },
 ]
 
 export default function Dashboard() {

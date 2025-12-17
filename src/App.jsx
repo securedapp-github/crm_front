@@ -28,6 +28,10 @@ import Settings from './pages/Settings'
 import CompanyAssets from './pages/CompanyAssets'
 import ActivitiesPage from './pages/Marketing/ActivitiesPage'
 import SalesMarketingActivities from './pages/Sales/SalesMarketingActivities'
+import EmailSequences from './pages/Marketing/EmailSequences'
+import CreateSequence from './pages/Marketing/CreateSequence'
+import SequenceBuilder from './pages/Marketing/SequenceBuilder'
+
 
 function App() {
   return (
@@ -56,6 +60,7 @@ function App() {
             <Route path="sales/deals/:id" element={<DealDetail />} />
             <Route path="sales-team" element={<SalesTeam />} />
             <Route path="sales-team/details" element={<SalesPersonDetails />} />
+            <Route path="sales-team/details" element={<SalesPersonDetails />} />
             <Route path="marketing-team" element={<MarketingTeam />} />
             <Route path="growth-team" element={<GrowthTeam />} />
             <Route path="operations-team" element={<OperationsTeam />} />
@@ -65,7 +70,13 @@ function App() {
             <Route path="settings" element={<Settings />} />
             <Route path="company-assets" element={<CompanyAssets />} />
             <Route path="marketing-team/activities" element={<ActivitiesPage />} />
+            <Route path="marketing-team/sequences" element={<EmailSequences />} />
+            <Route path="marketing-team/sequences/new" element={<CreateSequence />} />
+            <Route path="marketing-team/sequences/:id" element={<SequenceBuilder />} />
             <Route path="sales/activities" element={<SalesMarketingActivities />} />
+            <Route path="sales-dashboard/sequences" element={<EmailSequences />} />
+            <Route path="sales-dashboard/sequences/new" element={<CreateSequence />} />
+            <Route path="sales-dashboard/sequences/:id" element={<SequenceBuilder />} />
           </Route>
         </Routes>
       </ToastProvider>

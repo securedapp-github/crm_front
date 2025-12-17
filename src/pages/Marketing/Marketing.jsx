@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import CampaignList from './CampaignList'
 import LeadScoring from './LeadScoring'
+import LeadList from './LeadList'
 
 export default function Marketing() {
   const [tab, setTab] = useState('capture')

@@ -156,6 +156,7 @@ export default function DashboardHome() {
   const mostLeads = useMemo(() => topCampaigns.reduce((max, item) => Math.max(max, item.count), 0) || 1, [topCampaigns])
   const teamPerformance = useMemo(() => summary?.sales?.leadsPerSalesperson || [], [summary])
   const topSalesperson = summary?.sales?.topSalespersonByDeals || null
+  const sequencesPerSalesperson = useMemo(() => summary?.sales?.sequencesPerSalesperson || [], [summary])
 
   return (
     <main className="min-h-[calc(100vh-112px)] bg-slate-50 p-4 md:p-6 lg:p-8">
@@ -436,6 +437,55 @@ export default function DashboardHome() {
                       <Bar dataKey="workingOn" name="Working On" fill="#10b981" radius={[0, 4, 4, 0]} barSize={12} />
                     </BarChart>
                   </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Sequences by Salesperson - Admin view of active sequence enrollments */}
+        <section>
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900">Sequences by Salesperson</h2>
+              <span className="text-[11px] text-slate-400">Active email sequences per team member</span>
+            </div>
+            <div className="mt-6">
+              {loading ? 'Loading…' : !sequencesPerSalesperson.length ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No active sequences</div>
+              ) : (
+                <div className="space-y-4">
+                  {sequencesPerSalesperson.map(sp => (
+                    <div key={sp.id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-600">
+                            {sp.name?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-slate-800">{sp.name}</div>
+                            <div className="text-xs text-slate-500">{sp.totalActiveEnrollments} active enrollment{sp.totalActiveEnrollments !== 1 ? 's' : ''}</div>
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600">
+                          {sp.sequences.length} sequence{sp.sequences.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {sp.sequences.map(seq => (
+                          <div
+                            key={seq.sequenceId}
+                            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs"
+                          >
+                            <span className="font-medium text-slate-700">{seq.sequenceName}</span>
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">
+                              {seq.activeLeads} lead{seq.activeLeads !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

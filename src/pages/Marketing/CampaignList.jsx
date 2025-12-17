@@ -46,7 +46,8 @@ export default function CampaignList({ autoOpenKey = 0 }) {
     email: '',
     serviceOffering: '',
     callDate: '',
-    callTime: ''
+    callTime: '',
+    isMarketingCampaign: true
   })
 
   const stripSuffix = (s) => String(s || '').replace(/-W\d{3}$/i, '').trim()
@@ -100,6 +101,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false)
   const [bulkUploading, setBulkUploading] = useState(false)
   const [uploadedFile, setUploadedFile] = useState(null)
+  const [bulkIsMarketing, setBulkIsMarketing] = useState(true)
   const dropdownRef = useRef(null)
   const { show } = useToast()
   const stagePills = {
@@ -359,7 +361,8 @@ export default function CampaignList({ autoOpenKey = 0 }) {
             description: row.Description || row.description || '',
             channel: 'Web',
             status: 'Planned',
-            priority: 'Medium'
+            priority: 'Medium',
+            isMarketingCampaign: bulkIsMarketing
           })).filter(c => c.name || c.accountCompany) // Filter out rows without name or entity name
 
           if (campaigns.length === 0) {
@@ -382,6 +385,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
 
           setBulkUploadOpen(false)
           setUploadedFile(null)
+          setBulkIsMarketing(false)
           await fetchData()
         } catch (parseError) {
           show('Failed to parse Excel file', 'error')
@@ -825,6 +829,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
             <label className="block text-sm text-slate-700">Compliance checklist</label>
             <textarea className="w-full px-3 py-2 border rounded-md" rows={2} value={form.complianceChecklist} onChange={e => setForm(f => ({ ...f, complianceChecklist: e.target.value }))} />
           </div>
+
           <div className="md:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <div>
@@ -1163,6 +1168,8 @@ export default function CampaignList({ autoOpenKey = 0 }) {
               </p>
             )}
           </div>
+
+
         </div>
       </Modal>
 

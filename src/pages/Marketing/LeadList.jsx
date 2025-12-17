@@ -1,12 +1,14 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getLeads, updateLead, deleteLead, assignLead, convertLead, createLead, addLeadActivity, getLeadActivities } from '../../api/lead'
+import { getLeads, updateLead, deleteLead, assignLead, convertLead, createLead, addLeadActivity, getLeadActivities, importLeads } from '../../api/lead'
 import { getDeals } from '../../api/deal'
 import { getMe } from '../../api/auth'
 import { createTask } from '../../api/task'
 import { useToast } from '../../components/ToastProvider'
 import Modal from '../../components/Modal'
 import { resolveAccount } from '../../api/account'
+import { getSequences, enrollLead as apiEnrollLead, stopSequence } from '../../api/sequence'
+import * as XLSX from 'xlsx'
 
 const STATUS_COLORS = {
   New: 'bg-slate-100 text-slate-700',
@@ -18,7 +20,7 @@ const STATUS_COLORS = {
 
 const STAGES = ['New', 'Contacted', 'Qualified', 'Converted', 'Lost']
 
-export default function LeadList() {
+export default function LeadList({ initialFilter = 'all' }) {
   const navigate = useNavigate()
   const [leads, setLeads] = useState([])
   const [deals, setDeals] = useState([])
@@ -26,8 +28,9 @@ export default function LeadList() {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const defaultForm = () => ({ name: '', company: '', accountDomain: '', phone: '', email: '', description: '' })
+  const defaultForm = () => ({ name: '', company: '', accountDomain: '', phone: '', email: '', description: '', isMarketingLead: initialFilter === 'marketing' })
   const [form, setForm] = useState(() => defaultForm())
+  const [leadTypeFilter, setLeadTypeFilter] = useState(initialFilter) // 'all' | 'sales' | 'marketing'
   const { show } = useToast()
   const normEmail = (s) => (s && String(s).trim().toLowerCase()) || ''
   const normPhone = (s) => (s ? String(s).replace(/\D/g, '') : '')
@@ -45,6 +48,19 @@ export default function LeadList() {
   const [activitiesLoading, setActivitiesLoading] = useState(null)
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
+
+  // Sequence State
+  const [enrollOpen, setEnrollOpen] = useState(false)
+  const [enrollTargetId, setEnrollTargetId] = useState(null)
+  const [availableSequences, setAvailableSequences] = useState([])
+  const [selectedSeqId, setSelectedSeqId] = useState('')
+
+
+
+  // Bulk Upload State
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false)
+  const [uploadedFile, setUploadedFile] = useState(null)
+  const [bulkUploading, setBulkUploading] = useState(false)
 
   const applyPreset = (preset) => {
     const now = new Date()
@@ -134,9 +150,14 @@ export default function LeadList() {
         dateMatch = created >= start && created <= end
       }
 
-      return haystack.includes(q) && dateMatch
+      // Lead type filtering
+      let typeMatch = true
+      if (leadTypeFilter === 'sales') typeMatch = !l.isMarketingLead
+      if (leadTypeFilter === 'marketing') typeMatch = l.isMarketingLead === true
+
+      return haystack.includes(q) && dateMatch && typeMatch
     })
-  }, [leads, query, fromDate, toDate])
+  }, [leads, query, fromDate, toDate, leadTypeFilter])
 
   const handleStatusChange = async (id, status) => {
     await updateLead(id, { status })
@@ -203,12 +224,108 @@ export default function LeadList() {
     }
   }
 
+  const openEnrollModal = async (leadId) => {
+    setEnrollTargetId(leadId)
+    setEnrollOpen(true)
+    try {
+      const res = await getSequences()
+      setAvailableSequences(res.data?.data?.filter(s => s.isActive) || [])
+    } catch { show('Failed to load sequences', 'error') }
+  }
+
+  const handleEnrollSubmit = async () => {
+    if (!enrollTargetId || !selectedSeqId) return
+    try {
+      await apiEnrollLead({ leadId: enrollTargetId, sequenceId: selectedSeqId })
+      show('Lead enrolled in sequence', 'success')
+      setEnrollOpen(false)
+      setEnrollTargetId(null)
+      setSelectedSeqId('')
+      fetchData()
+    } catch (e) { show(e.response?.data?.message || 'Enrollment failed', 'error') }
+  }
+
+  const handleStopSeq = async (leadId, seqId) => {
+    if (!window.confirm('Stop this sequence?')) return
+    try {
+      await stopSequence({ leadId, sequenceId: seqId })
+      show('Sequence stopped', 'success')
+      fetchData()
+    } catch (e) { show('Failed to stop sequence', 'error') }
+  }
+
+
+
+  // Bulk Upload Logic
+  const downloadTemplate = () => {
+    const template = [
+      { 'Name': '', 'Entity name': '', 'Company domain': '', 'Mobile number': '', 'Email': '', 'Description': '' }
+    ]
+    const ws = XLSX.utils.json_to_sheet(template)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Template')
+    XLSX.writeFile(wb, 'lead_upload_template.xlsx')
+    show('Template downloaded successfully', 'success')
+  }
+
+  const handleBulkUpload = async () => {
+    if (!uploadedFile) { show('Please select a file', 'error'); return }
+
+    setBulkUploading(true)
+    try {
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        try {
+          const data = new Uint8Array(e.target.result)
+          const workbook = XLSX.read(data, { type: 'array' })
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+          const rows = XLSX.utils.sheet_to_json(firstSheet)
+
+          if (!rows || rows.length === 0) {
+            show('Excel file is empty', 'error')
+            setBulkUploading(false)
+            return
+          }
+
+          // Map rows to Lead objects
+          const leadsToCreate = rows.map(row => ({
+            name: row['Name'] || '',
+            company: row['Entity name'] || '',
+            accountDomain: row['Company domain'] || '',
+            phone: row['Mobile number'] || '',
+            email: row['Email'] || '',
+            description: row['Description'] || '',
+            status: 'New',
+            // If in Marketing View, mark as marketing lead
+            isMarketingLead: initialFilter === 'marketing'
+          }))
+
+          await importLeads({ leads: leadsToCreate, isMarketingLead: initialFilter === 'marketing' })
+          show(`Successfully imported ${leadsToCreate.length} leads`, 'success')
+          setBulkUploadOpen(false)
+          setUploadedFile(null)
+          fetchData()
+        } catch (err) {
+          console.error(err)
+          show('Failed to parse Excel file, please check format', 'error')
+        } finally {
+          setBulkUploading(false)
+        }
+      }
+      reader.readAsArrayBuffer(uploadedFile)
+    } catch (err) {
+      show('Upload failed', 'error')
+      setBulkUploading(false)
+    }
+  }
+
   return (
     <div className="space-y-4 w-full max-w-full overflow-x-hidden px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-slate-900">Leads</h2>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <input className="px-3 py-2 border rounded-md text-sm flex-1 sm:flex-none sm:w-64" placeholder="Search" value={query} onChange={e => setQuery(e.target.value)} />
+          <button onClick={() => setBulkUploadOpen(true)} className="px-3 py-2 rounded-md border border-slate-300 text-slate-700 bg-white text-sm hover:bg-slate-50 flex-shrink-0">Bulk Import</button>
           <button onClick={() => setOpen(true)} className="px-3 py-2 rounded-md bg-indigo-600 text-white text-sm flex-shrink-0">Add Lead</button>
         </div>
       </div>
@@ -243,6 +360,30 @@ export default function LeadList() {
         </div>
       </div>
 
+      {/* Lead Type Tabs - Hide in Marketing Mode */
+        initialFilter !== 'marketing' && (
+          <div className="flex gap-2 border-b border-slate-200 pb-2">
+            <button
+              onClick={() => setLeadTypeFilter('all')}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${leadTypeFilter === 'all' ? 'bg-white border border-b-0 border-slate-200 text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              All Leads ({leads.length})
+            </button>
+            <button
+              onClick={() => setLeadTypeFilter('sales')}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${leadTypeFilter === 'sales' ? 'bg-white border border-b-0 border-slate-200 text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Sales ({leads.filter(l => !l.isMarketingLead).length})
+            </button>
+            <button
+              onClick={() => setLeadTypeFilter('marketing')}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${leadTypeFilter === 'marketing' ? 'bg-white border border-b-0 border-slate-200 text-purple-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Marketing Leads ({leads.filter(l => l.isMarketingLead).length})
+            </button>
+          </div>
+        )}
+
       <div className="rounded-lg border bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <div className="min-w-[1000px]">
@@ -252,6 +393,7 @@ export default function LeadList() {
                   <th className="text-left px-4 py-2 w-12"></th>
                   <th className="text-left px-4 py-2">Name</th>
                   <th className="text-left px-4 py-2">Status</th>
+                  {initialFilter !== 'marketing' && <th className="text-left px-4 py-2">Type</th>}
                   <th className="text-left px-4 py-2">Entity name</th>
                   <th className="text-left px-4 py-2">Company domain</th>
                   <th className="text-left px-4 py-2">Mobile number</th>
@@ -262,9 +404,9 @@ export default function LeadList() {
               </thead>
               <tbody className="divide-y">
                 {loading ? (
-                  <tr><td className="px-4 py-3" colSpan={9}>Loading...</td></tr>
+                  <tr><td className="px-4 py-3" colSpan={10}>Loading...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td className="px-4 py-3 text-slate-500" colSpan={9}>No leads</td></tr>
+                  <tr><td className="px-4 py-3 text-slate-500" colSpan={10}>No leads</td></tr>
                 ) : filtered.map(l => (
                   <Fragment key={l.id}>
                     <tr className="hover:bg-slate-50">
@@ -280,6 +422,13 @@ export default function LeadList() {
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[l.status] || 'bg-slate-100 text-slate-700'}`}>{l.status || 'New'}</span>
                       </td>
+                      {initialFilter !== 'marketing' && (
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${l.isMarketingLead ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'}`}>
+                            {l.isMarketingLead ? '📣 Marketing' : '💼 Sales'}
+                          </span>
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-slate-700">{l.company || '-'}</td>
                       <td className="px-4 py-3 text-slate-700">{l.accountDomain || '-'}</td>
                       <td className="px-4 py-3 text-slate-700">{l.phone || '-'}</td>
@@ -328,6 +477,27 @@ export default function LeadList() {
                               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Owner</p>
                               <p className="mt-1 text-sm text-slate-800">{l.owner?.name || '—'}</p>
                             </div>
+
+                            {/* Sequence Card */}
+                            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Email Sequence</p>
+                              {(() => {
+                                const activeSeq = l.sequences?.find(s => s.status === 'ACTIVE')
+                                if (activeSeq) {
+                                  return (
+                                    <div className="mt-2">
+                                      <p className="text-sm font-medium text-indigo-700">{activeSeq.sequence?.name}</p>
+                                      <p className="text-xs text-slate-500">Step: {activeSeq.currentStep?.subject || 'Pending'}</p>
+                                      <button onClick={() => handleStopSeq(l.id, activeSeq.sequenceId)} className="mt-2 text-xs text-rose-600 border border-rose-200 px-2 py-1 rounded hover:bg-rose-50">Stop Sequence</button>
+                                    </div>
+                                  )
+                                } else {
+                                  return (
+                                    <button onClick={() => openEnrollModal(l.id)} className="mt-2 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded hover:bg-indigo-100">Enroll in Sequence</button>
+                                  )
+                                }
+                              })()}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -350,6 +520,7 @@ export default function LeadList() {
             <button
               onClick={async () => {
                 if (!form.name.trim()) { show('Name is required', 'error'); return }
+                if (initialFilter === 'marketing' && !form.isMarketingLead) { show('Please mark as Marketing Lead to save in this view', 'error'); return }
                 // Pre-auth check: ensure session is valid before proceeding
                 try {
                   await getMe()
@@ -366,9 +537,10 @@ export default function LeadList() {
                     email: form.email?.trim() || undefined,
                     phone: form.phone?.trim() || undefined,
                     company: form.company?.trim() || undefined,
-                    autoAssign: true
+                    autoAssign: !form.isMarketingLead, // Only auto-assign for sales leads
+                    isMarketingLead: form.isMarketingLead
                   }
-                  Object.keys(payload).forEach(k => { if (payload[k] === '' || payload[k] === undefined) delete payload[k] })
+                  Object.keys(payload).forEach(k => { if (payload[k] === '' || payload[k] === undefined || payload[k] === null) delete payload[k] })
                   const res = await createLead(payload)
                   const created = res?.data?.data
                   // Log initial context as activity if provided
@@ -377,22 +549,26 @@ export default function LeadList() {
                       await addLeadActivity(created.id, { type: 'Submission', note: form.description?.trim() || null, meta: { domain: form.accountDomain?.trim() || null } })
                     } catch { }
                   }
-                  // Ensure salesperson assignment if backend didn't auto-assign
-                  try {
-                    if (created && !created.assignedTo) {
-                      await assignLead({ leadId: created.id })
+                  // Ensure salesperson assignment if backend didn't auto-assign (skip for marketing leads)
+                  if (!form.isMarketingLead) {
+                    try {
+                      if (created && !created.assignedTo) {
+                        await assignLead({ leadId: created.id })
+                      }
+                    } catch (e) {
+                      const status = e?.response?.status
+                      const msg = e?.response?.data?.message || (status === 404 ? 'No salespeople available for assignment' : 'Failed to assign salesperson')
+                      show(msg, 'error')
                     }
-                  } catch (e) {
-                    const status = e?.response?.status
-                    const msg = e?.response?.data?.message || (status === 404 ? 'No salespeople available for assignment' : 'Failed to assign salesperson')
-                    show(msg, 'error')
                   }
-                  show('Lead created', 'success')
+                  show(form.isMarketingLead ? 'Marketing lead created' : 'Lead created', 'success')
                   setForm(defaultForm())
                   setOpen(false)
                   await fetchData()
                   if (created?.id) setExpanded(created.id)
-                  navigate('/dashboard/sales')
+                  if (initialFilter !== 'marketing') {
+                    navigate(form.isMarketingLead ? '/dashboard/marketing-team/sequences' : '/dashboard/sales')
+                  }
                 } catch (e) {
                   const status = e?.response?.status
                   const msg = e?.response?.data?.message || (status === 403 || status === 401 ? 'Not authorized. Please login.' : 'Failed to create lead')
@@ -439,6 +615,22 @@ export default function LeadList() {
           <div className="sm:col-span-2">
             <label className="block text-sm text-slate-700">Description</label>
             <textarea className="w-full px-3 py-2 border rounded-md" rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          </div>
+          {/* Marketing Lead Toggle */}
+          <div className="sm:col-span-2">
+            <div className="flex items-center justify-between p-4 rounded-lg border border-slate-200 bg-slate-50">
+              <div>
+                <div className="font-medium text-slate-800">Marketing Lead</div>
+                <div className="text-xs text-slate-500">Skip sales assignment, auto-enroll in marketing sequences</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, isMarketingLead: !f.isMarketingLead }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.isMarketingLead ? 'bg-purple-600' : 'bg-slate-300'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.isMarketingLead ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
           </div>
         </div>
       </Modal>
@@ -534,6 +726,88 @@ export default function LeadList() {
         )}
       >
         <p className="text-sm text-slate-600">This will remove the lead permanently. Are you sure?</p>
+      </Modal>
+
+      <Modal
+        open={enrollOpen}
+        onClose={() => setEnrollOpen(false)}
+        title="Enroll in Email Sequence"
+        actions={
+          <div className="flex gap-2">
+            <button onClick={() => setEnrollOpen(false)} className="px-3 py-2 border rounded">Cancel</button>
+            <button onClick={handleEnrollSubmit} className="px-3 py-2 bg-indigo-600 text-white rounded">Enroll</button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">Select an active email sequence to start for this lead.</p>
+          <select className="w-full border rounded px-3 py-2" value={selectedSeqId} onChange={e => setSelectedSeqId(e.target.value)}>
+            <option value="">Select Sequence...</option>
+            {availableSequences.map(s => <option key={s.id} value={s.id}>{s.name} ({s.triggerType})</option>)}
+          </select>
+        </div>
+      </Modal>
+
+
+
+      <Modal
+        open={bulkUploadOpen}
+        onClose={() => !bulkUploading && setBulkUploadOpen(false)}
+        title="Bulk Import Leads"
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setBulkUploadOpen(false)}
+              disabled={bulkUploading}
+              className="px-3 py-2 rounded-md border"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleBulkUpload}
+              disabled={!uploadedFile || bulkUploading}
+              className={`px-3 py-2 rounded-md text-white ${!uploadedFile || bulkUploading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+            >
+              {bulkUploading ? 'Importing...' : 'Start Import'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-slate-600 mb-3">
+              Upload an Excel file (.xlsx) with columns: <strong>Name</strong>, <strong>Entity name</strong>, <strong>Company domain</strong>, <strong>Mobile number</strong>, <strong>Email</strong>, <strong>Description</strong>.
+            </p>
+            <div className="bg-blue-50 border border-blue-100 rounded-md p-3 mb-4">
+              <p className="text-xs text-blue-700 mb-2 font-semibold">
+                Use the standard template for best results:
+              </p>
+              <button
+                onClick={downloadTemplate}
+                className="text-xs flex items-center gap-1 font-medium text-blue-600 hover:text-blue-800 underline"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                Download Excel Template
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-slate-700 mb-2">Select Excel File</label>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
+              className="w-full px-3 py-2 border rounded-md text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              disabled={bulkUploading}
+            />
+            {uploadedFile && (
+              <p className="mt-2 text-xs text-slate-600">
+                Selected: <strong>{uploadedFile.name}</strong> ({(uploadedFile.size / 1024).toFixed(2)} KB)
+              </p>
+            )}
+          </div>
+        </div>
       </Modal>
 
     </div>
