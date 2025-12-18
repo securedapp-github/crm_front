@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getPeople, getPipeline, markDealDone } from '../../api/sales'
+import { getPeople, getPipeline, markDealDone, moveDealStage } from '../../api/sales'
 import { getLeads } from '../../api/lead'
 import { getTasks, createTask, updateTask } from '../../api/task'
 import { updateDealNotes } from '../../api/deal'
@@ -287,15 +287,12 @@ export default function SalesDashboard() {
     try {
       const payload = JSON.parse(e.dataTransfer.getData('text/plain'))
       if (!payload?.id) return
-      // Move deal implementation not imported but we only have local state update or refetch
-      // The original code used a helper. Let's assume we re-fetch.
-      // Wait, we need moveDealStage imported? No, it wasn't in original imports.
-      // Ah, I see `moveDealStage` in previous edits was imported.
-      // Let's ensure we import it if we use it. 
-      // It is not in my imports list above?
-      // actually `getPipeline` was there. Let's fix imports.
-      // Re-reading original file... `moveDealStage` was imported. I should import it.
-    } catch { }
+
+      await moveDealStage(payload.id, stage)
+      await fetchAll()
+    } catch (err) {
+      console.error('Failed to move deal', err)
+    }
   }
 
   const onDragOver = (e) => e.preventDefault()
