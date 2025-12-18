@@ -614,7 +614,7 @@ export default function SequenceBuilder() {
                                                     >
                                                         <option value="MANUAL">Manual Enrollment Only</option>
                                                         <option value="AUTO_NEW_LEAD">Auto - New Lead Created</option>
-                                                        <option value="AUTO_STATUS_CHANGE">Auto - Lead Status Change</option>
+
                                                     </select>
                                                 </div>
 
@@ -625,23 +625,7 @@ export default function SequenceBuilder() {
                                                     </div>
                                                 )}
 
-                                                {sequence.triggerType === 'AUTO_STATUS_CHANGE' && (
-                                                    <div className="animate-fade-in pl-4 border-l-2 border-indigo-100">
-                                                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Target Status</label>
-                                                        <select
-                                                            className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500"
-                                                            value={sequence.triggerValue || ''}
-                                                            onChange={(e) => setSequence({ ...sequence, triggerValue: e.target.value })}
-                                                        >
-                                                            <option value="">Select Status...</option>
-                                                            <option value="New">New</option>
-                                                            <option value="Contacted">Contacted</option>
-                                                            <option value="Qualified">Qualified</option>
-                                                            <option value="Converted">Converted</option>
-                                                            <option value="Lost">Lost</option>
-                                                        </select>
-                                                    </div>
-                                                )}
+
                                             </div>
                                         </div>
 

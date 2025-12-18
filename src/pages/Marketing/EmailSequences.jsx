@@ -99,7 +99,7 @@ export default function EmailSequences() {
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate('..')}
+                        onClick={() => navigate('/dashboard/marketing-team')}
                         className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-slate-800"
                         title="Go Back"
                     >
