@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { createSequence, addStep } from '../../api/sequence';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../../components/ToastProvider';
 
 const EMAIL_TEMPLATES = [
@@ -79,11 +79,12 @@ Founder, SecureDApp`,
 
 export default function CreateSequence() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { show } = useToast();
 
     // Form State
     const [newSeqName, setNewSeqName] = useState('');
-    const [newSeqEmail, setNewSeqEmail] = useState('');
+
     const [triggerType, setTriggerType] = useState('MANUAL');
     const [triggerValue, setTriggerValue] = useState('');
     const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -97,7 +98,7 @@ export default function CreateSequence() {
         try {
             const res = await createSequence({
                 name: newSeqName,
-                senderEmail: newSeqEmail || null,
+                senderEmail: null,
                 triggerType,
                 triggerValue: null,
                 isActive: false
@@ -117,7 +118,8 @@ export default function CreateSequence() {
 
             show('Sequence created', 'success');
             show('Sequence created', 'success');
-            navigate(`../${res.data.data.id}`);
+            const basePath = location.pathname.substring(0, location.pathname.lastIndexOf('/'));
+            navigate(`${basePath}/${res.data.data.id}`);
         } catch (err) {
             show('Failed to create sequence', 'error');
         } finally {
@@ -151,15 +153,7 @@ export default function CreateSequence() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">Sender Email (Optional)</label>
-                            <input
-                                className="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-shadow"
-                                placeholder="e.g. newsletter@company.com"
-                                value={newSeqEmail}
-                                onChange={e => setNewSeqEmail(e.target.value)}
-                            />
-                        </div>
+                        {/* Sender Email removed as per requirement */}
 
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">Enrollment Trigger</label>
