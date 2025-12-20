@@ -84,6 +84,7 @@ export default function CreateSequence() {
 
     // Form State
     const [newSeqName, setNewSeqName] = useState('');
+    const [senderEmail, setSenderEmail] = useState('');
 
     const [triggerType, setTriggerType] = useState('MANUAL');
     const [triggerValue, setTriggerValue] = useState('');
@@ -98,7 +99,7 @@ export default function CreateSequence() {
         try {
             const res = await createSequence({
                 name: newSeqName,
-                senderEmail: null,
+                senderEmail: senderEmail || null,
                 triggerType,
                 triggerValue: null,
                 isActive: false
@@ -153,7 +154,16 @@ export default function CreateSequence() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                        {/* Sender Email removed as per requirement */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">From Email Address</label>
+                            <input
+                                className="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-shadow text-base"
+                                placeholder="e.g. abhishek@securedapp.io"
+                                value={senderEmail}
+                                onChange={e => setSenderEmail(e.target.value)}
+                            />
+                            <p className="text-xs text-slate-500 mt-2">Emails will appear to come from this address.</p>
+                        </div>
 
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">Enrollment Trigger</label>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/auth'
 import { getCampaigns } from '../api/campaign'
 import { getDeals } from '../api/deal'
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Cell } from 'recharts'
 
 export default function DashboardHome() {
   const navigate = useNavigate()
@@ -357,7 +357,17 @@ export default function DashboardHome() {
                         <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                         <Tooltip cursor={{ fill: 'rgba(99,102,241,0.05)' }} />
                         <Legend iconType="circle" />
-                        <Bar dataKey="count" name="Leads" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="count" name="Leads" radius={[6, 6, 0, 0]}>
+                          {leadFunnelData.map((entry, index) => {
+                            let color = '#6366f1'; // Default Indigo
+                            const status = (entry.name || '').toLowerCase();
+                            if (status.includes('new')) color = '#3b82f6'; // Blue
+                            else if (status.includes('contact')) color = '#f59e0b'; // Amber
+                            else if (status.includes('convert') || status.includes('won')) color = '#10b981'; // Emerald
+                            else if (status.includes('lost')) color = '#ef4444'; // Red
+                            return <Cell key={`cell-${index}`} fill={color} />;
+                          })}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   )}

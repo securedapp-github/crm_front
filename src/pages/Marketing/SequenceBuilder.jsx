@@ -186,15 +186,7 @@ export default function SequenceBuilder() {
 
     const handleBack = () => navigate('/dashboard/marketing-team/sequences');
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-white">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-            </div>
-        );
-    }
-
-    if (!sequence) return <div className="p-10">Sequence not found</div>;
+    if (!sequence && !loading) return <div className="p-10">Sequence not found</div>;
 
     // Helper for Settings Tab
     const toggleDay = (dayIndex) => {
