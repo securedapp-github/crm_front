@@ -7,7 +7,7 @@ export default function Signup() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [agree, setAgree] = useState(false)
+  const [agree, setAgree] = useState(true)
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', phone: '' })
   const [mode, setMode] = useState('sales') // 'admin' | 'sales'
   const [otpOpen, setOtpOpen] = useState(false)
@@ -24,10 +24,10 @@ export default function Signup() {
 
   const onSubmit = async (e) => {
     e.preventDefault()
-    if (!agree) {
-      setError('Please agree to the Terms of Service and Privacy Policy')
-      return
-    }
+    //if (!agree) {
+     // setError('Please agree to the Terms of Service and Privacy Policy')
+      //return
+   // }
     if (form.password !== form.confirmPassword) {
       setError('Passwords do not match')
       return
@@ -117,7 +117,7 @@ export default function Signup() {
             </div>
             <div className="mt-10 text-sm opacity-80">
               <div className="font-medium">Need assistance?</div>
-              <div>support@example.com</div>
+              <a href="mailto:hello@securedapp.in">hello@securedapp.in</a>
             </div>
           </aside>
 
@@ -212,12 +212,7 @@ export default function Signup() {
                 </div>
               </div>)}
               {mode === 'admin' && (<div className="text-xs text-gray-500">It looks like you’re in INDIA based on your IP.</div>)}
-              <div className="flex items-start gap-2">
-                <input id="tos" type="checkbox" className="mt-1 h-4 w-4" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-                <label htmlFor="tos" className="text-sm text-gray-700">
-                  I agree to the <a className="text-indigo-600 underline" href="#" onClick={(e) => e.preventDefault()}>Terms of Service</a> and <a className="text-indigo-600 underline" href="#" onClick={(e) => e.preventDefault()}>Privacy Policy</a>.
-                </label>
-              </div>
+              
               {error && <div className="text-sm text-red-600">{error}</div>}
               <button type="submit" className={`w-full rounded-lg py-3 font-semibold shadow-md transition disabled:opacity-70 ${mode === 'admin' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`} disabled={loading}>
                 {loading ? 'Creating...' : (mode === 'admin' ? 'GET STARTED' : 'CREATE SALES PERSON')}

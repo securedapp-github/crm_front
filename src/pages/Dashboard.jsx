@@ -282,7 +282,7 @@ export default function Dashboard() {
         <div className="flex-1 overflow-y-auto">{renderNav()}</div>
         <div className="border-t border-white/60 px-6 py-4 text-xs text-slate-400">
           <p className="font-medium text-slate-500">Need help?</p>
-          <p>support@securecrm.io</p>
+         <a href="mailto:hello@securedapp.in">hello@securedapp.in</a>
         </div>
       </aside>
 

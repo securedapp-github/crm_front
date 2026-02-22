@@ -1146,7 +1146,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
         <div className="space-y-4">
           <div>
             <p className="text-sm text-slate-600 mb-3">
-              Upload an Excel file (.xlsx) with the following columns: <strong>Name</strong>, <strong>Mobile number</strong>, <strong>Service</strong>, <strong>Email</strong>, <strong>Description</strong>
+              Upload an Excel file (.xlsx) with the following columns: <strong>Name</strong>, <strong>Mobile Number</strong>, <strong>Service</strong>, <strong>Email</strong>, <strong>Description</strong>
             </p>
             <p className="text-xs text-slate-500 mb-4">
               💡 Tip: Click "Download Template" from the menu to get a pre-formatted Excel file.

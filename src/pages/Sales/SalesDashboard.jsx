@@ -1,14 +1,36 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getPeople, getPipeline, markDealDone, moveDealStage } from '../../api/sales'
 import { getLeads } from '../../api/lead'
 import { getTasks, createTask, updateTask } from '../../api/task'
-import { updateDealNotes } from '../../api/deal'
-import { getCampaigns } from '../../api/campaign'
+import { updateDealNotes, createDeal } from '../../api/deal'
+import { getCampaigns, createCampaign } from '../../api/campaign'
+import { useToast } from '../../components/ToastProvider'
+import { api } from '../../api/auth'
 import Modal from '../../components/Modal'
 import SequenceSelector from '../../components/SequenceSelector'
+import * as XLSX from 'xlsx'
 
 const STAGES = ['New', 'In Progress', 'Proposal', 'Deal Completed', 'Lost Opportunity']
+
+const channelOptions = ['Email', 'Social Media', 'Web', 'Event', 'Other']
+const currencyOptions = ['USD', 'INR', 'EUR', 'GBP', 'AUD']
+const priorityOptions = ['Low', 'Medium', 'High']
+const serviceOptions = [
+  'Dapp Development',
+  'Smart Contract Audit',
+  'Dapp Security Audit',
+  'Token Audit',
+  'Web3 KYC',
+  'Web3 Security',
+  'Blockchain Forensic',
+  'RWA Audit',
+  'Crypto Compliance & AMI',
+  'Decentralized Identity (DID)',
+  'NFTs Development',
+  'DeFi Development',
+  'LevelUp Academy'
+]
 
 export default function SalesDashboard() {
   const navigate = useNavigate()
@@ -35,9 +57,63 @@ export default function SalesDashboard() {
   const [enrollOpen, setEnrollOpen] = useState(false)
   const [enrollLeadObj, setEnrollLeadObj] = useState(null)
 
+  // Manual entry form state
+  const [openForm, setOpenForm] = useState(false)
+  const defaultDealForm = () => ({
+    name: '',
+    code: '',
+    objective: '',
+    channel: 'Email',
+    audienceSegment: '',
+    productLine: '',
+    startDate: '',
+    endDate: '',
+    budget: '',
+    expectedSpend: '',
+    currency: 'USD',
+    status: 'Planned',
+    priority: 'Medium',
+    description: '',
+    complianceChecklist: '',
+    externalCampaignId: '',
+    utmSource: '',
+    utmMedium: '',
+    utmCampaign: '',
+    accountCompany: '',
+    accountDomain: '',
+    mobile: '',
+    email: '',
+    serviceOffering: '',
+    callDate: '',
+    callTime: '',
+    isMarketingCampaign: true
+  })
+  const [dealForm, setDealForm] = useState(defaultDealForm())
+  const [formSaving, setFormSaving] = useState(false)
+
+  // Bulk upload state
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false)
+  const [bulkUploading, setBulkUploading] = useState(false)
+  const [uploadedFile, setUploadedFile] = useState(null)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const dropdownRef = useRef(null)
+  const { show } = useToast()
+
   const user = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}') } catch { return {} }
   }, [])
+
+  const parseTime = (t) => {
+    if (!t) return { hour: '', mer: 'AM' }
+    const m = String(t).match(/^(\d{1,2})(?::\d{2})?\s*(AM|PM)$/i)
+    if (!m) return { hour: '', mer: 'AM' }
+    return { hour: String(Number(m[1]) || ''), mer: m[2].toUpperCase() }
+  }
+
+  const composeTime = (hour, mer) => {
+    if (!hour || !mer) return ''
+    return `${hour}:00 ${mer}`
+  }
   const myUserId = Number(user?.id || 0)
   const myEmail = useMemo(() => String(user?.email || '').trim().toLowerCase(), [user])
   const mySalespersonId = useMemo(() => {
@@ -69,6 +145,19 @@ export default function SalesDashboard() {
   }
 
   useEffect(() => { fetchAll() }, [])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false)
+      }
+    }
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showDropdown])
 
   const allDeals = useMemo(() => (Object.values(data || {}).flat() || []), [data])
   const myDeals = useMemo(() => {
@@ -367,11 +456,218 @@ export default function SalesDashboard() {
     setCalendarOpen(false)
   }
 
+  // Manual entry handler
+  const onCreateDeal = async () => {
+    try {
+      if (!dealForm.name.trim()) {
+        show('Campaign name is required', 'error')
+        return
+      }
+      setFormSaving(true)
+      const payload = {
+        name: dealForm.name.trim(),
+        code: dealForm.code || undefined,
+        objective: dealForm.objective || undefined,
+        channel: dealForm.channel || 'Email',
+        audienceSegment: dealForm.audienceSegment || undefined,
+        productLine: dealForm.productLine || undefined,
+        startDate: dealForm.startDate || undefined,
+        endDate: dealForm.endDate || undefined,
+        budget: dealForm.budget ? Number(dealForm.budget) : undefined,
+        expectedSpend: dealForm.expectedSpend ? Number(dealForm.expectedSpend) : undefined,
+        currency: dealForm.currency || 'USD',
+        status: dealForm.status || 'Planned',
+        priority: dealForm.priority || 'Medium',
+        description: dealForm.description || undefined,
+        complianceChecklist: dealForm.complianceChecklist || undefined,
+        externalCampaignId: dealForm.externalCampaignId || undefined,
+        utmSource: dealForm.utmSource || undefined,
+        utmMedium: dealForm.utmMedium || undefined,
+        utmCampaign: dealForm.utmCampaign || undefined,
+        accountCompany: dealForm.accountCompany || undefined,
+        accountDomain: dealForm.accountDomain || undefined,
+        email: dealForm.email || undefined,
+        mobile: dealForm.mobile || undefined,
+        serviceOffering: dealForm.serviceOffering || undefined,
+        callTime: dealForm.callTime || undefined,
+        callDate: dealForm.callDate || undefined,
+        isMarketingCampaign: true,
+        campaignOwnerId: myUserId || null
+      }
+
+      // Remove undefined values
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value === undefined || value === '') delete payload[key]
+      })
+
+      // Assuming we need to import createCampaign.
+      // Since replace_file_content cannot edit imports easily if they are far away, 
+      // I will assume I can edit the imports separately.
+      // But wait... I can edit imports with another replace_file_content call or multi_replace.
+      // I will target imports separately.
+
+      // CALL CREATE CAMPAIGN
+      // Wait, replace_file_content limits me to contiguous block.
+      // I should update imports first? Or AFTER?
+      // I'll update onCreateDeal first, but it will fail if createCampaign is not imported.
+      // I'll use multi_replace to do both?
+      // No, createCampaign is imported from ../../api/campaign which is line 7. onCreateDeal is line 459.
+      // Multi-replace is better for non-contiguous.
+
+      await createCampaign(payload)
+      setOpenForm(false)
+      setDealForm(defaultDealForm())
+      show('Campaign created successfully', 'success')
+      await fetchAll()
+    } catch (e) {
+      show(e.response?.data?.message || 'Failed to create campaign', 'error')
+    } finally {
+      setFormSaving(false)
+    }
+  }
+
+  // Download template
+  const downloadTemplate = () => {
+    const template = [
+      { 'Name': '', 'Mobile number': '', 'Service': '', 'Email': '', 'Description': '' }
+    ]
+    const ws = XLSX.utils.json_to_sheet(template)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Template')
+    XLSX.writeFile(wb, 'deal_upload_template.xlsx')
+    show('Template downloaded successfully', 'success')
+  }
+
+  // Handle bulk upload
+  const handleBulkUpload = async () => {
+    if (!uploadedFile) {
+      show('Please select a file', 'error')
+      return
+    }
+
+    setBulkUploading(true)
+    const reader = new FileReader()
+
+    reader.onload = async (e) => {
+      try {
+        const data = new Uint8Array(e.target.result)
+        let workbook
+        try {
+          workbook = XLSX.read(data, { type: 'array' })
+        } catch (parseErr) {
+          console.error('Excel parse error:', parseErr)
+          show('Failed to parse Excel file. Please ensure it is a valid .xlsx file.', 'error')
+          setBulkUploading(false)
+          return
+        }
+
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+        const rows = XLSX.utils.sheet_to_json(firstSheet)
+
+        if (!rows || rows.length === 0) {
+          show('Excel file is empty', 'error')
+          setBulkUploading(false)
+          return
+        }
+
+        // Map Excel columns to Campaign API payload
+        const campaigns = rows.map(row => ({
+          name: row['Name'] || row.name || '',
+          mobile: row['Mobile number'] || row.mobile || '',
+          email: row['Email'] || row.email || '',
+          serviceOffering: row['Service'] || row.service || '',
+          description: row['Description'] || row.description || '',
+          status: 'Planned', // Default status for bulk uploaded campaigns
+          source: 'Bulk Upload'
+        })).filter(c => c.name) // Filter out rows without name
+
+        if (campaigns.length === 0) {
+          show('No valid campaigns found in file (Name is required)', 'error')
+          setBulkUploading(false)
+          return
+        }
+
+        // Send to backend
+        try {
+          const response = await api.post('/campaigns/bulk', { campaigns })
+          const result = response.data?.data
+
+          if (result.success > 0) {
+            show(`Successfully created ${result.success} campaign(s)`, 'success')
+          }
+          if (result.failed > 0) {
+            show(`${result.failed} campaign(s) failed. Check console for details.`, 'warning')
+            console.error('Failed campaigns:', result.errors)
+          }
+
+          setBulkUploadOpen(false)
+          setUploadedFile(null)
+          await fetchAll()
+        } catch (apiErr) {
+          console.error('API Error:', apiErr)
+          show(apiErr.response?.data?.message || 'Failed to upload campaigns to server', 'error')
+        }
+      } catch (err) {
+        console.error('Unexpected error during bulk upload:', err)
+        show('An unexpected error occurred during processing', 'error')
+      } finally {
+        setBulkUploading(false)
+      }
+    }
+
+    reader.onerror = () => {
+      show('Failed to read file', 'error')
+      setBulkUploading(false)
+    }
+
+    reader.readAsArrayBuffer(uploadedFile)
+  }
+
   return (
     <div className="space-y-6 p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-slate-900">Sales Dashboard</h2>
-        <button onClick={fetchAll} disabled={loading} className={`px-4 py-2 rounded-lg text-sm ${loading ? 'bg-slate-100 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>{loading ? 'Refreshing...' : 'Refresh Data'}</button>
+        <div className="flex items-center gap-2">
+          {/* Dropdown Menu for + New button */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-medium flex items-center gap-1"
+            >
+              + New
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {showDropdown && (
+              <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                <div className="py-1">
+                  <button
+                    onClick={() => { setShowDropdown(false); setOpenForm(true) }}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                  >
+                    📝 Manual Entry
+                  </button>
+                  <button
+                    onClick={() => { setShowDropdown(false); setBulkUploadOpen(true) }}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                  >
+                    📊 Bulk Upload (Excel)
+                  </button>
+                  <button
+                    onClick={() => { setShowDropdown(false); downloadTemplate() }}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                  >
+                    ⬇️ Download Template
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button onClick={fetchAll} disabled={loading} className={`px-4 py-2 rounded-lg text-sm ${loading ? 'bg-slate-100 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>{loading ? 'Refreshing...' : 'Refresh Data'}</button>
+        </div>
       </div>
 
       <section className="rounded-xl border bg-white p-4 shadow-sm">
@@ -798,6 +1094,216 @@ export default function SalesDashboard() {
           onSuccess={() => { }}
         />
       )}
+
+      <Modal
+        open={openForm}
+        onClose={() => !formSaving && setOpenForm(false)}
+        title="Create New Campaign / Deal"
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setOpenForm(false)}
+              disabled={formSaving}
+              className="px-3 py-2 rounded-md border"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onCreateDeal}
+              disabled={formSaving}
+              className={`px-3 py-2 rounded-md text-white ${formSaving ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+            >
+              {formSaving ? 'Creating...' : 'Create Campaign'}
+            </button>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 max-h-[70vh] overflow-y-auto pr-2">
+          <div className="md:col-span-2 xl:col-span-3">
+            <label className="block text-sm text-slate-700">Name *</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={dealForm.name} onChange={e => setDealForm(f => ({ ...f, name: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div className="md:col-span-2 xl:col-span-1">
+            <label className="block text-sm text-slate-700">Code</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={dealForm.code} onChange={e => setDealForm(f => ({ ...f, code: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Objective</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={dealForm.objective} onChange={e => setDealForm(f => ({ ...f, objective: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Channel</label>
+            <select className="w-full px-3 py-2 border rounded-md" value={dealForm.channel} onChange={e => setDealForm(f => ({ ...f, channel: e.target.value }))} disabled={formSaving}>
+              {channelOptions.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Audience Segment</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={dealForm.audienceSegment} onChange={e => setDealForm(f => ({ ...f, audienceSegment: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Product Line</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={dealForm.productLine} onChange={e => setDealForm(f => ({ ...f, productLine: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Budget</label>
+            <input className="w-full px-3 py-2 border rounded-md" type="number" value={dealForm.budget} onChange={e => setDealForm(f => ({ ...f, budget: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Expected Spend</label>
+            <input className="w-full px-3 py-2 border rounded-md" type="number" value={dealForm.expectedSpend} onChange={e => setDealForm(f => ({ ...f, expectedSpend: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Currency</label>
+            <select className="w-full px-3 py-2 border rounded-md" value={dealForm.currency} onChange={e => setDealForm(f => ({ ...f, currency: e.target.value }))} disabled={formSaving}>
+              {currencyOptions.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Start Date</label>
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={dealForm.startDate} onChange={e => setDealForm(f => ({ ...f, startDate: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">End Date</label>
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={dealForm.endDate} onChange={e => setDealForm(f => ({ ...f, endDate: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Status</label>
+            <select className="w-full px-3 py-2 border rounded-md" value={dealForm.status} onChange={e => setDealForm(f => ({ ...f, status: e.target.value }))} disabled={formSaving}>
+              {['New', 'In Progress', 'Proposal', 'Deal Completed', 'Lost Opportunity', 'Planned'].map(stage => <option key={stage} value={stage}>{stage}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Priority</label>
+            <select className="w-full px-3 py-2 border rounded-md" value={dealForm.priority} onChange={e => setDealForm(f => ({ ...f, priority: e.target.value }))} disabled={formSaving}>
+              {priorityOptions.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">External Campaign ID</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={dealForm.externalCampaignId} onChange={e => setDealForm(f => ({ ...f, externalCampaignId: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">UTM Source</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={dealForm.utmSource} onChange={e => setDealForm(f => ({ ...f, utmSource: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">UTM Medium</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={dealForm.utmMedium} onChange={e => setDealForm(f => ({ ...f, utmMedium: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">UTM Campaign</label>
+            <input className="w-full px-3 py-2 border rounded-md" value={dealForm.utmCampaign} onChange={e => setDealForm(f => ({ ...f, utmCampaign: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Preferred Call Date</label>
+            <input className="w-full px-3 py-2 border rounded-md" type="date" value={dealForm.callDate || ''} onChange={e => setDealForm(f => ({ ...f, callDate: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-700">Preferred Call Time</label>
+            {(() => {
+              const { hour, mer } = parseTime(dealForm.callTime)
+              return (
+                <div className="flex items-center gap-2">
+                  <select className="px-3 py-2 border rounded-md" value={hour} onChange={e => { const h = e.target.value; setDealForm(f => ({ ...f, callTime: composeTime(h, parseTime(f.callTime).mer) })) }} disabled={formSaving}>
+                    {['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'].map(h => <option key={h} value={h}>{h || '—'}</option>)}
+                  </select>
+                  <select className="px-3 py-2 border rounded-md" value={mer} onChange={e => { const m = e.target.value; setDealForm(f => ({ ...f, callTime: composeTime(parseTime(f.callTime).hour, m) })) }} disabled={formSaving}>
+                    {['AM', 'PM'].map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              )
+            })()}
+          </div>
+          <div className="md:col-span-2 xl:col-span-3">
+            <label className="block text-sm text-slate-700">Description</label>
+            <textarea className="w-full px-3 py-2 border rounded-md" rows={3} value={dealForm.description} onChange={e => setDealForm(f => ({ ...f, description: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div className="md:col-span-2 xl:col-span-3">
+            <label className="block text-sm text-slate-700">Compliance Checklist</label>
+            <textarea className="w-full px-3 py-2 border rounded-md" rows={2} value={dealForm.complianceChecklist} onChange={e => setDealForm(f => ({ ...f, complianceChecklist: e.target.value }))} disabled={formSaving} />
+          </div>
+          <div className="md:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+              <div>
+                <label className="block text-sm text-slate-700">Company Name</label>
+                <input className="w-full px-3 py-2 border rounded-md" value={dealForm.accountCompany} onChange={e => setDealForm(f => ({ ...f, accountCompany: e.target.value }))} disabled={formSaving} />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-700">Company Domain</label>
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="example.com" value={dealForm.accountDomain} onChange={e => setDealForm(f => ({ ...f, accountDomain: e.target.value }))} disabled={formSaving} />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-700">Mobile</label>
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="9876543210" value={dealForm.mobile} onChange={e => setDealForm(f => ({ ...f, mobile: e.target.value }))} disabled={formSaving} />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-700">Email</label>
+                <input className="w-full px-3 py-2 border rounded-md" placeholder="name@gmail.com" value={dealForm.email} onChange={e => setDealForm(f => ({ ...f, email: e.target.value }))} disabled={formSaving} />
+              </div>
+              <div className="md:col-span-4">
+                <label className="block text-sm text-slate-700">Service Offering</label>
+                <select className="w-full px-3 py-2 border rounded-md" value={dealForm.serviceOffering} onChange={e => setDealForm(f => ({ ...f, serviceOffering: e.target.value }))} disabled={formSaving}>
+                  <option value="">Select Service…</option>
+                  {serviceOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Bulk Upload Modal */}
+      <Modal
+        open={bulkUploadOpen}
+        onClose={() => !bulkUploading && setBulkUploadOpen(false)}
+        title="Bulk Upload Deals"
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setBulkUploadOpen(false)}
+              disabled={bulkUploading}
+              className="px-3 py-2 rounded-md border"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleBulkUpload}
+              disabled={!uploadedFile || bulkUploading}
+              className={`px-3 py-2 rounded-md text-white ${!uploadedFile || bulkUploading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+            >
+              {bulkUploading ? 'Uploading...' : 'Upload & Create'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-slate-600 mb-3">
+              Upload an Excel file (.xlsx) with the following columns: <strong>Name</strong>, <strong>Mobile number</strong>, <strong>Service</strong>, <strong>Email</strong>, <strong>Description</strong>
+            </p>
+            <p className="text-xs text-slate-500 mb-4">
+              💡 Tip: Click "Download Template" from the menu to get a pre-formatted Excel file.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm text-slate-700 mb-2">Select Excel File</label>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
+              className="w-full px-3 py-2 border rounded-md text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              disabled={bulkUploading}
+            />
+            {uploadedFile && (
+              <p className="mt-2 text-xs text-slate-600">
+                Selected: <strong>{uploadedFile.name}</strong> ({(uploadedFile.size / 1024).toFixed(2)} KB)
+              </p>
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
