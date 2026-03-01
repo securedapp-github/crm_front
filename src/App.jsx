@@ -9,6 +9,7 @@ import Marketing from './pages/Marketing/Marketing'
 import DashboardHome from './pages/DashboardHome'
 import Pipeline from './pages/Sales/Pipeline'
 import DealDetail from './pages/Sales/DealDetail'
+import LeadDetail from './pages/Marketing/LeadDetail'
 import SalesDashboard from './pages/Sales/SalesDashboard'
 import CompletedDeals from './pages/Sales/CompletedDeals'
 import SalesMail from './pages/Sales/SalesMail'
@@ -31,6 +32,7 @@ import SalesMarketingActivities from './pages/Sales/SalesMarketingActivities'
 import EmailSequences from './pages/Marketing/EmailSequences'
 import CreateSequence from './pages/Marketing/CreateSequence'
 import SequenceBuilder from './pages/Marketing/SequenceBuilder'
+import TeamInbox from './pages/team-inbox/TeamInboxLayout'
 
 
 function App() {
@@ -51,6 +53,7 @@ function App() {
             }
           >
             <Route index element={<DashboardHome />} />
+            <Route path="team-inbox" element={<TeamInbox />} />
             <Route path="marketing" element={<Marketing />} />
             <Route path="sales" element={<Pipeline />} />
             <Route path="sales-dashboard" element={<SalesDashboard />} />
@@ -58,6 +61,7 @@ function App() {
             <Route path="sales/completed" element={<CompletedDeals />} />
             <Route path="sales/deleted" element={<DeletedDeals />} />
             <Route path="sales/deals/:id" element={<DealDetail />} />
+            <Route path="leads/:id" element={<LeadDetail />} />
             <Route path="sales-team" element={<SalesTeam />} />
             <Route path="sales-team/details" element={<SalesPersonDetails />} />
             <Route path="sales-team/details" element={<SalesPersonDetails />} />

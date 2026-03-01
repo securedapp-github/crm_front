@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { getMe, logout } from '../api/auth'
+import { getMe, logout, selectRole } from '../api/auth'
 import logo from '../assets/securedapp-logo.png'
+import RoleSelectionModal from './RoleSelectionModal'
 
 export default function Navbar() {
   const navigate = useNavigate()
@@ -10,17 +11,23 @@ export default function Navbar() {
   const [authed, setAuthed] = useState(false)
   const [role, setRole] = useState('')
   const [name, setName] = useState('')
+  const [availableRoles, setAvailableRoles] = useState([])
+  const [multiRoleOpen, setMultiRoleOpen] = useState(false)
   const onDashboard = location.pathname.startsWith('/dashboard')
   const navLinks = useMemo(() => {
     const links = [{ href: '/', label: 'Home' }]
     if (authed && role === 'sales') {
       links.push(
+        { href: '/dashboard/team-inbox', label: 'Team Inbox', protected: true },
         { href: '/dashboard/sales-dashboard', label: 'Sales Dashboard', protected: true },
         { href: '/dashboard/sales/completed', label: 'Completed Deals', protected: true },
         { href: '/dashboard/sales-team', label: 'Team', protected: true }
       )
     } else {
-      links.push({ href: '/dashboard', label: 'Dashboard', protected: true })
+      links.push(
+        { href: '/dashboard/team-inbox', label: 'Team Inbox', protected: true },
+        { href: '/dashboard', label: 'Dashboard', protected: true }
+      )
     }
     if (authed && role !== 'sales') {
       links.push({ href: '/dashboard/settings', label: 'Settings', protected: true })
@@ -45,12 +52,15 @@ export default function Navbar() {
         if (res.data?.authenticated) {
           setAuthed(true)
           setName(res.data?.user?.name || '')
-          setRole(res.data?.user?.role || '')
+          // Use activeRole if available, else role
+          setRole(res.data?.user?.activeRole || res.data?.user?.role || '')
+          setAvailableRoles(res.data?.user?.userRoles?.map(r => r.roleName) || [])
           persistUser(res.data?.user || null)
         } else {
           setAuthed(false)
           setName('')
           setRole('')
+          setAvailableRoles([])
           persistUser(null)
         }
       })
@@ -58,6 +68,7 @@ export default function Navbar() {
         setAuthed(false)
         setName('')
         setRole('')
+        setAvailableRoles([])
         persistUser(null)
       })
       .finally(() => setChecking(false))
@@ -86,6 +97,21 @@ export default function Navbar() {
     persistUser(null)
     window.dispatchEvent(new Event('auth:changed'))
     navigate('/')
+  }
+
+  const onSwitchRole = async (newRole) => {
+    try {
+      await selectRole(newRole)
+      setMultiRoleOpen(false)
+      window.dispatchEvent(new Event('auth:changed'))
+      if (newRole === 'admin') {
+        navigate('/dashboard')
+      } else {
+        navigate('/dashboard/sales-dashboard')
+      }
+    } catch (err) {
+      console.error('Failed to switch role', err)
+    }
   }
 
   const dashPath = role === 'sales' ? '/dashboard/sales-dashboard' : '/dashboard'
@@ -146,6 +172,18 @@ export default function Navbar() {
                 <span className="font-medium text-slate-700">{name ? `Hi, ${name}` : 'Welcome back'}</span>
                 <span>{role === 'sales' ? 'Sales Cloud' : 'Account Owner'}</span>
               </div>
+              {availableRoles.length > 0 && (
+                <button
+                  onClick={() => setMultiRoleOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M8 5a1 1 0 100 2h2a1 1 0 100-2H8z" />
+                    <path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm2 0v10h10V5H5z" clipRule="evenodd" />
+                  </svg>
+                  Switch Role
+                </button>
+              )}
               <button onClick={onLogout} className="inline-flex items-center gap-2 rounded-lg bg-rose-500 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-rose-600">
                 Logout
               </button>
@@ -245,6 +283,12 @@ export default function Navbar() {
           </div>
         </div>
       )}
+      <RoleSelectionModal
+        open={multiRoleOpen}
+        onClose={() => setMultiRoleOpen(false)}
+        roles={availableRoles}
+        onSelect={onSwitchRole}
+      />
     </header>
   )
 }

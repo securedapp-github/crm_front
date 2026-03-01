@@ -338,3 +338,13 @@ tr:hover {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* No Scrollbar Utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
