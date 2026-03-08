@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getSalesActivity } from '../../api/sales'
+import { offboardSalesperson } from '../../api/user'
+import { useToast } from '../../components/ToastProvider'
+import Modal from '../../components/Modal'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -34,6 +37,10 @@ export default function SalesPersonDetails() {
   const [activityFetchedAt, setActivityFetchedAt] = useState(null)
   const [nowTick, setNowTick] = useState(Date.now())
   const [filters, setFilters] = useState({ startDate: '', endDate: '' })
+  const [removingId, setRemovingId] = useState(null)
+  const [showRemoveModal, setShowRemoveModal] = useState(false)
+  const [processingRemove, setProcessingRemove] = useState(false)
+  const { show: showToast } = useToast()
 
   // Quick filter helpers
   const applyFilter = (type) => {
@@ -101,6 +108,31 @@ export default function SalesPersonDetails() {
   useEffect(() => {
     loadActivity(true)
   }, [loadActivity])
+
+  const handleRemoveClick = (person) => {
+    setRemovingId(person.userId)
+    setShowRemoveModal(true)
+  }
+
+  const confirmRemove = async () => {
+    if (!removingId) return
+    setProcessingRemove(true)
+    try {
+      const res = await offboardSalesperson(removingId)
+      if (res.data?.success) {
+        showToast('Member removed successfully', 'success')
+        loadActivity(false)
+      } else {
+        showToast(res.data?.message || 'Failed to remove member', 'error')
+      }
+    } catch (err) {
+      showToast(err?.response?.data?.message || 'Error removing member', 'error')
+    } finally {
+      setProcessingRemove(false)
+      setShowRemoveModal(false)
+      setRemovingId(null)
+    }
+  }
 
   useEffect(() => {
     if (!isAdmin) return
@@ -284,6 +316,7 @@ export default function SalesPersonDetails() {
                   <th className="px-3 py-2">Name</th>
                   <th className="px-3 py-2">Hours</th>
                   <th className="px-3 py-2">Login</th>
+                  <th className="px-3 py-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -327,6 +360,14 @@ export default function SalesPersonDetails() {
                             <span>{formatDateTime(person.lastLoginAt)}</span>
                           </div>
                         </td>
+                        <td className="px-3 py-3 text-right">
+                          <button
+                            onClick={() => handleRemoveClick(person)}
+                            className="text-xs font-semibold text-rose-600 hover:text-rose-800 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        </td>
                       </tr>
                     )
                   })
@@ -336,6 +377,39 @@ export default function SalesPersonDetails() {
           </div>
         </section>
       </div>
+
+      <Modal
+        open={showRemoveModal}
+        onClose={() => !processingRemove && setShowRemoveModal(false)}
+        title="Remove Sales Team Member"
+        actions={
+          <>
+            <button
+              disabled={processingRemove}
+              onClick={() => setShowRemoveModal(false)}
+              className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={processingRemove}
+              onClick={confirmRemove}
+              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-rose-700 disabled:opacity-50"
+            >
+              {processingRemove ? 'Removing...' : 'Confirm Remove'}
+            </button>
+          </>
+        }
+      >
+        <div className="py-2">
+          <p className="text-slate-600">
+            Are you sure you want to remove this sales team member from the CRM account?
+          </p>
+          <p className="mt-2 text-sm text-slate-500 italic">
+            Note: All active deals will be reassigned and the user account will be permanently deleted.
+          </p>
+        </div>
+      </Modal>
     </main>
   )
 }

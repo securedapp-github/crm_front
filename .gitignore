@@ -6,6 +6,9 @@ dist/
 dist-ssr/
 
 # Local overrides
+.env
+.env.local
+.env.*.local
 *.local
 
 # Coverage
