@@ -21,6 +21,8 @@ export default function Dashboard() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [user, setUser] = useState(null)
   const [checking, setChecking] = useState(true)
+  const financePaths = ['/dashboard/finance']
+  const isFinanceActive = financePaths.some((p) => location.pathname.startsWith(p))
 
   useEffect(() => {
     let mounted = true
@@ -107,6 +109,24 @@ export default function Dashboard() {
           ))}
         </div>
 
+        {user?.role !== 'sales' && (
+          <Link
+            to="/dashboard/finance"
+            onClick={() => { if (onNavigate) onNavigate() }}
+            className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${isFinanceActive
+              ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
+              : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
+            }`}
+          >
+            <span className="flex items-center gap-3">
+              <span className="text-lg">💰</span>
+              <span>Finance</span>
+            </span>
+            <span className={`text-xs transition ${isFinanceActive ? 'text-indigo-500' : 'text-slate-300 group-hover:text-indigo-400'}`}>
+              →
+            </span>
+          </Link>
+        )}
         {user?.role !== 'sales' && (
           <div className="space-y-2">
             <Link

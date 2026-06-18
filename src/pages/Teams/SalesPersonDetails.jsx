@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getSalesActivity } from '../../api/sales'
+import { seedDemoData, updateUser, permanentDeleteUser } from '../../api/user'
+import Modal from '../../components/Modal'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -34,6 +36,67 @@ export default function SalesPersonDetails() {
   const [activityFetchedAt, setActivityFetchedAt] = useState(null)
   const [nowTick, setNowTick] = useState(Date.now())
   const [filters, setFilters] = useState({ startDate: '', endDate: '' })
+  const [activeMenu, setActiveMenu] = useState(null)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [selectedPerson, setSelectedPerson] = useState(null)
+  const [editName, setEditName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [updating, setUpdating] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [seeding, setSeeding] = useState(false)
+
+  const handleSeed = async () => {
+    if (!window.confirm('This will populate the database with mock salespeople, login sessions, campaigns, leads, and deals. Proceed?')) return
+    setSeeding(true)
+    try {
+      await seedDemoData()
+      alert('Demo data seeded successfully!')
+      await loadActivity(true)
+    } catch (err) {
+      console.error(err)
+      alert(err.response?.data?.message || 'Failed to seed demo data')
+    } finally {
+      setSeeding(false)
+    }
+  }
+
+  const handleEdit = async () => {
+    if (!selectedPerson || !selectedPerson.userId) return
+    setUpdating(true)
+    try {
+      await updateUser(selectedPerson.userId, {
+        name: editName,
+        email: editEmail
+      })
+      setEditModalOpen(false)
+      setSelectedPerson(null)
+      alert('Teammate updated successfully!')
+      await loadActivity(true)
+    } catch (err) {
+      console.error(err)
+      alert(err.response?.data?.message || 'Failed to update teammate')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!selectedPerson || !selectedPerson.userId) return
+    setDeleting(true)
+    try {
+      await permanentDeleteUser(selectedPerson.userId)
+      setDeleteModalOpen(false)
+      setSelectedPerson(null)
+      alert('Teammate deleted successfully!')
+      await loadActivity(true)
+    } catch (err) {
+      console.error(err)
+      alert(err.response?.data?.message || 'Failed to delete teammate')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   // Quick filter helpers
   const applyFilter = (type) => {
@@ -156,12 +219,23 @@ export default function SalesPersonDetails() {
             <h1 className="text-2xl font-semibold text-slate-900">Sales Person Details</h1>
             <p className="text-sm text-slate-600">Track logins, active sessions, and time spent by SalesTeam</p>
           </div>
-          <Link
-            to="/dashboard/sales-team"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300"
-          >
-            ← Back
-          </Link>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={handleSeed}
+                disabled={seeding}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 transition disabled:opacity-50"
+              >
+                {seeding ? 'Generating...' : 'Generate Demo Data'}
+              </button>
+            )}
+            <Link
+              to="/dashboard/sales-team"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300"
+            >
+              ← Back
+            </Link>
+          </div>
         </div>
 
         {error && (
@@ -277,25 +351,26 @@ export default function SalesPersonDetails() {
             <h2 className="text-base font-semibold text-slate-900">People</h2>
             <span className="text-xs text-slate-500">Sorted A → Z</span>
           </div>
-          <div className="mt-4 overflow-x-auto">
+          <div className="mt-4">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-3 py-2">Name</th>
                   <th className="px-3 py-2">Hours</th>
                   <th className="px-3 py-2">Login</th>
+                  <th className="px-3 py-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={3} className="px-3 py-6 text-center text-slate-500">
+                    <td colSpan={4} className="px-3 py-6 text-center text-slate-500">
                       Loading people…
                     </td>
                   </tr>
                 ) : people.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-3 py-6 text-center text-slate-500">
+                    <td colSpan={4} className="px-3 py-6 text-center text-slate-500">
                       No activity captured yet.
                     </td>
                   </tr>
@@ -327,6 +402,54 @@ export default function SalesPersonDetails() {
                             <span>{formatDateTime(person.lastLoginAt)}</span>
                           </div>
                         </td>
+                        <td className="px-3 py-3 text-right relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const key = `${person.userId}-${person.salespersonId}`;
+                              setActiveMenu(activeMenu === key ? null : key);
+                            }}
+                            className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition"
+                            title="Actions"
+                          >
+                            <svg className="w-5 h-5 inline-block" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                            </svg>
+                          </button>
+                          
+                          {activeMenu === `${person.userId}-${person.salespersonId}` && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
+                              
+                              <div className="absolute right-0 mt-1 w-32 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
+                                <div className="py-1">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedPerson(person);
+                                      setEditName(person.name || '');
+                                      setEditEmail(person.email || '');
+                                      setEditModalOpen(true);
+                                      setActiveMenu(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedPerson(person);
+                                      setDeleteModalOpen(true);
+                                      setActiveMenu(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </td>
                       </tr>
                     )
                   })
@@ -336,6 +459,101 @@ export default function SalesPersonDetails() {
           </div>
         </section>
       </div>
+
+      {/* Edit Teammate Modal */}
+      <Modal
+        open={editModalOpen}
+        onClose={() => {
+          if (!updating) {
+            setEditModalOpen(false)
+            setSelectedPerson(null)
+          }
+        }}
+        title="Edit Teammate"
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setEditModalOpen(false)
+                setSelectedPerson(null)
+              }}
+              disabled={updating}
+              className="px-4 py-2 border rounded-md text-sm text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleEdit}
+              disabled={updating || !editName.trim() || !editEmail.trim()}
+              className="px-4 py-2 rounded-md text-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {updating ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4 py-2">
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Name</label>
+            <input
+              type="text"
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+              placeholder="e.g. John Doe"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Email Address</label>
+            <input
+              type="email"
+              value={editEmail}
+              onChange={e => setEditEmail(e.target.value)}
+              className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+              placeholder="e.g. john.doe@securedapp.io"
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Teammate Modal */}
+      <Modal
+        open={deleteModalOpen}
+        onClose={() => {
+          if (!deleting) {
+            setDeleteModalOpen(false)
+            setSelectedPerson(null)
+          }
+        }}
+        title="Delete Teammate Permanently"
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setDeleteModalOpen(false)
+                setSelectedPerson(null)
+              }}
+              disabled={deleting}
+              className="px-4 py-2 border rounded-md text-sm text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-4 py-2 rounded-md text-sm text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+            >
+              {deleting ? 'Deleting...' : 'Delete Permanently'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4 py-2">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+            <strong>Irreversible Action:</strong> This will permanently delete <strong>{selectedPerson?.name}</strong> and all associated sales records/activities from the database. This cannot be undone.
+          </div>
+        </div>
+      </Modal>
     </main>
   )
 }
