@@ -8,7 +8,6 @@ export default function LeadAnalytics() {
   const [summary, setSummary] = useState(null)
   const [campaigns, setCampaigns] = useState([])
   const [filters, setFilters] = useState({ from: '', to: '', ownerId: '', campaignId: '' })
-  const [seeding, setSeeding] = useState(false)
 
   const fetchSummary = async (params = {}) => {
     setLoading(true)
@@ -41,25 +40,12 @@ export default function LeadAnalytics() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.from, filters.to, filters.ownerId, filters.campaignId])
 
-  const seedDemo = async () => {
-    setSeeding(true)
-    try {
-      await api.post('/dev/seed')
-      await fetchSummary()
-    } finally { setSeeding(false) }
-  }
-
   const ownerOptions = useMemo(() => (summary?.team || []).map(t => ({ id: t.userId, name: t.name })), [summary])
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-slate-900">Analytics</h2>
-        {!loading && (!summary || ((summary?.kpis?.totalLeads || 0) === 0 && (summary?.funnel?.dealStages || []).every(x=>x.count===0))) && (
-          <button className="px-3 py-2 rounded bg-emerald-600 text-white text-sm" onClick={seedDemo} disabled={seeding}>
-            {seeding ? 'Generating…' : 'Generate demo data'}
-          </button>
-        )}
       </div>
 
       <div className="rounded-lg border bg-white p-3">

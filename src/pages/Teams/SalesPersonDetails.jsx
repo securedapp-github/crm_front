@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getSalesActivity } from '../../api/sales'
-import { seedDemoData, updateUser, permanentDeleteUser } from '../../api/user'
+import { updateUser, permanentDeleteUser } from '../../api/user'
 import Modal from '../../components/Modal'
 
 const formatDateTime = (value) => {
@@ -44,22 +44,6 @@ export default function SalesPersonDetails() {
   const [editEmail, setEditEmail] = useState('')
   const [updating, setUpdating] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [seeding, setSeeding] = useState(false)
-
-  const handleSeed = async () => {
-    if (!window.confirm('This will populate the database with mock salespeople, login sessions, campaigns, leads, and deals. Proceed?')) return
-    setSeeding(true)
-    try {
-      await seedDemoData()
-      alert('Demo data seeded successfully!')
-      await loadActivity(true)
-    } catch (err) {
-      console.error(err)
-      alert(err.response?.data?.message || 'Failed to seed demo data')
-    } finally {
-      setSeeding(false)
-    }
-  }
 
   const handleEdit = async () => {
     if (!selectedPerson || !selectedPerson.userId) return
@@ -220,15 +204,6 @@ export default function SalesPersonDetails() {
             <p className="text-sm text-slate-600">Track logins, active sessions, and time spent by SalesTeam</p>
           </div>
           <div className="flex items-center gap-2">
-            {isAdmin && (
-              <button
-                onClick={handleSeed}
-                disabled={seeding}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 transition disabled:opacity-50"
-              >
-                {seeding ? 'Generating...' : 'Generate Demo Data'}
-              </button>
-            )}
             <Link
               to="/dashboard/sales-team"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300"

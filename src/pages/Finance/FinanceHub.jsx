@@ -9,11 +9,11 @@ const FINANCE_CARDS = [
     disabled: false,
   },
   {
-    href: '#',
+    href: '/dashboard/finance/payslip-generator',
     icon: '💸',
     label: 'Payslip Generator',
     description: 'Generate and download monthly salary slips for employees.',
-    disabled: true,
+    disabled: false,
   },
 ]
 

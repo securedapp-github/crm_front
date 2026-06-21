@@ -44,6 +44,7 @@ import InvoiceProducts from '@/invoice/pages/Products'
 import InvoiceSettings from '@/invoice/pages/Settings'
 import InvoiceLayout from '@/invoice/components/InvoiceLayout'
 import FinanceHub from './pages/Finance/FinanceHub'
+import PayslipGenerator from './pages/Finance/PayslipGenerator'
 
 
 function App() {
@@ -91,6 +92,7 @@ function App() {
               <Route path="sales-dashboard/sequences/new" element={<CreateSequence />} />
               <Route path="sales-dashboard/sequences/:id" element={<SequenceBuilder />} />
               <Route path="finance" element={<FinanceHub />} />
+              <Route path="finance/payslip-generator" element={<PayslipGenerator />} />
               <Route path="finance/invoice-generator" element={<InvoiceLayout />}>
                 <Route index element={<InvoiceForm />} />
                 <Route path="dashboard" element={<InvoiceDashboard />} />

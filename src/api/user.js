@@ -16,8 +16,6 @@ export const downloadSalespersonReportCSV = (salespersonId) =>
 // Permanent delete user (admin only)
 export const permanentDeleteUser = (userId) => api.delete(`/users/${userId}/permanent-delete`)
 
-// Seed demo data (admin only)
-export const seedDemoData = () => api.post('/dev/seed')
-
 // Update user (admin only)
 export const updateUser = (userId, data) => api.put(`/users/${userId}`, data)
+
