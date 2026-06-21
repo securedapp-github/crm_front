@@ -6,7 +6,7 @@ const FINANCE_CARDS = [
     icon: '🧾',
     label: 'Invoice Generator',
     description: 'Create, manage, and track invoices for your clients.',
-    disabled: false,
+    disabled: true,
   },
   {
     href: '/dashboard/finance/payslip-generator',
