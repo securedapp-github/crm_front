@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { signupAdminStart, verifyAdminOtp, resendAdminOtp, signupSalesStart, verifySalesOtp, resendSalesOtp } from '../api/auth'
 import Modal from '../components/Modal'
-import logo from '../assets/securedapp-logo.png'
 import { 
   User, 
   Mail, 
@@ -14,9 +13,7 @@ import {
   ShieldAlert,
   ArrowRight,
   Eye,
-  EyeOff,
-  Quote,
-  Users
+  EyeOff
 } from 'lucide-react'
 
 export default function Signup() {
@@ -119,51 +116,50 @@ export default function Signup() {
     <>
       <main className="relative min-h-[calc(100vh-68px)] flex items-center justify-center bg-[#fafbfe] bg-grid-pattern px-4 py-8 sm:py-12 overflow-hidden">
         {/* Glow backgrounds */}
-        <div className={`absolute top-[10%] left-[10%] w-[35rem] h-[35rem] rounded-full ${mode === 'admin' ? 'bg-blue-200/20' : 'bg-emerald-200/20'} blur-[100px] pointer-events-none`} />
-        <div className={`absolute bottom-[10%] right-[10%] w-[35rem] h-[35rem] rounded-full ${mode === 'admin' ? 'bg-blue-200/10' : 'bg-emerald-200/10'} blur-[100px] pointer-events-none`} />
+        <div className="absolute top-[10%] left-[10%] w-[35rem] h-[35rem] rounded-full bg-indigo-200/20 blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-[10%] right-[10%] w-[35rem] h-[35rem] rounded-full bg-emerald-200/10 blur-[100px] pointer-events-none" />
 
         <div className="relative w-full max-w-5xl bg-white/80 border border-slate-200/60 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-md">
           <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
             
             {/* Left Brand Panel (Testimonials & Features) */}
             <aside className="hidden lg:flex lg:col-span-6 bg-slate-950 p-8 sm:p-12 flex-col justify-between text-white relative lg:border-r lg:border-slate-800">
-              <div className={`absolute top-[20%] right-[-10%] w-[25rem] h-[25rem] rounded-full blur-[80px] pointer-events-none animate-pulse-glow ${mode === "admin" ? "bg-blue-500/15" : "bg-emerald-500/15"}`} />
+              <div className="absolute top-[20%] right-[-10%] w-[25rem] h-[25rem] rounded-full bg-indigo-600/20 blur-[80px] pointer-events-none animate-pulse-glow" />
               
               {/* Logo / Badge */}
               <div className="relative z-10 flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-white/10 border border-white/15 shadow-sm backdrop-blur-sm overflow-hidden flex items-center justify-start">
-                  <img src={logo} alt="SecuredApp Logo" className="h-7 w-20 max-w-none object-cover object-left" />
+                <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl">
+                  <Sparkles className="h-4 w-4 text-indigo-400" />
                 </div>
-                <span className={`text-[10px] font-bold uppercase tracking-widest ${mode === 'admin' ? 'text-blue-400' : 'text-emerald-400'}`}>Enterprise Secured</span>
+                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Enterprise Secured</span>
               </div>
 
-              {/* Testimonial Quote Card */}
-              <div className="relative z-10 my-10 space-y-6 w-full text-left">
-                <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative overflow-hidden">
-                  <Quote className="h-8 w-8 text-blue-500/80 opacity-70 mb-3" />
-                  <blockquote className="text-sm sm:text-base font-medium leading-relaxed text-slate-100">
-                    “The simplicity of the workflows and how easily marketing campaign tracking connects 
-                    with our sales pipelines has <span className="text-sky-400 font-semibold">saved us hours of</span> <span className="text-emerald-400 font-semibold">manual data sync.</span>”
-                  </blockquote>
+              {/* Testimonial Quote */}
+              <div className="relative z-10 my-10 space-y-6">
+                <blockquote className="text-base sm:text-lg font-medium leading-relaxed text-slate-100 italic">
+                  “The simplicity of the workflows and how easily marketing campaign tracking connects 
+                  with our sales pipelines has saved us hours of manual data sync.”
+                </blockquote>
+                
+                <div className="flex items-center gap-3">
+                  <span className="h-9 w-9 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-xs shadow-md">
+                    N
+                  </span>
+                  <div className="leading-tight text-left">
+                    <span className="text-xs font-bold text-white block">Nikil J.</span>
+                    <span className="text-[10px] text-slate-400">Owner, SecuredApp Workspace</span>
+                  </div>
                 </div>
 
-                {/* Micro indicators in premium rows */}
-                <div className="space-y-3 text-slate-350">
-                  <div className="flex items-center gap-4 bg-slate-900/30 border border-slate-800/40 rounded-xl p-3.5 hover:bg-slate-900/40 transition">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
-                    <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)] shrink-0">
-                      <Mail className="h-5 w-5 text-blue-400" />
-                      <Lock className="absolute bottom-1 right-1 h-2.5 w-2.5 text-blue-300 bg-slate-950 rounded-full p-[1.5px]" />
-                    </div>
-                    <span className="text-xs sm:text-sm text-slate-300 font-medium">Secure OTP Verification on email</span>
+                {/* Micro indicators */}
+                <div className="space-y-3 pt-6 border-t border-slate-800/80 text-slate-300">
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="h-4 w-4 text-indigo-400" />
+                    <span className="text-xs">Secure OTP Verification on email</span>
                   </div>
-
-                  <div className="flex items-center gap-4 bg-slate-900/30 border border-slate-800/40 rounded-xl p-3.5 hover:bg-slate-900/40 transition">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
-                    <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)] shrink-0">
-                      <Users className="h-5 w-5 text-blue-400" />
-                    </div>
-                    <span className="text-xs sm:text-sm text-slate-300 font-medium">Pending stage administrator reviews</span>
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="h-4 w-4 text-indigo-400" />
+                    <span className="text-xs">Pending stage administrator reviews</span>
                   </div>
                 </div>
               </div>
@@ -171,7 +167,7 @@ export default function Signup() {
               {/* Footer Citation */}
               <div className="relative z-10 text-[10px] text-slate-500 flex items-center justify-between">
                 <span>SecureCRM v1.2</span>
-                <a href="https://securedapp.io" target="_blank" rel="noreferrer" className={`hover:${mode === 'admin' ? 'text-blue-400' : 'text-emerald-400'} transition`}>securedapp.io</a>
+                <a href="https://securedapp.io" target="_blank" rel="noreferrer" className="hover:text-indigo-400 transition">securedapp.io</a>
               </div>
             </aside>
 
@@ -179,7 +175,7 @@ export default function Signup() {
             <div className="lg:col-span-6 p-8 sm:p-12 flex flex-col justify-center text-left">
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-1.5">
                 <span>Join</span>
-                <span className={mode === 'admin' ? 'text-blue-600' : 'text-emerald-600'}>SecureCRM</span>
+                <span className="text-indigo-600">SecureCRM</span>
               </h2>
               <p className="text-slate-500 text-xs sm:text-sm mt-2">Get started with your dedicated team workspace.</p>
 
@@ -194,18 +190,18 @@ export default function Signup() {
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Sales Person Signup
+                  Sales Agent Signup
                 </button>
                 <button 
                   type="button" 
                   onClick={() => setMode('admin')} 
                   className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${
                     mode === 'admin' 
-                      ? 'bg-white text-blue-600 shadow-[0_2px_8px_rgba(37,99,235,0.12)] border border-blue-100/50' 
+                      ? 'bg-white text-indigo-600 shadow-[0_2px_8px_rgba(99,102,241,0.12)] border border-indigo-100/50' 
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Admin Signup
+                  Workspace Admin
                 </button>
               </div>
 
@@ -218,7 +214,7 @@ export default function Signup() {
                       <User className="h-4 w-4" />
                     </span>
                     <input
-                      className={`w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 ${mode === 'admin' ? 'focus:ring-blue-100 focus:border-blue-500' : 'focus:ring-emerald-100 focus:border-emerald-500'} focus:bg-white transition`}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:bg-white transition"
                       name="name" 
                       placeholder="e.g. John Doe" 
                       value={form.name} 
@@ -237,7 +233,7 @@ export default function Signup() {
                     </span>
                     <input
                       type="email"
-                      className={`w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 ${mode === 'admin' ? 'focus:ring-blue-100 focus:border-blue-500' : 'focus:ring-emerald-100 focus:border-emerald-500'} focus:bg-white transition`}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:bg-white transition"
                       name="email" 
                       placeholder="name@company.com" 
                       value={form.email} 
@@ -256,7 +252,7 @@ export default function Signup() {
                     </span>
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      className={`w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-10 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 ${mode === 'admin' ? 'focus:ring-blue-100 focus:border-blue-500' : 'focus:ring-emerald-100 focus:border-emerald-500'} focus:bg-white transition`}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-10 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:bg-white transition"
                       name="password" 
                       placeholder="••••••••" 
                       value={form.password} 
@@ -283,7 +279,7 @@ export default function Signup() {
                     </span>
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
-                      className={`w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-10 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 ${mode === 'admin' ? 'focus:ring-blue-100 focus:border-blue-500' : 'focus:ring-emerald-100 focus:border-emerald-500'} focus:bg-white transition`}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-10 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:bg-white transition"
                       name="confirmPassword" 
                       placeholder="••••••••" 
                       value={form.confirmPassword} 
@@ -302,35 +298,35 @@ export default function Signup() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                    Phone Number {mode === 'sales' && <span className="text-[10px] text-slate-400 lowercase font-normal">(optional)</span>}
-                  </label>
-                  <div className="flex">
-                    <span className="inline-flex items-center px-3.5 rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500">+91</span>
-                    <input
-                      className={`w-full rounded-r-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 ${mode === 'admin' ? 'focus:ring-blue-100 focus:border-blue-500' : 'focus:ring-emerald-100 focus:border-emerald-500'} focus:bg-white transition`}
-                      name="phone" 
-                      placeholder="98765 43210" 
-                      value={form.phone} 
-                      onChange={onChange}
-                      disabled={loading}
-                    />
+                {mode === 'admin' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Phone Number</label>
+                    <div className="flex">
+                      <span className="inline-flex items-center px-3.5 rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500">+91</span>
+                      <input
+                        className="w-full rounded-r-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:bg-white transition"
+                        name="phone" 
+                        placeholder="98765 43210" 
+                        value={form.phone} 
+                        onChange={onChange}
+                        disabled={loading}
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Country code auto-locked to local region (+91).</p>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-1">Country code auto-locked to local region (+91).</p>
-                </div>
+                )}
 
                 {/* TOS Checkbox */}
                 <div className="flex items-start gap-2.5 pt-1 text-left">
                   <input 
                     id="tos" 
                     type="checkbox" 
-                    className={`mt-1 h-3.5 w-3.5 rounded border-slate-200 transition ${mode === 'admin' ? 'text-blue-600 focus:ring-blue-100' : 'text-emerald-600 focus:ring-emerald-100'}`} 
+                    className="mt-1 h-3.5 w-3.5 rounded border-slate-200 text-indigo-600 focus:ring-indigo-100 transition" 
                     checked={agree} 
                     onChange={(e) => setAgree(e.target.checked)} 
                   />
                   <label htmlFor="tos" className="text-xs text-slate-500 leading-tight">
-                    I agree to the <a className={`${mode === 'admin' ? 'text-blue-600' : 'text-emerald-600'} font-semibold hover:underline`} href="#" onClick={(e) => e.preventDefault()}>Terms of Service</a> and <a className={`${mode === 'admin' ? 'text-blue-600' : 'text-emerald-600'} font-semibold hover:underline`} href="#" onClick={(e) => e.preventDefault()}>Privacy Policy</a>.
+                    I agree to the <a className="text-indigo-600 font-semibold hover:underline" href="#" onClick={(e) => e.preventDefault()}>Terms of Service</a> and <a className="text-indigo-600 font-semibold hover:underline" href="#" onClick={(e) => e.preventDefault()}>Privacy Policy</a>.
                   </label>
                 </div>
 
@@ -345,7 +341,7 @@ export default function Signup() {
                   type="submit" 
                   className={`w-full rounded-xl py-3.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition duration-300 disabled:opacity-75 disabled:cursor-not-allowed ${
                     mode === 'admin' 
-                      ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-100 hover:shadow-xl' 
+                      ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 hover:shadow-xl' 
                       : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100 hover:shadow-xl'
                   }`} 
                   disabled={loading}
@@ -356,7 +352,7 @@ export default function Signup() {
 
               <div className="mt-6 pt-5 border-t border-slate-100 text-center">
                 <p className="text-xs font-semibold text-slate-500">
-                  Already have an account? <Link className={`${mode === 'admin' ? 'text-blue-600' : 'text-emerald-600'} font-bold hover:underline`} to="/login">Login</Link>
+                  Already have an account? <Link className="text-indigo-600 font-bold hover:underline" to="/login">Login</Link>
                 </p>
               </div>
             </div>
@@ -386,11 +382,7 @@ export default function Signup() {
               </button>
               <button
                 onClick={onVerifyOTP}
-                className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow transition disabled:opacity-60 ${
-                  mode === 'admin' 
-                    ? 'bg-blue-600 hover:bg-blue-750 shadow-blue-100' 
-                    : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'
-                }`}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white shadow transition disabled:opacity-60"
                 disabled={otpLoading}
               >
                 {otpLoading ? 'Verifying...' : 'Verify Email'}
@@ -401,11 +393,7 @@ export default function Signup() {
           <div className="space-y-3 p-1 text-left">
             <p className="text-xs text-slate-500 leading-relaxed">Enter the 6-digit OTP code sent to your registered email <strong className="text-slate-850">{form.email}</strong>.</p>
             <input
-              className={`w-full rounded-xl border border-slate-200 px-4 py-3 tracking-widest text-center text-lg font-bold focus:outline-none focus:ring-2 transition ${
-                mode === 'admin' 
-                  ? 'focus:border-blue-500 focus:ring-blue-100' 
-                  : 'focus:border-emerald-500 focus:ring-emerald-100'
-              }`}
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 tracking-widest text-center text-lg font-bold focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
               type="text"
               maxLength={6}
               value={otpCode}
@@ -425,9 +413,7 @@ export default function Signup() {
             <button 
               onClick={() => { setApprovalModalOpen(false); navigate('/login') }} 
               className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow transition hover:opacity-90 ${
-                pendingRole === 'admin' 
-                  ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-100' 
-                  : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'
+                pendingRole === 'admin' ? 'bg-indigo-600' : 'bg-emerald-600'
               }`}
             >
               Understand & Continue
@@ -435,7 +421,7 @@ export default function Signup() {
           }
         >
           <div className="p-1 text-left text-sm text-slate-600 leading-relaxed flex flex-col gap-3">
-            <div className={`flex items-center gap-2 ${pendingRole === 'admin' ? 'text-blue-600' : 'text-emerald-600'}`}>
+            <div className="flex items-center gap-2 text-emerald-600">
               <ShieldCheck className="h-5 w-5" />
               <span className="font-bold">Email verified successfully.</span>
             </div>
