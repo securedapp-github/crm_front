@@ -12,3 +12,10 @@ export const getSalespersonReport = (salespersonId) => api.get(`/sales/reports/$
 // Download salesperson report CSV (admin only)
 export const downloadSalespersonReportCSV = (salespersonId) =>
     api.get(`/sales/reports/${salespersonId}/csv`, { responseType: 'blob' })
+
+// Permanent delete user (admin only)
+export const permanentDeleteUser = (userId) => api.delete(`/users/${userId}/permanent-delete`)
+
+// Update user (admin only)
+export const updateUser = (userId, data) => api.put(`/users/${userId}`, data)
+

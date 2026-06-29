@@ -93,35 +93,38 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/90 shadow-sm backdrop-blur-lg">
-      <div className="container mx-auto flex items-center justify-between px-4 py-3">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200/50 bg-white/70 shadow-sm backdrop-blur-md transition-all duration-300">
+      <div className="container mx-auto flex items-center justify-between px-6 py-3.5">
         <div className="flex items-center">
-          <div className="flex items-center space-x-3 md:space-x-4">
+          <div className="flex items-center space-x-3.5">
             {/* Logo */}
-            <img
-              src={logo}
-              alt="SecuredApp Logo"
-              className="h-10 w-auto md:h-12 object-contain"
-            />
+            <div className="relative group cursor-pointer p-1.5 rounded-xl bg-white/40 border border-white/60 shadow-[0_2px_10px_rgba(0,0,0,0.02)] backdrop-blur-sm transition-all duration-300 hover:bg-white/60">
+              <img
+                src={logo}
+                alt="SecuredApp Logo"
+                className="h-8 w-auto object-contain transition duration-300 group-hover:scale-105"
+              />
+            </div>
 
             {/* Divider */}
-            <div className="border-l border-slate-300 h-8 md:h-10"></div>
+            <div className="border-l border-slate-200 h-7"></div>
 
             {/* Brand Text */}
-            <div className="flex flex-col justify-center leading-tight">
-              <h1 className="text-lg md:text-xl font-semibold text-slate-900 tracking-tight leading-none">
-                SecureCRM
+            <div className="flex flex-col justify-center leading-none">
+              <h1 className="text-base font-bold text-slate-800 tracking-tight flex items-center gap-1">
+                <span>Secure</span>
+                <span className="text-emerald-600">CRM</span>
               </h1>
-              <p className="text-[10px] md:text-xs text-slate-500 pt-0.5">
-                Customer Relationship Management
+              <p className="text-[9px] font-medium text-slate-400 mt-0.5 tracking-wider uppercase">
+                Enterprise Cloud
               </p>
             </div>
           </div>
         </div>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-4 text-sm">
-          <nav className="flex items-center gap-2 font-medium text-slate-600">
+        <div className="hidden md:flex items-center gap-6 text-sm">
+          <nav className="flex items-center gap-1 font-medium text-slate-600">
             {navLinks.map((link) => {
               if (link.protected && !authed) return null
               const active = location.pathname === link.href || (link.href !== '/' && location.pathname.startsWith(link.href))
@@ -129,9 +132,9 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   to={link.href}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 transition ${active
-                    ? 'border-indigo-500 bg-indigo-50 text-indigo-600 shadow-sm'
-                    : 'border-transparent hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600'
+                  className={`relative px-4 py-2 rounded-full text-xs font-semibold tracking-wide uppercase transition-all duration-300 ${active
+                    ? 'bg-emerald-50 text-emerald-600 shadow-[0_2px_10px_rgba(16,185,129,0.08)] border border-emerald-100/50'
+                    : 'text-slate-500 hover:text-emerald-600 hover:bg-slate-50/80'
                     }`}
                 >
                   {link.label}
@@ -141,23 +144,26 @@ export default function Navbar() {
           </nav>
 
           {authed ? (
-            <div className="flex items-center gap-4">
-              <div className="flex flex-col text-right text-xs text-slate-500">
-                <span className="font-medium text-slate-700">{name ? `Hi, ${name}` : 'Welcome back'}</span>
-                <span>{role === 'sales' ? 'Sales Cloud' : 'Account Owner'}</span>
+            <div className="flex items-center gap-4 border-l border-slate-200/60 pl-6">
+              <div className="flex flex-col text-right leading-tight">
+                <span className="text-xs font-semibold text-slate-700">{name ? `Hi, ${name}` : 'Welcome'}</span>
+                <span className="text-[10px] font-bold text-emerald-600/80 uppercase tracking-wider">{role === 'sales' ? 'Sales Cloud' : 'Account Owner'}</span>
               </div>
-              <button onClick={onLogout} className="inline-flex items-center gap-2 rounded-lg bg-rose-500 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-rose-600">
+              <button 
+                onClick={onLogout} 
+                className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-600 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              >
                 Logout
               </button>
             </div>
           ) : checking ? (
-            <div className="h-9 w-32 animate-pulse rounded-full bg-slate-200" />
+            <div className="h-8 w-24 animate-pulse rounded-full bg-slate-100 pl-6" />
           ) : (
-            <div className="flex items-center gap-2">
-              <Link to="/login" className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50">
+            <div className="flex items-center gap-3 border-l border-slate-200/60 pl-6">
+              <Link to="/login" className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all duration-300">
                 Login
               </Link>
-              <Link to="/signup" className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-indigo-700">
+              <Link to="/signup" className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-[0_4px_12px_rgba(16,185,129,0.15)] hover:bg-emerald-700 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]">
                 Sign Up
               </Link>
             </div>
@@ -166,16 +172,16 @@ export default function Navbar() {
 
         {/* Mobile Menu Button */}
         <button
-          className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+          className="md:hidden p-2 text-slate-500 hover:bg-slate-50 hover:text-slate-800 rounded-xl transition duration-200"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           {mobileMenuOpen ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="3" y1="12" x2="21" y2="12"></line>
               <line x1="3" y1="6" x2="21" y2="6"></line>
               <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -186,8 +192,8 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white px-4 py-4 shadow-lg animate-fade-in">
-          <nav className="flex flex-col gap-2">
+        <div className="md:hidden border-t border-slate-100 bg-white/95 backdrop-blur-md px-6 py-5 shadow-xl animate-fade-in">
+          <nav className="flex flex-col gap-1.5">
             {navLinks.map((link) => {
               if (link.protected && !authed) return null
               const active = location.pathname === link.href || (link.href !== '/' && location.pathname.startsWith(link.href))
@@ -196,9 +202,9 @@ export default function Navbar() {
                   key={link.href}
                   to={link.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition ${active
-                    ? 'bg-indigo-50 text-indigo-700'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  className={`flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-semibold uppercase tracking-wide transition-all duration-200 ${active
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                 >
                   {link.label}
@@ -207,19 +213,19 @@ export default function Navbar() {
             })}
           </nav>
 
-          <div className="mt-4 border-t border-slate-100 pt-4">
+          <div className="mt-5 border-t border-slate-100 pt-5">
             {authed ? (
-              <div className="space-y-3">
-                <div className="px-2 text-sm">
-                  <div className="font-medium text-slate-900">{name || 'User'}</div>
-                  <div className="text-xs text-slate-500">{role === 'sales' ? 'Sales Cloud' : 'Account Owner'}</div>
+              <div className="space-y-4">
+                <div className="px-4 py-2 bg-slate-50 rounded-xl">
+                  <div className="text-xs font-semibold text-slate-800">{name || 'User'}</div>
+                  <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mt-0.5">{role === 'sales' ? 'Sales Cloud' : 'Account Owner'}</div>
                 </div>
                 <button
                   onClick={() => {
                     onLogout()
                     setMobileMenuOpen(false)
                   }}
-                  className="w-full rounded-lg bg-rose-50 text-rose-600 px-4 py-2 text-sm font-medium hover:bg-rose-100 text-left"
+                  className="w-full rounded-xl bg-rose-50 text-rose-600 px-4 py-3 text-xs font-semibold hover:bg-rose-100 text-left transition duration-200"
                 >
                   Logout
                 </button>
@@ -229,14 +235,14 @@ export default function Navbar() {
                 <Link
                   to="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-center text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition duration-200"
                 >
                   Login
                 </Link>
                 <Link
                   to="/signup"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-indigo-700"
+                  className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-center text-xs font-semibold text-white hover:bg-emerald-700 transition duration-200 shadow-md shadow-emerald-100"
                 >
                   Sign Up
                 </Link>

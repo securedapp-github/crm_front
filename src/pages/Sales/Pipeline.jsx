@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getPeople, getPipeline, markDealDone, moveDealStage, deleteDeal, getDeletedDeals } from '../../api/sales'
 import { getTasks } from '../../api/task'
-import { getAllSalespeople, offboardSalesperson, downloadSalespersonReportCSV } from '../../api/user'
+import { getAllSalespeople, offboardSalesperson, downloadSalespersonReportCSV, permanentDeleteUser } from '../../api/user'
 import Modal from '../../components/Modal'
 
 const STAGES = ['New', 'In Progress', 'Proposal', 'Deal Completed', 'Lost Opportunity']
@@ -24,6 +24,11 @@ export default function Pipeline() {
   // Report download state
   const [selectedReportSP, setSelectedReportSP] = useState('')
   const [downloading, setDownloading] = useState(false)
+
+  // Permanent delete state
+  const [permanentDeleteModalOpen, setPermanentDeleteModalOpen] = useState(false)
+  const [selectedPermanentDeleteUser, setSelectedPermanentDeleteUser] = useState(null)
+  const [permanentDeleting, setPermanentDeleting] = useState(false)
 
   // Check if user is admin
   const user = useMemo(() => {
@@ -99,6 +104,22 @@ export default function Pipeline() {
       alert('Failed to download report')
     } finally {
       setDownloading(false)
+    }
+  }
+
+  const handlePermanentDelete = async () => {
+    if (!selectedPermanentDeleteUser) return
+    setPermanentDeleting(true)
+    try {
+      await permanentDeleteUser(selectedPermanentDeleteUser.id)
+      setPermanentDeleteModalOpen(false)
+      setSelectedPermanentDeleteUser(null)
+      await fetchAll()
+      alert('User permanently deleted successfully')
+    } catch (err) {
+      alert('Failed to permanently delete user')
+    } finally {
+      setPermanentDeleting(false)
     }
   }
 
@@ -507,10 +528,21 @@ export default function Pipeline() {
                       <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-300 text-slate-600 border border-slate-400">
                         {initials(row.sp.name)}
                       </span>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <div className="text-slate-700 font-medium truncate">{row.sp.name}</div>
                         <div className="text-xs text-slate-500">Inactive</div>
                       </div>
+                      <button
+                        onClick={() => {
+                          const userRecord = allSalesUsers.find(u => u.email === row.sp.email);
+                          setSelectedPermanentDeleteUser(userRecord || row.sp);
+                          setPermanentDeleteModalOpen(true);
+                        }}
+                        className="shrink-0 px-2 py-1 rounded text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 hover:border-red-300 transition-colors"
+                        title="Delete Permanently"
+                      >
+                        Delete
+                      </button>
                     </div>
                     {row.byStage.map(col => (
                       <div
@@ -624,6 +656,51 @@ export default function Pipeline() {
               )}
             </div>
           )}
+        </Modal>
+      )}
+
+      {/* Permanent Delete Confirmation Modal */}
+      {isAdmin && (
+        <Modal
+          open={permanentDeleteModalOpen}
+          onClose={() => {
+            if (!permanentDeleting) {
+              setPermanentDeleteModalOpen(false)
+              setSelectedPermanentDeleteUser(null)
+            }
+          }}
+          title="Delete Permanently"
+          actions={
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setPermanentDeleteModalOpen(false)
+                  setSelectedPermanentDeleteUser(null)
+                }}
+                disabled={permanentDeleting}
+                className="px-4 py-2 border rounded-md text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePermanentDelete}
+                disabled={permanentDeleting}
+                className={`px-4 py-2 rounded-md text-sm text-white ${permanentDeleting
+                  ? 'bg-red-300 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700'
+                  }`}
+              >
+                {permanentDeleting ? 'Deleting...' : 'Yes, Delete Permanently'}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+              <strong>Irreversible Action:</strong> This will permanently delete{' '}
+              <strong>{selectedPermanentDeleteUser?.name || 'this user'}</strong> and their associated salesperson record from the database. This cannot be undone.
+            </div>
+          </div>
         </Modal>
       )}
     </div>
