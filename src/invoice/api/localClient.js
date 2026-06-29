@@ -41,7 +41,7 @@ const createEntityClient = (entityName) => ({
     }),
 });
 
-export const localBase44 = {
+export const invoiceApi = {
   entities: {
     Invoice: createEntityClient('Invoice'),
     Customer: createEntityClient('Customer'),
@@ -57,7 +57,6 @@ export const localBase44 = {
   integrations: {
     Core: {
       UploadFile: async () => ({ file_url: '' }),
-      InvokeLLM: async () => null,
     },
   },
 };

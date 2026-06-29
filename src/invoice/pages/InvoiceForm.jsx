@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/invoice/api/base44Client';
+import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Button } from '@/invoice/components/ui/button';
 import { Input } from '@/invoice/components/ui/input';
 import { Label } from '@/invoice/components/ui/label';
@@ -27,19 +27,18 @@ export default function InvoiceForm() {
   const queryClient = useQueryClient();
 
   const [mobileTab, setMobileTab] = useState('edit');
-  const [theme, setTheme] = useState('modern-purple');
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const { data: businessList } = useQuery({
     queryKey: ['business'],
-    queryFn: () => base44.entities.Business.list()
+    queryFn: () => invoiceApi.entities.Business.list()
   });
   const business = businessList?.[0] || null;
 
   const { data: existingInvoice } = useQuery({
     queryKey: ['invoice', id],
-    queryFn: () => base44.entities.Invoice.filter({ id }),
+    queryFn: () => invoiceApi.entities.Invoice.filter({ id }),
     enabled: isEdit
   });
 
@@ -102,11 +101,11 @@ export default function InvoiceForm() {
       } : {};
       const data = { ...previewData, bank_details: bankDetails, status: status || form.status };
       if (isEdit) {
-        await base44.entities.Invoice.update(id, data);
+        await invoiceApi.entities.Invoice.update(id, data);
       } else {
-        await base44.entities.Invoice.create(data);
+        await invoiceApi.entities.Invoice.create(data);
         if (business) {
-          await base44.entities.Business.update(business.id, {
+          await invoiceApi.entities.Business.update(business.id, {
             next_invoice_number: (business.next_invoice_number || 1) + 1
           });
         }
@@ -318,7 +317,7 @@ export default function InvoiceForm() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/invoices')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/finance/invoice-generator/list')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -328,17 +327,6 @@ export default function InvoiceForm() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Select value={theme} onValueChange={setTheme}>
-            <SelectTrigger className="w-[150px] h-9 text-xs">
-              <Palette className="h-3.5 w-3.5 mr-1.5" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(invoiceThemes).map(([key, t]) => (
-                <SelectItem key={key} value={key}>{t.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <div className="lg:hidden">
             <Tabs value={mobileTab} onValueChange={setMobileTab}>
               <TabsList className="h-9">
@@ -378,7 +366,7 @@ export default function InvoiceForm() {
             </div>
             <div className="overflow-auto max-h-[calc(100vh-180px)] rounded-2xl">
               <div className="scale-[0.8] origin-top-left w-[125%]">
-                <InvoicePDFContent invoice={previewData} business={business} themeName={theme} />
+                <InvoicePDFContent invoice={previewData} business={business} themeName="securedapp-green" />
               </div>
             </div>
           </div>

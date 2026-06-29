@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/invoice/api/base44Client';
+import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Input } from '@/invoice/components/ui/input';
 import { Search, Plus, Package } from 'lucide-react';
 
@@ -10,7 +10,7 @@ export default function ProductSearch({ onSelect, show = false, setShow }) {
 
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
-    queryFn: () => base44.entities.Product.list('-updated_date', 100),
+    queryFn: () => invoiceApi.entities.Product.list('-updated_date', 100),
     enabled: show
   });
 

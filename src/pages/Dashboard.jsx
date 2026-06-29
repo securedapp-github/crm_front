@@ -13,6 +13,7 @@ const SALES_SECTIONS = [
   { href: "/dashboard/company-assets", label: "Company Assets", icon: "📂" },
   { href: "/dashboard/sales/activities", label: "My Marketing Activities", icon: "📢" },
   { href: "/dashboard/sales-dashboard/sequences", label: "Email Sequences", icon: "📨" },
+  { href: "/dashboard/sales/leave", label: "Leave Requests", icon: "📋" },
 ]
 
 export default function Dashboard() {
@@ -49,7 +50,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (checking) return
     if (user?.role === 'sales') {
-      const allowedPrefixes = ['/dashboard/sales-dashboard', '/dashboard/sales/completed', '/dashboard/sales/mail', '/dashboard/company-assets', '/dashboard/sales/activities']
+      const allowedPrefixes = ['/dashboard/sales-dashboard', '/dashboard/sales/completed', '/dashboard/sales/mail', '/dashboard/company-assets', '/dashboard/sales/activities', '/dashboard/sales/leave']
       const isAllowed = allowedPrefixes.some((prefix) => location.pathname.startsWith(prefix))
       if (!isAllowed) {
         navigate('/dashboard/sales-dashboard', { replace: true })

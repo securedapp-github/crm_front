@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/invoice/api/base44Client';
+import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Button } from '@/invoice/components/ui/button';
 import { Input } from '@/invoice/components/ui/input';
 import { Label } from '@/invoice/components/ui/label';
@@ -15,7 +15,7 @@ export default function Settings() {
 
   const { data: businessList, isLoading } = useQuery({
     queryKey: ['business'],
-    queryFn: () => base44.entities.Business.list()
+    queryFn: () => invoiceApi.entities.Business.list()
   });
 
   const business = businessList?.[0];
@@ -38,8 +38,8 @@ export default function Settings() {
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      if (business?.id) return base44.entities.Business.update(business.id, form);
-      return base44.entities.Business.create(form);
+      if (business?.id) return invoiceApi.entities.Business.update(business.id, form);
+      return invoiceApi.entities.Business.create(form);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business'] });
@@ -50,14 +50,14 @@ export default function Settings() {
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await invoiceApi.integrations.Core.UploadFile({ file });
     setForm((prev) => ({ ...prev, logo_url: file_url }));
   };
 
   const handleSignatureUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await invoiceApi.integrations.Core.UploadFile({ file });
     setForm((prev) => ({ ...prev, signature_url: file_url }));
   };
 

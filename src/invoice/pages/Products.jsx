@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/invoice/api/base44Client';
+import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Button } from '@/invoice/components/ui/button';
 import { Input } from '@/invoice/components/ui/input';
 import { Label } from '@/invoice/components/ui/label';
@@ -24,13 +24,13 @@ export default function Products() {
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products'],
-    queryFn: () => base44.entities.Product.list('-updated_date', 200)
+    queryFn: () => invoiceApi.entities.Product.list('-updated_date', 200)
   });
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      if (editing?.id) return base44.entities.Product.update(editing.id, form);
-      return base44.entities.Product.create(form);
+      if (editing?.id) return invoiceApi.entities.Product.update(editing.id, form);
+      return invoiceApi.entities.Product.create(form);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -42,7 +42,7 @@ export default function Products() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Product.delete(id),
+    mutationFn: (id) => invoiceApi.entities.Product.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setDeleteId(null);

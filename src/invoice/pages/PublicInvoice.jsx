@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/invoice/api/base44Client';
+import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Button } from '@/invoice/components/ui/button';
 import { Download, Printer } from 'lucide-react';
 import InvoicePDFContent from '@/invoice/components/invoice/InvoicePDFContent';
@@ -13,7 +13,7 @@ export default function PublicInvoice() {
   const { data: invoice, isLoading } = useQuery({
     queryKey: ['public-invoice', id],
     queryFn: async () => {
-      const list = await base44.entities.Invoice.filter({ id });
+      const list = await invoiceApi.entities.Invoice.filter({ id });
       return list[0] || null;
     }
   });
@@ -21,7 +21,7 @@ export default function PublicInvoice() {
   const { data: business } = useQuery({
     queryKey: ['business'],
     queryFn: async () => {
-      const list = await base44.entities.Business.list();
+      const list = await invoiceApi.entities.Business.list();
       return list[0] || null;
     }
   });

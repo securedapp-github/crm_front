@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/invoice/api/base44Client';
+import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Button } from '@/invoice/components/ui/button';
 import { Input } from '@/invoice/components/ui/input';
 import { Label } from '@/invoice/components/ui/label';
@@ -16,7 +16,7 @@ export default function CustomerSelector({ value, onChange }) {
 
   const { data: customers = [], refetch } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => base44.entities.Customer.list()
+    queryFn: () => invoiceApi.entities.Customer.list()
   });
 
   const filtered = customers.filter((c) =>
@@ -35,7 +35,7 @@ export default function CustomerSelector({ value, onChange }) {
   };
 
   const handleCreateNew = async () => {
-    const created = await base44.entities.Customer.create(newCustomer);
+    const created = await invoiceApi.entities.Customer.create(newCustomer);
     refetch();
     handleSelect(created);
     setShowNew(false);

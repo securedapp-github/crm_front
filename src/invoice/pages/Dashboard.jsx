@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/invoice/api/base44Client';
+import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { FileText, IndianRupee, Clock, Users, AlertTriangle, Send } from 'lucide-react';
 import { formatCurrency } from '@/invoice/lib/invoiceUtils';
 import StatCard from '@/invoice/components/dashboard/StatCard';
@@ -10,12 +10,12 @@ import RecentInvoicesList from '@/invoice/components/dashboard/RecentInvoicesLis
 export default function InvoiceDashboard() {
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices'],
-    queryFn: () => base44.entities.Invoice.list('-created_date', 200)
+    queryFn: () => invoiceApi.entities.Invoice.list('-created_date', 200)
   });
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => base44.entities.Customer.list()
+    queryFn: () => invoiceApi.entities.Customer.list()
   });
 
   const stats = React.useMemo(() => {

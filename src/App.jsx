@@ -16,6 +16,7 @@ import SalesDashboard from './pages/Sales/SalesDashboard'
 import CompletedDeals from './pages/Sales/CompletedDeals'
 import SalesMail from './pages/Sales/SalesMail'
 import DeletedDeals from './pages/Sales/DeletedDeals'
+import SalesLeave from './pages/Sales/SalesLeave'
 import Tickets from './pages/Service/Tickets'
 import Notes from './pages/Collaboration/Notes'
 import SalesTeam from './pages/Teams/SalesTeam'
@@ -89,6 +90,7 @@ function App() {
               <Route path="marketing-team/sequences/new" element={<CreateSequence />} />
               <Route path="marketing-team/sequences/:id" element={<SequenceBuilder />} />
               <Route path="sales/activities" element={<SalesMarketingActivities />} />
+              <Route path="sales/leave" element={<SalesLeave />} />
               <Route path="sales-dashboard/sequences" element={<EmailSequences />} />
               <Route path="sales-dashboard/sequences/new" element={<CreateSequence />} />
               <Route path="sales-dashboard/sequences/:id" element={<SequenceBuilder />} />

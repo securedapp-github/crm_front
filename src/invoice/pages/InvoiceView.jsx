@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/invoice/api/base44Client';
+import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Button } from '@/invoice/components/ui/button';
 import { Badge } from '@/invoice/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/invoice/components/ui/select';
@@ -13,6 +13,7 @@ import { formatCurrency, getStatusColor, getStatusLabel } from '@/invoice/lib/in
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import InvoicePDFContent from '@/invoice/components/invoice/InvoicePDFContent';
+import { printInvoicePDF } from '@/invoice/lib/printUtils';
 
 export default function InvoiceView() {
   const { id } = useParams();
@@ -27,25 +28,25 @@ export default function InvoiceView() {
   const { data: invoice, isLoading } = useQuery({
     queryKey: ['invoice', id],
     queryFn: async () => {
-      const list = await base44.entities.Invoice.filter({ id });
+      const list = await invoiceApi.entities.Invoice.filter({ id });
       return list[0] || null;
     }
   });
 
   const { data: businessList } = useQuery({
     queryKey: ['business'],
-    queryFn: () => base44.entities.Business.list()
+    queryFn: () => invoiceApi.entities.Business.list()
   });
   const business = businessList?.[0] || null;
 
   const statusMutation = useMutation({
-    mutationFn: (status) => base44.entities.Invoice.update(id, { status }),
+    mutationFn: (status) => invoiceApi.entities.Invoice.update(id, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invoice', id] })
   });
 
   const paymentMutation = useMutation({
     mutationFn: async () => {
-      await base44.entities.Payment.create({
+      await invoiceApi.entities.Payment.create({
         invoice_id: id,
         invoice_number: invoice.invoice_number,
         customer_id: invoice.customer_id,
@@ -55,7 +56,7 @@ export default function InvoiceView() {
       const newPaid = (invoice.amount_paid || 0) + Number(payment.amount);
       const newBalance = (invoice.grand_total || 0) - newPaid;
       const newStatus = newBalance <= 0 ? 'paid' : 'partially_paid';
-      await base44.entities.Invoice.update(id, {
+      await invoiceApi.entities.Invoice.update(id, {
         amount_paid: newPaid,
         balance_due: Math.max(0, newBalance),
         status: newStatus
@@ -69,19 +70,8 @@ export default function InvoiceView() {
   });
 
   const handlePrint = () => {
-    const content = printRef.current;
-    if (!content) return;
-    const win = window.open('', '_blank');
-    win.document.write(`
-      <html><head><title>${invoice.invoice_number}</title>
-      <style>
-        body { margin: 0; font-family: 'Inter', -apple-system, sans-serif; }
-        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-      </style></head>
-      <body>${content.innerHTML}</body></html>
-    `);
-    win.document.close();
-    setTimeout(() => { win.print(); win.close(); }, 500);
+    if (!invoice) return;
+    printInvoicePDF(invoice, business);
   };
 
   if (isLoading) {
@@ -105,7 +95,7 @@ export default function InvoiceView() {
     <div className="space-y-6 max-w-[900px]">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/invoices')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/finance/invoice-generator/list')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -136,14 +126,14 @@ export default function InvoiceView() {
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setPayment({ ...payment, amount: invoice.balance_due || invoice.grand_total || 0 }); setPaymentOpen(true); }}>
             <CreditCard className="h-3.5 w-3.5" /> Record Payment
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate(`/dashboard/invoices/${id}/edit`)}>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate(`/dashboard/finance/invoice-generator/list/${id}/edit`)}>
             <Pencil className="h-3.5 w-3.5" /> Edit
           </Button>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShareOpen(true)}>
             <Share2 className="h-3.5 w-3.5" /> Share
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
-            Print
+          <Button variant="primary" size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handlePrint}>
+            Download PDF
           </Button>
         </div>
       </div>

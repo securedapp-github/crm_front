@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/invoice/api/base44Client';
+import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Input } from '@/invoice/components/ui/input';
 import { Badge } from '@/invoice/components/ui/badge';
 import { Search, CreditCard, Download } from 'lucide-react';
@@ -23,7 +23,7 @@ export default function Payments() {
 
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ['payments'],
-    queryFn: () => base44.entities.Payment.list('-created_date', 200)
+    queryFn: () => invoiceApi.entities.Payment.list('-created_date', 200)
   });
 
   const filtered = payments.filter((p) =>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/invoice/api/base44Client';
+import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/invoice/components/ui/button';
 import { Input } from '@/invoice/components/ui/input';
@@ -12,6 +12,8 @@ import { Plus, Search, MoreHorizontal, Eye, Pencil, Copy, Trash2, FileText, Down
 import { formatCurrency, getStatusColor, getStatusLabel } from '@/invoice/lib/invoiceUtils';
 import { exportInvoicesToCSV } from '@/invoice/lib/exportUtils';
 import { format } from 'date-fns';
+import { printInvoicePDF } from '@/invoice/lib/printUtils';
+import { toast } from 'sonner';
 
 export default function Invoices() {
   const [search, setSearch] = useState('');
@@ -24,11 +26,30 @@ export default function Invoices() {
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices'],
-    queryFn: () => base44.entities.Invoice.list('-created_date', 200)
+    queryFn: () => invoiceApi.entities.Invoice.list('-created_date', 200)
   });
 
+  const { data: businessList } = useQuery({
+    queryKey: ['business'],
+    queryFn: () => invoiceApi.entities.Business.list()
+  });
+  const business = businessList?.[0] || null;
+
+  const handleDownload = async (inv) => {
+    toast.info('Generating PDF...');
+    try {
+      const fullInvResult = await invoiceApi.entities.Invoice.filter({ id: inv.id });
+      const fullInv = fullInvResult?.[0] || inv;
+      printInvoicePDF(fullInv, business);
+      toast.success('PDF generated successfully!');
+    } catch (error) {
+      console.error("PDF generation failed", error);
+      toast.error('Failed to generate PDF');
+    }
+  };
+
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Invoice.delete(id),
+    mutationFn: (id) => invoiceApi.entities.Invoice.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       setDeleteId(null);
@@ -40,11 +61,11 @@ export default function Invoices() {
       const { id, created_date, updated_date, created_by_id, ...data } = invoice;
       data.invoice_number = data.invoice_number + '-COPY';
       data.status = 'draft';
-      return base44.entities.Invoice.create(data);
+      return invoiceApi.entities.Invoice.create(data);
     },
     onSuccess: (newInv) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      navigate(`/dashboard/invoices/${newInv.id}/edit`);
+      navigate(`/dashboard/finance/invoice-generator/list/${newInv.id}/edit`);
     }
   });
 
@@ -73,7 +94,7 @@ export default function Invoices() {
           <h1 className="text-2xl lg:text-3xl font-bold font-display tracking-tight">Invoices</h1>
           <p className="text-sm text-muted-foreground mt-1">{invoices.length} total invoices</p>
         </div>
-        <Link to="/dashboard/invoices/new">
+        <Link to="/dashboard/finance/invoice-generator">
           <Button className="gap-2">
             <Plus className="h-4 w-4" /> New Invoice
           </Button>
@@ -137,7 +158,7 @@ export default function Invoices() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filtered.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/dashboard/invoices/${inv.id}`)}>
+                  <tr key={inv.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/dashboard/finance/invoice-generator/list/${inv.id}`)}>
                     <td className="px-6 py-4 text-sm font-medium">{inv.invoice_number}</td>
                     <td className="px-6 py-4 text-sm">{inv.customer_name}</td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">
@@ -162,14 +183,17 @@ export default function Invoices() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => navigate(`/dashboard/invoices/${inv.id}`)}>
+                          <DropdownMenuItem onClick={() => navigate(`/dashboard/finance/invoice-generator/list/${inv.id}`)}>
                             <Eye className="h-4 w-4 mr-2" /> View
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/dashboard/invoices/${inv.id}/edit`)}>
+                          <DropdownMenuItem onClick={() => navigate(`/dashboard/finance/invoice-generator/list/${inv.id}/edit`)}>
                             <Pencil className="h-4 w-4 mr-2" /> Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => duplicateMutation.mutate(inv)}>
                             <Copy className="h-4 w-4 mr-2" /> Duplicate
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDownload(inv)}>
+                            <Download className="h-4 w-4 mr-2" /> Download PDF
                           </DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(inv.id)}>
                             <Trash2 className="h-4 w-4 mr-2" /> Delete

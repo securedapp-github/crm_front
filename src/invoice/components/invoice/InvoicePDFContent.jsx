@@ -3,7 +3,7 @@ import { formatCurrency, numberToWords } from '@/invoice/lib/invoiceUtils';
 import { getTheme } from '@/invoice/lib/invoiceThemes';
 import { format } from 'date-fns';
 
-export default function InvoicePDFContent({ invoice, business, themeName = 'modern-purple' }) {
+export default function InvoicePDFContent({ invoice, business, themeName = 'securedapp-green' }) {
   const items = invoice.items || [];
   const taxType = invoice.tax_type || 'gst';
   const theme = getTheme(themeName);
@@ -66,25 +66,25 @@ export default function InvoicePDFContent({ invoice, business, themeName = 'mode
           <table className="w-full text-sm">
             <thead>
               <tr className={`${theme.tableHeader} text-xs uppercase tracking-wider`}>
-                <th className="text-left px-4 py-3">#</th>
+                <th className="text-left px-4 py-3" style={{ width: '30px' }}>#</th>
                 <th className="text-left px-4 py-3">Item</th>
-                <th className="text-left px-4 py-3">HSN</th>
-                <th className="text-center px-4 py-3">Qty</th>
-                <th className="text-right px-4 py-3">Rate</th>
-                <th className="text-right px-4 py-3">Disc</th>
+                <th className="text-left px-4 py-3" style={{ width: '70px' }}>HSN</th>
+                <th className="text-center px-4 py-3" style={{ width: '50px' }}>Qty</th>
+                <th className="text-right px-4 py-3" style={{ width: '100px' }}>Rate</th>
+                <th className="text-right px-4 py-3" style={{ width: '55px' }}>Disc</th>
                 {taxType !== 'none' && (
                   <>
                     {taxType === 'gst' ? (
                       <>
-                        <th className="text-right px-4 py-3">CGST</th>
-                        <th className="text-right px-4 py-3">SGST</th>
+                        <th className="text-right px-4 py-3" style={{ width: '80px' }}>CGST</th>
+                        <th className="text-right px-4 py-3" style={{ width: '80px' }}>SGST</th>
                       </>
                     ) : (
-                      <th className="text-right px-4 py-3">IGST</th>
+                      <th className="text-right px-4 py-3" style={{ width: '80px' }}>IGST</th>
                     )}
                   </>
                 )}
-                <th className="text-right px-4 py-3">Total</th>
+                <th className="text-right px-4 py-3" style={{ width: '100px' }}>Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -102,7 +102,7 @@ export default function InvoicePDFContent({ invoice, business, themeName = 'mode
                     </td>
                     <td className="px-4 py-3 opacity-50">{item.hsn_code || '-'}</td>
                     <td className="px-4 py-3 text-center">{item.quantity}</td>
-                    <td className="px-4 py-3 text-right">{formatCurrency(item.rate, invoice.currency)}</td>
+                    <td className="px-4 py-3 text-right" style={{ wordBreak: 'break-all' }}>{formatCurrency(item.rate, invoice.currency)}</td>
                     <td className="px-4 py-3 text-right opacity-50">{item.discount_percent || 0}%</td>
                     {taxType !== 'none' && (
                       <>

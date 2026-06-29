@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/invoice/api/base44Client';
+import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Button } from '@/invoice/components/ui/button';
 import { Input } from '@/invoice/components/ui/input';
 import { Label } from '@/invoice/components/ui/label';
@@ -21,13 +21,13 @@ export default function Customers() {
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => base44.entities.Customer.list('-created_date', 200)
+    queryFn: () => invoiceApi.entities.Customer.list('-created_date', 200)
   });
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      if (editId) return base44.entities.Customer.update(editId, form);
-      return base44.entities.Customer.create(form);
+      if (editId) return invoiceApi.entities.Customer.update(editId, form);
+      return invoiceApi.entities.Customer.create(form);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -38,7 +38,7 @@ export default function Customers() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Customer.delete(id),
+    mutationFn: (id) => invoiceApi.entities.Customer.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       setDeleteId(null);
