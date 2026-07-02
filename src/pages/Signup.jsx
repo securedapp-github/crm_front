@@ -57,7 +57,7 @@ export default function Signup() {
         setOtpOpen(true)
       } else {
         if (!form.email) {
-          setError('Email is required for Sales Person signup')
+          setError('Email is required for Team signup')
           return
         }
         const { name, email, password } = form
@@ -194,7 +194,7 @@ export default function Signup() {
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Sales Person Signup
+                  Team Signup
                 </button>
                 <button 
                   type="button" 
@@ -350,7 +350,7 @@ export default function Signup() {
                   }`} 
                   disabled={loading}
                 >
-                  {loading ? 'Creating Workspace...' : (mode === 'admin' ? 'Launch Admin Account' : 'Register Sales Account')}
+                  {loading ? 'Creating Workspace...' : (mode === 'admin' ? 'Launch Admin Account' : 'Register Team Account')}
                 </button>
               </form>
 
@@ -442,7 +442,7 @@ export default function Signup() {
             <p className="text-xs">
               {pendingRole === 'admin'
                 ? 'Your registration has been placed in the Admin queue. An email confirmation will be sent as soon as your workspace is approved for deployment.'
-                : 'Your profile has been logged in the Sales queue. Please notify your workspace owner to toggle your agent credentials to Active in the team settings.'}
+                : 'Your profile has been logged in the Team queue. Please notify your workspace owner to toggle your credentials to Active in the team settings.'}
             </p>
           </div>
         </Modal>

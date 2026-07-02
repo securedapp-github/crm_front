@@ -184,7 +184,7 @@ export default function Login() {
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                Sales Person Login
+                Team Login
               </button>
               <button 
                 type="button" 

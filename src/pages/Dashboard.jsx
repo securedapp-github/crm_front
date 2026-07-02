@@ -7,7 +7,7 @@ const DEFAULT_SECTIONS = [
 ]
 
 const SALES_SECTIONS = [
-  { href: "/dashboard/sales-dashboard", label: "Sales Dashboard", icon: "🧭" },
+  { href: "/dashboard/sales-dashboard", label: "Team Login", icon: "🧭" },
   { href: "/dashboard/sales/mail", label: "Send Mail", icon: "✉️" },
   { href: "/dashboard/sales/completed", label: "Completed Deals", icon: "✅" },
   { href: "/dashboard/company-assets", label: "Company Assets", icon: "📂" },

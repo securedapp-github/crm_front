@@ -7,6 +7,26 @@ export const api = axios.create({
   withCredentials: true,
 })
 
+// Centralized safe GET request retry interceptor
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const { config } = error;
+    if (!config || !config.retryCount) {
+      config.retryCount = 0;
+    }
+    // Only retry GET requests on network errors or 502/503/504 gateway errors
+    const isRetryable = config.method === 'get' && (!error.response || [502, 503, 504].includes(error.response.status));
+    if (isRetryable && config.retryCount < 2) {
+      config.retryCount += 1;
+      // Exponential backoff: 1s, 2s
+      await new Promise((resolve) => setTimeout(resolve, config.retryCount * 1000));
+      return api(config);
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const registerUser = (data) => api.post('/auth/signup', data)
 export const verifyOTP = (data) => api.post('/auth/verify-otp', data)
 export const resendOTP = (data) => api.post('/auth/resend-otp', data)

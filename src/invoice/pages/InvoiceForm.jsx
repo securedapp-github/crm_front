@@ -8,13 +8,14 @@ import { Label } from '@/invoice/components/ui/label';
 import { Textarea } from '@/invoice/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/invoice/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/invoice/components/ui/tabs';
-import { ArrowLeft, Plus, Save, Send, Eye, Edit3, Palette, Search, Settings } from 'lucide-react';
+import { ArrowLeft, Plus, Save, Send, Eye, Edit3, Palette, Search, Settings, Download } from 'lucide-react';
 import InvoiceItemRow from '@/invoice/components/invoice/InvoiceItemRow';
 import TaxSummary from '@/invoice/components/invoice/TaxSummary';
 import CustomerSelector from '@/invoice/components/invoice/CustomerSelector';
 import ProductSearch from '@/invoice/components/invoice/ProductSearch';
 import InvoicePDFContent from '@/invoice/components/invoice/InvoicePDFContent';
 import { calculateInvoiceTotals, generateInvoiceNumber, numberToWords } from '@/invoice/lib/invoiceUtils';
+import { printInvoicePDF, downloadInvoicePDF } from '@/utils/pdfManager';
 import { invoiceThemes } from '@/invoice/lib/invoiceThemes';
 import { toast } from 'sonner';
 
@@ -29,6 +30,8 @@ export default function InvoiceForm() {
   const [mobileTab, setMobileTab] = useState('edit');
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState(isEdit ? 'Edit Invoice' : 'New Invoice');
 
   const { data: businessList } = useQuery({
     queryKey: ['business'],
@@ -44,6 +47,7 @@ export default function InvoiceForm() {
 
   const [form, setForm] = useState({
     invoice_number: '',
+    invoice_name: '',
     invoice_date: new Date().toISOString().split('T')[0],
     due_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     customer_id: '', customer_name: '', customer_email: '', customer_address: '', customer_gst: '',
@@ -75,6 +79,9 @@ export default function InvoiceForm() {
   useEffect(() => {
     if (existingInvoice?.[0] && isEdit) {
       setForm(existingInvoice[0]);
+      if (existingInvoice[0].invoice_name) {
+        setTitleInput(existingInvoice[0].invoice_name);
+      }
     }
   }, [existingInvoice, isEdit]);
 
@@ -317,13 +324,35 @@ export default function InvoiceForm() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/finance/invoice-generator/list')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
           <div>
-            <h1 className="text-xl lg:text-2xl font-bold font-display tracking-tight">
-              {isEdit ? 'Edit Invoice' : 'New Invoice'}
-            </h1>
+            {isEditingTitle ? (
+              <input
+                type="text"
+                value={titleInput}
+                onChange={(e) => setTitleInput(e.target.value)}
+                onBlur={() => {
+                  setIsEditingTitle(false);
+                  setForm(prev => ({ ...prev, invoice_name: titleInput }));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setIsEditingTitle(false);
+                    setForm(prev => ({ ...prev, invoice_name: titleInput }));
+                  }
+                }}
+                className="text-xl lg:text-2xl font-bold font-display tracking-tight border-b-2 border-indigo-500 focus:outline-none bg-transparent"
+                autoFocus
+              />
+            ) : (
+              <h1 
+                onDoubleClick={() => setIsEditingTitle(true)}
+                onClick={() => setIsEditingTitle(true)}
+                className="text-xl lg:text-2xl font-bold font-display tracking-tight cursor-pointer hover:text-indigo-600 transition-colors"
+                title="Click or double click to edit title"
+              >
+                {form.invoice_name || titleInput}
+              </h1>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -363,6 +392,12 @@ export default function InvoiceForm() {
               <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
                 <Eye className="h-3.5 w-3.5" /> Live Preview
               </h3>
+              <button onClick={() => printInvoicePDF(previewData, business)} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-50 transition flex items-center gap-1.5">
+                <Eye className="h-3.5 w-3.5" /> Print
+              </button>
+              <button onClick={() => downloadInvoicePDF(previewData, business)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition flex items-center gap-1.5">
+                <Download className="h-3.5 w-3.5" /> Download PDF
+              </button>
             </div>
             <div className="overflow-auto max-h-[calc(100vh-180px)] rounded-2xl">
               <div className="scale-[0.8] origin-top-left w-[125%]">

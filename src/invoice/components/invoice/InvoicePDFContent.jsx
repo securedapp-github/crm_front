@@ -1,229 +1,262 @@
 import React from 'react';
 import { formatCurrency, numberToWords } from '@/invoice/lib/invoiceUtils';
-import { getTheme } from '@/invoice/lib/invoiceThemes';
 import { format } from 'date-fns';
 
-export default function InvoicePDFContent({ invoice, business, themeName = 'securedapp-green' }) {
+export default function InvoicePDFContent({ invoice, business }) {
   const items = invoice.items || [];
   const taxType = invoice.tax_type || 'gst';
-  const theme = getTheme(themeName);
-  const isDark = themeName === 'dark-minimal';
-  const bgClass = isDark ? 'bg-gray-950 text-gray-100' : 'bg-white text-gray-900';
 
   return (
-    <div className={`${bgClass} rounded-2xl border shadow-sm overflow-hidden print:shadow-none print:border-0 print:rounded-none`}>
-      <div className={`${theme.headerBg} ${theme.headerText} px-8 py-6`}>
-        <div className="flex items-start justify-between">
-          <div>
-            {business?.logo_url ? (
-              <img src={business.logo_url} alt="Logo" className="h-12 mb-2 object-contain" />
-            ) : (
-              <h2 className="text-2xl font-bold font-display">{business?.company_name || 'Your Business'}</h2>
+    <div className="bg-white text-gray-900 rounded-2xl border shadow-sm p-8 space-y-6 print:shadow-none print:border-0 print:rounded-none print:p-0">
+      {/* Header Row */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-cyan-500 tracking-tight mb-2">Invoice</h1>
+          <div className="text-sm text-gray-500 space-y-1">
+            <p><span className="inline-block w-24">Invoice No #</span> <strong className="text-gray-900">{invoice.invoice_number}</strong></p>
+            <p><span className="inline-block w-24">Invoice Date</span> <strong className="text-gray-900">{invoice.invoice_date ? format(new Date(invoice.invoice_date), 'MMM dd, yyyy') : '-'}</strong></p>
+            {invoice.due_date && (
+              <p><span className="inline-block w-24">Due Date</span> <strong className="text-gray-900">{format(new Date(invoice.due_date), 'MMM dd, yyyy')}</strong></p>
             )}
-            {business?.address_line1 && (
-              <p className={`${theme.headerSubtext} text-sm mt-1`}>
-                {business.address_line1}{business.city ? `, ${business.city}` : ''}{business.state ? `, ${business.state}` : ''} {business.pincode}
-              </p>
-            )}
-            {business?.email && <p className={`${theme.headerSubtext} text-sm`}>{business.email}</p>}
-            {business?.phone && <p className={`${theme.headerSubtext} text-sm`}>{business.phone}</p>}
           </div>
-          <div className="text-right">
-            <h1 className="text-3xl font-bold font-display tracking-tight">INVOICE</h1>
-            <p className={`${theme.headerSubtext} text-sm mt-1`}>{invoice.invoice_number}</p>
-          </div>
+        </div>
+        <div>
+          {business?.logo_url ? (
+            <img src={business.logo_url} alt="Logo" className="max-h-16 max-w-[200px] object-contain" />
+          ) : (
+            <h2 className="text-xl font-bold text-gray-700">{business?.company_name || 'Your Business'}</h2>
+          )}
         </div>
       </div>
 
-      <div className="px-8 py-6 space-y-6">
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <p className="text-xs uppercase tracking-wider font-medium mb-2 opacity-50">Billed To</p>
-            <p className="font-semibold text-base">{invoice.customer_name}</p>
-            {invoice.customer_address && <p className="text-sm opacity-70 mt-0.5">{invoice.customer_address}</p>}
-            {invoice.customer_email && <p className="text-sm opacity-70">{invoice.customer_email}</p>}
-            {invoice.customer_gst && <p className="text-sm opacity-70">GSTIN: {invoice.customer_gst}</p>}
-          </div>
-          <div className="text-right space-y-1">
-            <div className="flex justify-end gap-8 text-sm">
-              <span className="opacity-50">Invoice Date</span>
-              <span className="font-medium">{invoice.invoice_date ? format(new Date(invoice.invoice_date), 'dd MMM yyyy') : '-'}</span>
-            </div>
-            <div className="flex justify-end gap-8 text-sm">
-              <span className="opacity-50">Due Date</span>
-              <span className="font-medium">{invoice.due_date ? format(new Date(invoice.due_date), 'dd MMM yyyy') : '-'}</span>
-            </div>
-            {business?.gst_number && (
-              <div className="flex justify-end gap-8 text-sm">
-                <span className="opacity-50">GSTIN</span>
-                <span className="font-medium">{business.gst_number}</span>
-              </div>
-            )}
-          </div>
+      {/* Billed By & Billed To Blocks */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-cyan-50/55 border border-cyan-100 rounded-xl p-4 space-y-1">
+          <h3 className="text-xs uppercase font-semibold text-cyan-600 tracking-wider mb-2">Billed By</h3>
+          <p className="font-bold text-sm text-gray-900">{business?.company_name || 'Your Business'}</p>
+          {business?.address_line1 && (
+            <p className="text-sm text-gray-600">
+              {business.address_line1}{business.city ? `, ${business.city}` : ''}{business.state ? `, ${business.state}` : ''} {business.pincode}
+            </p>
+          )}
+          {business?.email && <p className="text-sm text-gray-600">Email: {business.email}</p>}
+          {business?.phone && <p className="text-sm text-gray-600">Phone: {business.phone}</p>}
+          {business?.gst_number && <p className="text-sm text-gray-600">GSTIN: {business.gst_number}</p>}
         </div>
 
-        <div className={`${theme.borderColor} border rounded-xl overflow-hidden`}>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className={`${theme.tableHeader} text-xs uppercase tracking-wider`}>
-                <th className="text-left px-4 py-3" style={{ width: '30px' }}>#</th>
-                <th className="text-left px-4 py-3">Item</th>
-                <th className="text-left px-4 py-3" style={{ width: '70px' }}>HSN</th>
-                <th className="text-center px-4 py-3" style={{ width: '50px' }}>Qty</th>
-                <th className="text-right px-4 py-3" style={{ width: '100px' }}>Rate</th>
-                <th className="text-right px-4 py-3" style={{ width: '55px' }}>Disc</th>
-                {taxType !== 'none' && (
+        <div className="bg-cyan-50/55 border border-cyan-100 rounded-xl p-4 space-y-1">
+          <h3 className="text-xs uppercase font-semibold text-cyan-600 tracking-wider mb-2">Billed To</h3>
+          <p className="font-bold text-sm text-gray-900">{invoice.customer_name || '-'}</p>
+          {invoice.customer_address && <p className="text-sm text-gray-600">{invoice.customer_address}</p>}
+          {invoice.customer_email && <p className="text-sm text-gray-600">Email: {invoice.customer_email}</p>}
+          {invoice.customer_gst && <p className="text-sm text-gray-600">GSTIN: {invoice.customer_gst}</p>}
+        </div>
+      </div>
+
+      {/* Items Table */}
+      <div className="border border-gray-200 rounded-xl overflow-hidden">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="bg-cyan-500 text-white text-xs uppercase font-semibold">
+              <th className="text-left px-4 py-3 w-[5%]">#</th>
+              <th className="text-left px-4 py-3 w-[35%]">Item</th>
+              {taxType !== 'none' && <th className="text-center px-4 py-3 w-[10%]">GST Rate</th>}
+              <th className="text-center px-4 py-3 w-[10%]">Quantity</th>
+              <th className="text-right px-4 py-3 w-[12%]">Rate</th>
+              <th className="text-right px-4 py-3 w-[12%]">Amount</th>
+              {taxType !== 'none' && (
+                taxType === 'gst' ? (
                   <>
-                    {taxType === 'gst' ? (
+                    <th className="text-right px-4 py-3 w-[10%]">CGST</th>
+                    <th className="text-right px-4 py-3 w-[10%]">SGST</th>
+                  </>
+                ) : (
+                  <th className="text-right px-4 py-3 w-[12%]">IGST</th>
+                )
+              )}
+              <th className="text-right px-4 py-3 w-[12%]">Total</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 text-gray-700">
+            {items.map((item, i) => {
+              const qty = item.quantity || 0;
+              const rate = item.rate || 0;
+              const baseAmount = qty * rate;
+              const disc = baseAmount * ((item.discount_percent || 0) / 100);
+              const taxable = baseAmount - disc;
+              const taxAmt = taxable * ((item.tax_percent || 0) / 100);
+              const itemTotal = taxable + taxAmt;
+              return (
+                <tr key={i} className="align-top">
+                  <td className="px-4 py-3 text-gray-400">{i + 1}.</td>
+                  <td className="px-4 py-3">
+                    <strong className="text-gray-900 font-medium block">{item.name || '-'}</strong>
+                    {item.description && <p className="text-xs text-gray-400 mt-1">{item.description}</p>}
+                  </td>
+                  {taxType !== 'none' && <td className="px-4 py-3 text-center">{item.tax_percent || 0}%</td>}
+                  <td className="px-4 py-3 text-center">{qty}</td>
+                  <td className="px-4 py-3 text-right">{formatCurrency(rate, invoice.currency)}</td>
+                  <td className="px-4 py-3 text-right">{formatCurrency(baseAmount, invoice.currency)}</td>
+                  {taxType !== 'none' && (
+                    taxType === 'gst' ? (
                       <>
-                        <th className="text-right px-4 py-3" style={{ width: '80px' }}>CGST</th>
-                        <th className="text-right px-4 py-3" style={{ width: '80px' }}>SGST</th>
+                        <td className="px-4 py-3 text-right">{formatCurrency(taxAmt / 2, invoice.currency)}</td>
+                        <td className="px-4 py-3 text-right">{formatCurrency(taxAmt / 2, invoice.currency)}</td>
                       </>
                     ) : (
-                      <th className="text-right px-4 py-3" style={{ width: '80px' }}>IGST</th>
-                    )}
-                  </>
-                )}
-                <th className="text-right px-4 py-3" style={{ width: '100px' }}>Total</th>
+                      <td className="px-4 py-3 text-right">{formatCurrency(taxAmt, invoice.currency)}</td>
+                    )
+                  )}
+                  <td className="px-4 py-3 text-right font-semibold text-gray-900">{formatCurrency(itemTotal, invoice.currency)}</td>
+                </tr>
+              );
+            })}
+            <tr className="bg-gray-50/75 border-t-2 border-gray-200 font-bold text-gray-900">
+              <td colSpan={2} className="px-4 py-3">Total</td>
+              {taxType !== 'none' && <td className="px-4 py-3" />}
+              <td className="px-4 py-3 text-center">{items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</td>
+              <td className="px-4 py-3" />
+              <td className="px-4 py-3 text-right">{formatCurrency(items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0), invoice.currency)}</td>
+              {taxType === 'gst' ? (
+                <>
+                  <td className="px-4 py-3" />
+                  <td className="px-4 py-3" />
+                </>
+              ) : (
+                taxType === 'igst' && <td className="px-4 py-3" />
+              )}
+              <td className="px-4 py-3 text-right text-gray-950">{formatCurrency(invoice.grand_total, invoice.currency)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Bottom Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+        {/* Bank Details */}
+        <div className="bg-cyan-50/55 border border-cyan-100 rounded-xl p-4 self-start space-y-3">
+          <h3 className="text-xs uppercase font-semibold text-cyan-600 tracking-wider">Bank Details</h3>
+          <table className="w-full text-sm border-none">
+            <tbody className="space-y-1">
+              <tr className="align-top">
+                <td className="w-32 text-gray-500 py-0.5"><strong>Account Name</strong></td>
+                <td className="text-gray-800 py-0.5">{invoice.bank_details?.beneficiary_name || business?.beneficiary_name || '-'}</td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {items.map((item, i) => {
-                const base = (item.quantity || 0) * (item.rate || 0);
-                const disc = base * ((item.discount_percent || 0) / 100);
-                const taxable = base - disc;
-                const taxAmt = taxable * ((item.tax_percent || 0) / 100);
-                return (
-                  <tr key={i}>
-                    <td className="px-4 py-3 opacity-40">{i + 1}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{item.name}</p>
-                      {item.description && <p className="opacity-50 text-xs mt-0.5">{item.description}</p>}
-                    </td>
-                    <td className="px-4 py-3 opacity-50">{item.hsn_code || '-'}</td>
-                    <td className="px-4 py-3 text-center">{item.quantity}</td>
-                    <td className="px-4 py-3 text-right" style={{ wordBreak: 'break-all' }}>{formatCurrency(item.rate, invoice.currency)}</td>
-                    <td className="px-4 py-3 text-right opacity-50">{item.discount_percent || 0}%</td>
-                    {taxType !== 'none' && (
-                      <>
-                        {taxType === 'gst' ? (
-                          <>
-                            <td className="px-4 py-3 text-right">{formatCurrency(taxAmt / 2, invoice.currency)}</td>
-                            <td className="px-4 py-3 text-right">{formatCurrency(taxAmt / 2, invoice.currency)}</td>
-                          </>
-                        ) : (
-                          <td className="px-4 py-3 text-right">{formatCurrency(taxAmt, invoice.currency)}</td>
-                        )}
-                      </>
-                    )}
-                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(taxable, invoice.currency)}</td>
-                  </tr>
-                );
-              })}
+              <tr className="align-top">
+                <td className="w-32 text-gray-500 py-0.5"><strong>Account Number</strong></td>
+                <td className="text-gray-800 py-0.5">{invoice.bank_details?.account_number || business?.account_number || '-'}</td>
+              </tr>
+              <tr className="align-top">
+                <td className="w-32 text-gray-500 py-0.5"><strong>IFSC</strong></td>
+                <td className="text-gray-800 py-0.5">{invoice.bank_details?.ifsc_code || business?.ifsc_code || '-'}</td>
+              </tr>
+              {(invoice.bank_details?.swift_code || business?.swift_code) && (
+                <tr className="align-top">
+                  <td className="w-32 text-gray-500 py-0.5"><strong>SWIFT Code</strong></td>
+                  <td className="text-gray-800 py-0.5">{invoice.bank_details?.swift_code || business?.swift_code}</td>
+                </tr>
+              )}
+              <tr className="align-top">
+                <td className="w-32 text-gray-500 py-0.5"><strong>Bank</strong></td>
+                <td className="text-gray-800 py-0.5">{invoice.bank_details?.bank_name || business?.bank_name || '-'}</td>
+              </tr>
+              {(invoice.bank_details?.upi_id || business?.upi_id) && (
+                <tr className="align-top">
+                  <td className="w-32 text-gray-500 py-0.5"><strong>UPI</strong></td>
+                  <td className="text-gray-800 py-0.5">{invoice.bank_details?.upi_id || business?.upi_id}</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
-        <div className="flex justify-end">
-          <div className="w-[320px] space-y-2 text-sm">
+        {/* Summary and Signature */}
+        <div className="flex flex-col items-end space-y-4">
+          <div className="w-full max-w-[320px] text-sm space-y-2 text-gray-600">
             <div className="flex justify-between">
-              <span className="opacity-50">Subtotal</span>
-              <span>{formatCurrency(invoice.subtotal, invoice.currency)}</span>
+              <span>Amount</span>
+              <strong className="text-gray-900">{formatCurrency(invoice.subtotal, invoice.currency)}</strong>
             </div>
             {(invoice.total_discount || 0) > 0 && (
               <div className="flex justify-between text-green-600">
                 <span>Discount</span>
-                <span>-{formatCurrency(invoice.total_discount, invoice.currency)}</span>
+                <strong>-{formatCurrency(invoice.total_discount, invoice.currency)}</strong>
               </div>
             )}
             {taxType === 'gst' && (
               <>
                 <div className="flex justify-between">
-                  <span className="opacity-50">CGST</span>
-                  <span>{formatCurrency(invoice.cgst_amount, invoice.currency)}</span>
+                  <span>CGST</span>
+                  <strong className="text-gray-900">{formatCurrency(invoice.cgst_amount, invoice.currency)}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="opacity-50">SGST</span>
-                  <span>{formatCurrency(invoice.sgst_amount, invoice.currency)}</span>
+                  <span>SGST</span>
+                  <strong className="text-gray-900">{formatCurrency(invoice.sgst_amount, invoice.currency)}</strong>
                 </div>
               </>
             )}
             {taxType === 'igst' && (
               <div className="flex justify-between">
-                <span className="opacity-50">IGST</span>
-                <span>{formatCurrency(invoice.igst_amount, invoice.currency)}</span>
+                <span>IGST</span>
+                <strong className="text-gray-900">{formatCurrency(invoice.igst_amount, invoice.currency)}</strong>
               </div>
             )}
             {(invoice.additional_charges_amount || 0) > 0 && (
               <div className="flex justify-between">
-                <span className="opacity-50">{invoice.additional_charges_label || 'Additional Charges'}</span>
-                <span>{formatCurrency(invoice.additional_charges_amount, invoice.currency)}</span>
+                <span>{invoice.additional_charges_label || 'Additional Charges'}</span>
+                <strong className="text-gray-900">{formatCurrency(invoice.additional_charges_amount, invoice.currency)}</strong>
               </div>
             )}
-            <div className="border-t pt-2 flex justify-between">
-              <span className="font-bold text-base">Total</span>
-              <span className="font-bold text-lg">{formatCurrency(invoice.grand_total, invoice.currency)}</span>
+            <div className="border-y-2 border-gray-900 py-2.5 my-2 flex justify-between font-bold text-gray-900 text-base">
+              <span>Total (INR)</span>
+              <span>{formatCurrency(invoice.grand_total, invoice.currency)}</span>
             </div>
             {(invoice.amount_paid || 0) > 0 && (
-              <>
-                <div className="flex justify-between text-green-600">
+              <div className="space-y-1">
+                <div className="flex justify-between text-green-600 text-xs">
                   <span>Amount Paid</span>
-                  <span>-{formatCurrency(invoice.amount_paid, invoice.currency)}</span>
+                  <strong>-{formatCurrency(invoice.amount_paid, invoice.currency)}</strong>
                 </div>
-                <div className="flex justify-between font-semibold">
+                <div className="flex justify-between font-semibold text-gray-800">
                   <span>Balance Due</span>
-                  <span>{formatCurrency(invoice.balance_due, invoice.currency)}</span>
+                  <strong>{formatCurrency(invoice.balance_due, invoice.currency)}</strong>
                 </div>
-              </>
+              </div>
             )}
           </div>
-        </div>
 
-        <div className={`${theme.totalBg} rounded-xl px-4 py-3`}>
-          <p className="text-xs opacity-50 uppercase tracking-wider mb-1">Total in Words</p>
-          <p className="text-sm font-medium">{numberToWords(invoice.grand_total || 0)}</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-6 text-sm">
-          {invoice.notes && (
-            <div>
-              <p className="text-xs opacity-50 uppercase tracking-wider mb-1">Notes</p>
-              <p className="opacity-70">{invoice.notes}</p>
-            </div>
-          )}
-          {invoice.terms_and_conditions && (
-            <div>
-              <p className="text-xs opacity-50 uppercase tracking-wider mb-1">Terms & Conditions</p>
-              <p className="opacity-70">{invoice.terms_and_conditions}</p>
-            </div>
-          )}
-        </div>
-
-        {business?.signature_url && (
-          <div className="flex justify-end pt-4">
-            <div className="text-center">
-              <img src={business.signature_url} alt="Signature" className="h-16 object-contain" />
-              <div className="border-t border-gray-300 dark:border-gray-700 mt-2 pt-1">
-                <p className="text-xs opacity-50">Authorized Signatory</p>
-              </div>
+          <div className="text-center pt-2 w-48">
+            {business?.signature_url ? (
+              <img src={business.signature_url} alt="Signature" className="h-12 object-contain mx-auto mb-1" />
+            ) : (
+              <div className="h-12"></div>
+            )}
+            <div className="border-t border-gray-200 pt-1">
+              <p className="text-[10px] text-gray-400">Authorized Signatory</p>
             </div>
           </div>
-        )}
+        </div>
+      </div>
 
-        {(business?.bank_name || invoice?.bank_details?.bank_name) && (
-          <div className="border-t pt-4 text-sm">
-            <p className="text-xs opacity-50 uppercase tracking-wider mb-2">Bank Details</p>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 opacity-70">
-              {(invoice.bank_details?.beneficiary_name || business?.beneficiary_name) && <p className="col-span-2">Beneficiary: {invoice.bank_details?.beneficiary_name || business?.beneficiary_name}</p>}
-              <p>Bank: {invoice.bank_details?.bank_name || business?.bank_name}{invoice.bank_details?.branch_name || business?.branch_name ? `, ${invoice.bank_details?.branch_name || business?.branch_name}` : ''}</p>
-              <p>A/C: {invoice.bank_details?.account_number || business?.account_number}</p>
-              {invoice.bank_details?.account_type || business?.account_type ? <p>Type: {invoice.bank_details?.account_type || business?.account_type}</p> : null}
-              <p>IFSC: {invoice.bank_details?.ifsc_code || business?.ifsc_code}</p>
-              {(invoice.bank_details?.swift_code || business?.swift_code) && <p>SWIFT: {invoice.bank_details?.swift_code || business?.swift_code}</p>}
-              {(invoice.bank_details?.upi_id || business?.upi_id) && <p>UPI: {invoice.bank_details?.upi_id || business?.upi_id}</p>}
-            </div>
-          </div>
-        )}
+      {/* Terms & Conditions */}
+      {invoice.terms_and_conditions && (
+        <div className="text-xs text-gray-500 pt-2">
+          <h4 className="font-semibold text-cyan-600 mb-1">Terms and Conditions</h4>
+          <ol className="list-decimal list-inside space-y-0.5">
+            {invoice.terms_and_conditions.split('\n').filter(line => line.trim()).map((line, idx) => (
+              <li key={idx}>{line}</li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {/* Contact enquiry footer */}
+      <div className="border-t border-gray-100 pt-4 text-center text-xs text-gray-600">
+        For any enquiry, reach out via email at <strong className="text-gray-800">{business?.email || '-'}</strong>, call on <strong className="text-gray-800">{business?.phone || '-'}</strong>
+      </div>
+
+      <div className="text-center text-[10px] text-gray-400 pt-2">
+        Generated by SecuredApp CRM
       </div>
     </div>
   );

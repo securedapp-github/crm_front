@@ -12,7 +12,7 @@ import { Plus, Search, MoreHorizontal, Eye, Pencil, Copy, Trash2, FileText, Down
 import { formatCurrency, getStatusColor, getStatusLabel } from '@/invoice/lib/invoiceUtils';
 import { exportInvoicesToCSV } from '@/invoice/lib/exportUtils';
 import { format } from 'date-fns';
-import { printInvoicePDF } from '@/invoice/lib/printUtils';
+import { printInvoicePDF, downloadInvoicePDF } from '@/utils/pdfManager';
 import { toast } from 'sonner';
 
 export default function Invoices() {
@@ -35,7 +35,7 @@ export default function Invoices() {
   });
   const business = businessList?.[0] || null;
 
-  const handleDownload = async (inv) => {
+  const handlePrint = async (inv) => {
     toast.info('Generating PDF...');
     try {
       const fullInvResult = await invoiceApi.entities.Invoice.filter({ id: inv.id });
@@ -45,6 +45,19 @@ export default function Invoices() {
     } catch (error) {
       console.error("PDF generation failed", error);
       toast.error('Failed to generate PDF');
+    }
+  };
+
+  const handleDownloadPDF = async (inv) => {
+    toast.info('Downloading PDF...');
+    try {
+      const fullInvResult = await invoiceApi.entities.Invoice.filter({ id: inv.id });
+      const fullInv = fullInvResult?.[0] || inv;
+      downloadInvoicePDF(fullInv, business);
+      toast.success('PDF downloaded successfully!');
+    } catch (error) {
+      console.error("PDF download failed", error);
+      toast.error('Failed to download PDF');
     }
   };
 
@@ -192,7 +205,10 @@ export default function Invoices() {
                           <DropdownMenuItem onClick={() => duplicateMutation.mutate(inv)}>
                             <Copy className="h-4 w-4 mr-2" /> Duplicate
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDownload(inv)}>
+                          <DropdownMenuItem onClick={() => handlePrint(inv)}>
+                            <FileText className="h-4 w-4 mr-2" /> Print
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDownloadPDF(inv)}>
                             <Download className="h-4 w-4 mr-2" /> Download PDF
                           </DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(inv.id)}>

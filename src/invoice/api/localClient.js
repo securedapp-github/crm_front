@@ -1,15 +1,41 @@
 const API_BASE = '/local-api';
 
 const fetchJSON = async (url, options = {}) => {
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`API error ${res.status}: ${err}`);
+  const { timeout = 10000 } = options;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      signal: controller.signal,
+      ...options,
+    });
+    clearTimeout(id);
+
+    if (!res.ok) {
+      let errMsg = `Request failed with status ${res.status}`;
+      try {
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const jsonErr = await res.json();
+          errMsg = jsonErr.message || jsonErr.error || errMsg;
+        } else {
+          const textErr = await res.text();
+          if (textErr && textErr.length < 150 && !textErr.includes('<!DOCTYPE html>')) {
+            errMsg = textErr;
+          }
+        }
+      } catch (_) {}
+      throw new Error(errMsg);
+    }
+    return res.json();
+  } catch (err) {
+    clearTimeout(id);
+    console.error('API request error:', err.message);
+    throw new Error(err.message || 'An unexpected connection error occurred');
   }
-  return res.json();
 };
 
 const createEntityClient = (entityName) => ({
@@ -56,7 +82,44 @@ export const invoiceApi = {
   },
   integrations: {
     Core: {
-      UploadFile: async () => ({ file_url: '' }),
+      UploadFile: async ({ file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        try {
+          const res = await fetch(`${API_BASE}/upload`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          if (!res.ok) {
+            let errMsg = `Upload failed with status ${res.status}`;
+            try {
+              const contentType = res.headers.get('content-type');
+              if (contentType && contentType.includes('application/json')) {
+                const jsonErr = await res.json();
+                errMsg = jsonErr.message || jsonErr.error || errMsg;
+              } else {
+                const textErr = await res.text();
+                if (textErr && textErr.length < 150 && !textErr.includes('<!DOCTYPE html>')) {
+                  errMsg = textErr;
+                }
+              }
+            } catch (_) {}
+            throw new Error(errMsg);
+          }
+          return res.json();
+        } catch (err) {
+          clearTimeout(timeoutId);
+          console.error('File upload error:', err.message);
+          throw new Error(err.message || 'An error occurred during file upload');
+        }
+      },
     },
   },
 };

@@ -59,11 +59,17 @@ export function generateInvoiceNumber(prefix, number) {
 }
 
 export function formatCurrency(amount, currency = 'INR') {
-  const num = Number(amount) || 0;
-  if (currency === 'INR') {
-    return '₹' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const num = Number(amount);
+  const cleanNum = isNaN(num) ? 0 : num;
+  const cleanCurrency = String(currency || 'INR').toUpperCase();
+  if (cleanCurrency === 'INR') {
+    return '₹' + cleanNum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(num);
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: cleanCurrency }).format(cleanNum);
+  } catch (err) {
+    return `${cleanCurrency} ${cleanNum.toFixed(2)}`;
+  }
 }
 
 export function getStatusColor(status) {
@@ -93,25 +99,36 @@ export function getStatusLabel(status) {
 }
 
 export function numberToWords(num) {
-  if (num === 0) return 'Zero';
+  const n = Number(num);
+  if (isNaN(n) || n === 0) return 'Zero Rupees Only';
+
+  const intPart = Math.floor(Math.abs(n));
+  const decPart = Math.round((Math.abs(n) - intPart) * 100);
+
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
   'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
   const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
-  function convert(n) {
-    if (n < 20) return ones[n];
-    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
-    if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convert(n % 100) : '');
-    if (n < 100000) return convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + convert(n % 1000) : '');
-    if (n < 10000000) return convert(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + convert(n % 100000) : '');
-    return convert(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 ? ' ' + convert(n % 10000000) : '');
+  function convert(val) {
+    if (val === 0) return '';
+    if (val < 20) return ones[val];
+    if (val < 100) return tens[Math.floor(val / 10)] + (val % 10 ? ' ' + ones[val % 10] : '');
+    if (val < 1000) return ones[Math.floor(val / 100)] + ' Hundred' + (val % 100 ? ' ' + convert(val % 100) : '');
+    if (val < 100000) return convert(Math.floor(val / 1000)) + ' Thousand' + (val % 1000 ? ' ' + convert(val % 1000) : '');
+    if (val < 10000000) return convert(Math.floor(val / 100000)) + ' Lakh' + (val % 100000 ? ' ' + convert(val % 100000) : '');
+    return convert(Math.floor(val / 10000000)) + ' Crore' + (val % 10000000 ? ' ' + convert(val % 10000000) : '');
   }
 
-  const intPart = Math.floor(Math.abs(num));
-  const decPart = Math.round((Math.abs(num) - intPart) * 100);
+  let result = '';
+  if (intPart > 0) {
+    result += convert(intPart) + ' Rupees';
+  } else {
+    result += 'Zero Rupees';
+  }
 
-  let result = convert(intPart) + ' Rupees';
-  if (decPart > 0) result += ' and ' + convert(decPart) + ' Paise';
+  if (decPart > 0) {
+    result += ' and ' + convert(decPart) + ' Paise';
+  }
   result += ' Only';
   return result;
 }

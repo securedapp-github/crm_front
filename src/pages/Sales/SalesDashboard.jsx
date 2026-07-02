@@ -370,7 +370,7 @@ export default function SalesDashboard() {
   return (
     <div className="space-y-6 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-slate-900">Sales Dashboard</h2>
+        <h2 className="text-2xl font-semibold text-slate-900">Team Login</h2>
         <button onClick={fetchAll} disabled={loading} className={`px-4 py-2 rounded-lg text-sm ${loading ? 'bg-slate-100 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>{loading ? 'Refreshing...' : 'Refresh Data'}</button>
       </div>
 
