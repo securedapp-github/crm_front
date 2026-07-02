@@ -4,6 +4,33 @@ import html2pdf from 'html2pdf.js';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+// ── Helpers ──────────────────────────────────────────────────────────
+
+const isDev = typeof window !== 'undefined' && 
+  (window.location?.hostname === 'localhost' || 
+   window.location?.hostname === '127.0.0.1' || 
+   window.location?.hostname === '::1');
+
+function logDebug(...args) {
+  if (isDev) {
+    console.log(...args);
+  }
+}
+
+function logError(...args) {
+  console.error(...args);
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // ── Invoice HTML ──────────────────────────────────────────────────────
 
 export function generateInvoiceHTML(invoice, business) {
@@ -14,7 +41,7 @@ export function generateInvoiceHTML(invoice, business) {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Invoice ${invoice.invoice_number || 'Draft'}</title>
+      <title>Invoice ${escapeHtml(invoice.invoice_number || 'Draft')}</title>
     </head>
     <body>
       <style>
@@ -244,31 +271,31 @@ export function generateInvoiceHTML(invoice, business) {
         <div class="invoice-title-section">
           <h1 class="invoice-title">Invoice</h1>
           <div class="invoice-meta-info">
-            <p><span>Invoice No #</span> <strong>${invoice.invoice_number}</strong></p>
-            <p><span>Invoice Date</span> <strong>${invoice.invoice_date ? format(new Date(invoice.invoice_date), 'MMM dd, yyyy') : '-'}</strong></p>
-            ${invoice.due_date ? `<p><span>Due Date</span> <strong>${format(new Date(invoice.due_date), 'MMM dd, yyyy')}</strong></p>` : ''}
+            <p><span>Invoice No #</span> <strong>${escapeHtml(invoice.invoice_number)}</strong></p>
+            <p><span>Invoice Date</span> <strong>${invoice.invoice_date ? escapeHtml(format(new Date(invoice.invoice_date), 'MMM dd, yyyy')) : '-'}</strong></p>
+            ${invoice.due_date ? `<p><span>Due Date</span> <strong>${escapeHtml(format(new Date(invoice.due_date), 'MMM dd, yyyy'))}</strong></p>` : ''}
           </div>
         </div>
         <div class="logo-container">
-          ${business?.logo_url ? `<img src="${business.logo_url}" style="max-height: 60px; max-width: 200px; object-fit: contain;" />` : ''}
+          ${business?.logo_url ? `<img src="${escapeHtml(business.logo_url)}" style="max-height: 60px; max-width: 200px; object-fit: contain;" />` : ''}
         </div>
       </div>
 
       <div class="meta-grid">
         <div class="meta-block">
           <h3>Billed By</h3>
-          <p class="client-name">${business?.company_name || 'Your Business'}</p>
-          ${business?.address_line1 ? `<p>${business.address_line1}${business.city ? `, ${business.city}` : ''}${business.state ? `, ${business.state}` : ''} ${business.pincode || ''}</p>` : ''}
-          ${business?.email ? `<p>Email: ${business.email}</p>` : ''}
-          ${business?.phone ? `<p>Phone: ${business.phone}</p>` : ''}
-          ${business?.gst_number ? `<p>GSTIN: ${business.gst_number}</p>` : ''}
+          <p class="client-name">${escapeHtml(business?.company_name || 'Your Business')}</p>
+          ${business?.address_line1 ? `<p>${escapeHtml(business.address_line1)}${business.city ? `, ${escapeHtml(business.city)}` : ''}${business.state ? `, ${escapeHtml(business.state)}` : ''} ${escapeHtml(business.pincode || '')}</p>` : ''}
+          ${business?.email ? `<p>Email: ${escapeHtml(business.email)}</p>` : ''}
+          ${business?.phone ? `<p>Phone: ${escapeHtml(business.phone)}</p>` : ''}
+          ${business?.gst_number ? `<p>GSTIN: ${escapeHtml(business.gst_number)}</p>` : ''}
         </div>
         <div class="meta-block">
           <h3>Billed To</h3>
-          <p class="client-name">${invoice.customer_name || '-'}</p>
-          ${invoice.customer_address ? `<p>${invoice.customer_address}</p>` : ''}
-          ${invoice.customer_email ? `<p>${invoice.customer_email}</p>` : ''}
-          ${invoice.customer_gst ? `<p>GSTIN: ${invoice.customer_gst}</p>` : ''}
+          <p class="client-name">${escapeHtml(invoice.customer_name || '-')}</p>
+          ${invoice.customer_address ? `<p>${escapeHtml(invoice.customer_address)}</p>` : ''}
+          ${invoice.customer_email ? `<p>${escapeHtml(invoice.customer_email)}</p>` : ''}
+          ${invoice.customer_gst ? `<p>GSTIN: ${escapeHtml(invoice.customer_gst)}</p>` : ''}
         </div>
       </div>
 
@@ -298,20 +325,20 @@ export function generateInvoiceHTML(invoice, business) {
               <tr>
                 <td>${i + 1}.</td>
                 <td>
-                  <strong style="color: #1e293b;">${item.name || '-'}</strong>
-                  ${item.description ? `<div class="item-desc">${item.description}</div>` : ''}
+                  <strong style="color: #1e293b;">${escapeHtml(item.name || '-')}</strong>
+                  ${item.description ? `<div class="item-desc">${escapeHtml(item.description)}</div>` : ''}
                 </td>
                 ${taxType !== 'none' ? `<td class="text-center">${item.tax_percent || 0}%</td>` : ''}
                 <td class="text-center">${qty}</td>
-                <td class="text-right">${formatCurrency(rate, invoice.currency)}</td>
-                <td class="text-right">${formatCurrency(baseAmount, invoice.currency)}</td>
+                <td class="text-right">${escapeHtml(formatCurrency(rate, invoice.currency))}</td>
+                <td class="text-right">${escapeHtml(formatCurrency(baseAmount, invoice.currency))}</td>
                 ${taxType !== 'none' ? (taxType === 'gst' ? `
-                  <td class="text-right">${formatCurrency(taxAmt / 2, invoice.currency)}</td>
-                  <td class="text-right">${formatCurrency(taxAmt / 2, invoice.currency)}</td>
+                  <td class="text-right">${escapeHtml(formatCurrency(taxAmt / 2, invoice.currency))}</td>
+                  <td class="text-right">${escapeHtml(formatCurrency(taxAmt / 2, invoice.currency))}</td>
                 ` : `
-                  <td class="text-right">${formatCurrency(taxAmt, invoice.currency)}</td>
+                  <td class="text-right">${escapeHtml(formatCurrency(taxAmt, invoice.currency))}</td>
                 `) : ''}
-                <td class="text-right" style="font-weight: 600; color: #1e293b;">${formatCurrency(itemTotal, invoice.currency)}</td>
+                <td class="text-right" style="font-weight: 600; color: #1e293b;">${escapeHtml(formatCurrency(itemTotal, invoice.currency))}</td>
               </tr>
             `;
           }).join('')}
@@ -320,9 +347,9 @@ export function generateInvoiceHTML(invoice, business) {
             ${taxType !== 'none' ? '<td></td>' : ''}
             <td class="text-center" style="font-weight: 700;">${items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</td>
             <td></td>
-            <td class="text-right" style="font-weight: 700;">${formatCurrency(items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0), invoice.currency)}</td>
+            <td class="text-right" style="font-weight: 700;">${escapeHtml(formatCurrency(items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0), invoice.currency))}</td>
             ${taxType === 'gst' ? '<td></td><td></td>' : (taxType === 'igst' ? '<td></td>' : '')}
-            <td class="text-right" style="font-weight: 700; color: #0f172a;">${formatCurrency(invoice.grand_total, invoice.currency)}</td>
+            <td class="text-right" style="font-weight: 700; color: #0f172a;">${escapeHtml(formatCurrency(invoice.grand_total, invoice.currency))}</td>
           </tr>
         </tbody>
       </table>
@@ -331,12 +358,12 @@ export function generateInvoiceHTML(invoice, business) {
         <div class="bank-details-box">
           <h3>Bank Details</h3>
           <table>
-            <tr><td><strong>Account Name</strong></td><td>${invoice.bank_details?.beneficiary_name || business?.beneficiary_name || '-'}</td></tr>
-            <tr><td><strong>Account Number</strong></td><td>${invoice.bank_details?.account_number || business?.account_number || '-'}</td></tr>
-            <tr><td><strong>IFSC</strong></td><td>${invoice.bank_details?.ifsc_code || business?.ifsc_code || '-'}</td></tr>
-            ${(invoice.bank_details?.swift_code || business?.swift_code) ? `<tr><td><strong>SWIFT Code</strong></td><td>${invoice.bank_details?.swift_code || business?.swift_code}</td></tr>` : ''}
-            <tr><td><strong>Bank</strong></td><td>${invoice.bank_details?.bank_name || business?.bank_name || '-'}</td></tr>
-            ${(invoice.bank_details?.upi_id || business?.upi_id) ? `<tr><td><strong>UPI</strong></td><td>${invoice.bank_details?.upi_id || business?.upi_id}</td></tr>` : ''}
+            <tr><td><strong>Account Name</strong></td><td>${escapeHtml(invoice.bank_details?.beneficiary_name || business?.beneficiary_name || '-')}</td></tr>
+            <tr><td><strong>Account Number</strong></td><td>${escapeHtml(invoice.bank_details?.account_number || business?.account_number || '-')}</td></tr>
+            <tr><td><strong>IFSC</strong></td><td>${escapeHtml(invoice.bank_details?.ifsc_code || business?.ifsc_code || '-')}</td></tr>
+            ${(invoice.bank_details?.swift_code || business?.swift_code) ? `<tr><td><strong>SWIFT Code</strong></td><td>${escapeHtml(invoice.bank_details?.swift_code || business?.swift_code)}</td></tr>` : ''}
+            <tr><td><strong>Bank</strong></td><td>${escapeHtml(invoice.bank_details?.bank_name || business?.bank_name || '-')}</td></tr>
+            ${(invoice.bank_details?.upi_id || business?.upi_id) ? `<tr><td><strong>UPI</strong></td><td>${escapeHtml(invoice.bank_details?.upi_id || business?.upi_id)}</td></tr>` : ''}
           </table>
         </div>
         
@@ -344,54 +371,54 @@ export function generateInvoiceHTML(invoice, business) {
           <div class="invoice-summary-box">
             <div class="summary-row">
               <span>Amount</span>
-              <strong>${formatCurrency(invoice.subtotal, invoice.currency)}</strong>
+              <strong>${escapeHtml(formatCurrency(invoice.subtotal, invoice.currency))}</strong>
             </div>
             ${(invoice.total_discount || 0) > 0 ? `
               <div class="summary-row" style="color: #16a34a;">
                 <span>Discount</span>
-                <strong>-${formatCurrency(invoice.total_discount, invoice.currency)}</strong>
+                <strong>-${escapeHtml(formatCurrency(invoice.total_discount, invoice.currency))}</strong>
               </div>
             ` : ''}
             ${taxType === 'gst' ? `
               <div class="summary-row">
                 <span>CGST</span>
-                <strong>${formatCurrency(invoice.cgst_amount, invoice.currency)}</strong>
+                <strong>${escapeHtml(formatCurrency(invoice.cgst_amount, invoice.currency))}</strong>
               </div>
               <div class="summary-row">
                 <span>SGST</span>
-                <strong>${formatCurrency(invoice.sgst_amount, invoice.currency)}</strong>
+                <strong>${escapeHtml(formatCurrency(invoice.sgst_amount, invoice.currency))}</strong>
               </div>
             ` : ''}
             ${taxType === 'igst' ? `
               <div class="summary-row">
                 <span>IGST</span>
-                <strong>${formatCurrency(invoice.igst_amount, invoice.currency)}</strong>
+                <strong>${escapeHtml(formatCurrency(invoice.igst_amount, invoice.currency))}</strong>
               </div>
             ` : ''}
             ${(invoice.additional_charges_amount || 0) > 0 ? `
               <div class="summary-row">
-                <span>${invoice.additional_charges_label || 'Additional Charges'}</span>
-                <strong>${formatCurrency(invoice.additional_charges_amount, invoice.currency)}</strong>
+                <span>${escapeHtml(invoice.additional_charges_label || 'Additional Charges')}</span>
+                <strong>${escapeHtml(formatCurrency(invoice.additional_charges_amount, invoice.currency))}</strong>
               </div>
             ` : ''}
             <div class="summary-row grand-total-row">
               <span>Total (INR)</span>
-              <strong>${formatCurrency(invoice.grand_total, invoice.currency)}</strong>
+              <strong>${escapeHtml(formatCurrency(invoice.grand_total, invoice.currency))}</strong>
             </div>
             ${(invoice.amount_paid || 0) > 0 ? `
               <div class="summary-row" style="color: #16a34a; font-size: 12px; margin-top: 4px;">
                 <span>Amount Paid</span>
-                <strong>-${formatCurrency(invoice.amount_paid, invoice.currency)}</strong>
+                <strong>-${escapeHtml(formatCurrency(invoice.amount_paid, invoice.currency))}</strong>
               </div>
               <div class="summary-row" style="font-weight: 600; font-size: 13px;">
                 <span>Balance Due</span>
-                <strong>${formatCurrency(invoice.balance_due, invoice.currency)}</strong>
+                <strong>${escapeHtml(formatCurrency(invoice.balance_due, invoice.currency))}</strong>
               </div>
             ` : ''}
           </div>
           
           <div class="signature-container">
-            ${business?.signature_url ? `<img src="${business.signature_url}" />` : '<div style="height: 50px;"></div>'}
+            ${business?.signature_url ? `<img src="${escapeHtml(business.signature_url)}" />` : '<div style="height: 50px;"></div>'}
             <div class="signature-line">Authorized Signatory</div>
           </div>
         </div>
@@ -401,13 +428,13 @@ export function generateInvoiceHTML(invoice, business) {
         <div class="terms-conditions">
           <h4>Terms and Conditions</h4>
           <ol>
-            ${invoice.terms_and_conditions.split('\n').filter(line => line.trim()).map(line => `<li>${line}</li>`).join('')}
+            ${invoice.terms_and_conditions.split('\n').filter(line => line.trim()).map(line => `<li>${escapeHtml(line)}</li>`).join('')}
           </ol>
         </div>
       ` : ''}
 
       <div class="enquiry-footer">
-        For any enquiry, reach out via email at <strong>${business?.email || '-'}</strong>, call on <strong>${business?.phone || '-'}</strong>
+        For any enquiry, reach out via email at <strong>${escapeHtml(business?.email || '-')}</strong>, call on <strong>${escapeHtml(business?.phone || '-')}</strong>
       </div>
 
       <div class="refrens-footer">
@@ -476,14 +503,14 @@ export function generatePayslipHTML(data, user, business) {
 
   const earningsHtml = earningsRows.map(row => `
     <tr>
-      <td>${row.label}</td>
+      <td>${row.label === '&nbsp;' ? '&nbsp;' : escapeHtml(row.label)}</td>
       <td class="text-right">${row.value !== null ? `₹${row.value.toFixed(2)}` : ''}</td>
     </tr>
   `).join('');
 
   const deductionsHtml = deductionsRows.map(row => `
     <tr>
-      <td>${row.label}</td>
+      <td>${row.label === '&nbsp;' ? '&nbsp;' : escapeHtml(row.label)}</td>
       <td class="text-right">${row.value !== null ? `₹${row.value.toFixed(2)}` : ''}</td>
     </tr>
   `).join('');
@@ -492,7 +519,7 @@ export function generatePayslipHTML(data, user, business) {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Payslip - ${user?.name || 'Employee'} - ${monthName} ${data.year}</title>
+      <title>Payslip - ${escapeHtml(user?.name || 'Employee')} - ${escapeHtml(monthName)} ${escapeHtml(data.year)}</title>
     </head>
     <body>
       <style>
@@ -544,13 +571,13 @@ export function generatePayslipHTML(data, user, business) {
       </style>
       <div class="header">
         <div>
-          ${business?.logo_url ? `<img src="${business.logo_url}" style="height: 40px; margin-bottom: 8px; object-fit: contain;" />` : ''}
-          <h1 style="margin: 0 0 4px 0; font-size: 24px; color: #065f46; font-weight: 700;">${business?.company_name || 'Your Company'}</h1>
-          ${business?.address_line1 ? `<p>${business.address_line1}${business.city ? `, ${business.city}` : ''}</p>` : ''}
+          ${business?.logo_url ? `<img src="${escapeHtml(business.logo_url)}" style="height: 40px; margin-bottom: 8px; object-fit: contain;" />` : ''}
+          <h1 style="margin: 0 0 4px 0; font-size: 24px; color: #065f46; font-weight: 700;">${escapeHtml(business?.company_name || 'Your Company')}</h1>
+          ${business?.address_line1 ? `<p>${escapeHtml(business.address_line1)}${business.city ? `, ${escapeHtml(business.city)}` : ''}</p>` : ''}
         </div>
         <div class="header-right">
           <h2>PAYSLIP</h2>
-          <p>For ${monthName} ${data.year}</p>
+          <p>For ${escapeHtml(monthName)} ${escapeHtml(data.year)}</p>
         </div>
       </div>
 
@@ -558,19 +585,19 @@ export function generatePayslipHTML(data, user, business) {
         <div class="details-block">
           <h3>Employee Summary</h3>
           <table class="details-table">
-            <tr><td class="detail-label">Employee Name:</td><td class="detail-value">${user?.name || '-'}</td></tr>
-            <tr><td class="detail-label">Employee ID:</td><td class="detail-value">${data.employeeId || user?.employeeId || '-'}</td></tr>
-            <tr><td class="detail-label">Designation:</td><td class="detail-value">${data.designation || user?.designation || '-'}</td></tr>
-            <tr><td class="detail-label">Department:</td><td class="detail-value">${data.department || user?.department || '-'}</td></tr>
+            <tr><td class="detail-label">Employee Name:</td><td class="detail-value">${escapeHtml(user?.name || '-')}</td></tr>
+            <tr><td class="detail-label">Employee ID:</td><td class="detail-value">${escapeHtml(data.employeeId || user?.employeeId || '-')}</td></tr>
+            <tr><td class="detail-label">Designation:</td><td class="detail-value">${escapeHtml(data.designation || user?.designation || '-')}</td></tr>
+            <tr><td class="detail-label">Department:</td><td class="detail-value">${escapeHtml(data.department || user?.department || '-')}</td></tr>
           </table>
         </div>
         <div class="details-block">
           <h3>Bank Details</h3>
           <table class="details-table">
-            <tr><td class="detail-label">Bank Name:</td><td class="detail-value">${data.bankName || user?.bankName || '-'}</td></tr>
-            <tr><td class="detail-label">Account No:</td><td class="detail-value">${data.accountNumber || user?.accountNumber || '-'}</td></tr>
-            <tr><td class="detail-label">IFSC Code:</td><td class="detail-value">${data.ifscCode || user?.ifscCode || '-'}</td></tr>
-            <tr><td class="detail-label">PAN Number:</td><td class="detail-value">${data.panNumber || user?.panNumber || '-'}</td></tr>
+            <tr><td class="detail-label">Bank Name:</td><td class="detail-value">${escapeHtml(data.bankName || user?.bankName || '-')}</td></tr>
+            <tr><td class="detail-label">Account No:</td><td class="detail-value">${escapeHtml(data.accountNumber || user?.accountNumber || '-')}</td></tr>
+            <tr><td class="detail-label">IFSC Code:</td><td class="detail-value">${escapeHtml(data.ifscCode || user?.ifscCode || '-')}</td></tr>
+            <tr><td class="detail-label">PAN Number:</td><td class="detail-value">${escapeHtml(data.panNumber || user?.panNumber || '-')}</td></tr>
           </table>
         </div>
       </div>
@@ -609,10 +636,10 @@ export function generatePayslipHTML(data, user, business) {
         </div>
       </div>
 
-      ${data.remarks ? `<div class="remarks"><strong>Remarks:</strong> ${data.remarks}</div>` : ''}
+      ${data.remarks ? `<div class="remarks"><strong>Remarks:</strong> ${escapeHtml(data.remarks)}</div>` : ''}
 
       <div class="print-footer">
-        ${business?.company_name || 'Company'} — Generated by SecuredApp CRM
+        ${escapeHtml(business?.company_name || 'Company')} — Generated by SecuredApp CRM
       </div>
     </body>
     </html>
@@ -622,7 +649,7 @@ export function generatePayslipHTML(data, user, business) {
 // ── Print via Hidden Iframe ───────────────────────────────────────────
 
 function printHTML(htmlContent) {
-  console.log('[Checkpoint 3/4] Creating hidden iframe for print...');
+  logDebug('[Checkpoint 3/4] Creating hidden iframe for print...');
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
   iframe.style.top = '0';
@@ -634,63 +661,78 @@ function printHTML(htmlContent) {
   iframe.style.pointerEvents = 'none';
   iframe.style.zIndex = '-9999';
   document.body.appendChild(iframe);
-  console.log('[Checkpoint 4] Iframe attached to DOM:', document.body.contains(iframe));
+  logDebug('[Checkpoint 4] Iframe attached to DOM:', document.body.contains(iframe));
 
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
   doc.write(htmlContent);
   doc.close();
-  console.log('[Checkpoint 2] HTML written to iframe, length:', htmlContent.length, 'chars');
+  logDebug('[Checkpoint 2] HTML written to iframe, length:', htmlContent.length, 'chars');
 
   const waitForResources = async () => {
-    console.log('[Checkpoint 5] Waiting for iframe fonts.ready...');
-    await doc.fonts.ready;
-    console.log('[Checkpoint 5] iframe fonts.ready resolved');
-    const imgs = doc.getElementsByTagName('img');
-    if (imgs.length > 0) {
-      console.log('[Checkpoint 5] Waiting for', imgs.length, 'image(s) in iframe...');
-      await Promise.all(Array.from(imgs).map(img =>
-        new Promise(resolve => {
-          if (img.complete) return resolve();
-          img.onload = resolve;
-          img.onerror = resolve;
-        })
-      ));
-      console.log('[Checkpoint 5] All iframe images loaded');
-    }
+    logDebug('[Checkpoint 5] Waiting for iframe resources...');
+    const resourcePromise = (async () => {
+      await doc.fonts.ready;
+      logDebug('[Checkpoint 5] iframe fonts.ready resolved');
+      const imgs = doc.getElementsByTagName('img');
+      if (imgs.length > 0) {
+        logDebug('[Checkpoint 5] Waiting for image(s) in iframe...');
+        await Promise.all(Array.from(imgs).map(img =>
+          new Promise(resolve => {
+            if (img.complete) return resolve();
+            img.onload = resolve;
+            img.onerror = resolve;
+          })
+        ));
+        logDebug('[Checkpoint 5] All iframe images loaded');
+      }
+    })();
+
+    const timeoutPromise = new Promise(resolve => setTimeout(resolve, 5000));
+    await Promise.race([resourcePromise, timeoutPromise]);
   };
 
   waitForResources().then(() => {
-    console.log('[Checkpoint 6] Triggering iframe.contentWindow.print()');
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-    setTimeout(() => {
-      if (document.body.contains(iframe)) {
-        document.body.removeChild(iframe);
-        console.log('[Checkpoint 7] Print iframe cleaned up');
-      }
-    }, 1000);
+    try {
+      logDebug('[Checkpoint 6] Triggering iframe.contentWindow.print()');
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } catch (err) {
+      logError('Print failed:', err);
+    } finally {
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+          logDebug('[Checkpoint 7] Print iframe cleaned up');
+        }
+      }, 1000);
+    }
+  }).catch((err) => {
+    logError('Error waiting for print resources:', err);
+    if (document.body.contains(iframe)) {
+      document.body.removeChild(iframe);
+    }
   });
 }
 
 export function printInvoicePDF(invoice, business) {
-  console.log('[Checkpoint 1] printInvoicePDF — invoice:', invoice?.invoice_number, '| business:', business?.company_name);
+  logDebug('[Checkpoint 1] printInvoicePDF started');
   const html = generateInvoiceHTML(invoice, business);
-  console.log('[Checkpoint 2] generateInvoiceHTML length:', html.length, 'chars');
+  logDebug('[Checkpoint 2] generateInvoiceHTML done');
   printHTML(html);
 }
 
 export function printPayslipPDF(data, user, business) {
-  console.log('[Checkpoint 1] printPayslipPDF — user:', user?.name, '| month:', data?.month, data?.year);
+  logDebug('[Checkpoint 1] printPayslipPDF started');
   const html = generatePayslipHTML(data, user, business);
-  console.log('[Checkpoint 2] generatePayslipHTML length:', html.length, 'chars');
+  logDebug('[Checkpoint 2] generatePayslipHTML done');
   printHTML(html);
 }
 
 // ── Download via html2pdf ─────────────────────────────────────────────
 
 function downloadPDFFromHTML(htmlContent, filename) {
-  console.log('[Checkpoint 2] downloadPDFFromHTML — filename:', filename, '| html length:', htmlContent.length, 'chars');
+  logDebug('[Checkpoint 2] downloadPDFFromHTML started');
 
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
@@ -703,7 +745,7 @@ function downloadPDFFromHTML(htmlContent, filename) {
   iframe.style.zIndex = '-9999';
   document.body.appendChild(iframe);
 
-  console.log('[Checkpoint 4] Iframe attached to DOM:', document.body.contains(iframe));
+  logDebug('[Checkpoint 4] Iframe attached to DOM:', document.body.contains(iframe));
 
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
@@ -711,7 +753,7 @@ function downloadPDFFromHTML(htmlContent, filename) {
   doc.close();
 
   const startDownload = () => {
-    console.log('[Checkpoint 5] All resources ready — fonts loaded');
+    logDebug('[Checkpoint 5] All resources ready — starting download');
 
     const opt = {
       margin: 0.5,
@@ -720,52 +762,62 @@ function downloadPDFFromHTML(htmlContent, filename) {
       html2canvas: { scale: 4, useCORS: true, logging: false },
       jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
-    console.log('[Checkpoint 6] Starting html2pdf with scale 4, A4 portrait, margins 0.5in');
+    logDebug('[Checkpoint 6] Starting html2pdf');
 
     try {
       const pdfBuilder = typeof html2pdf === 'function' ? html2pdf : html2pdf.default;
 
       pdfBuilder().set(opt).from(doc.documentElement).save().then(() => {
-        console.log('[Checkpoint 7] PDF saved successfully — cleaning up iframe');
+        logDebug('[Checkpoint 7] PDF saved successfully — cleaning up iframe');
         if (document.body.contains(iframe)) document.body.removeChild(iframe);
       }).catch((err) => {
-        console.error('[Checkpoint 6/7] html2pdf error:', err);
+        logError('[Checkpoint 6/7] html2pdf error:', err);
         if (document.body.contains(iframe)) document.body.removeChild(iframe);
       });
     } catch (err) {
-      console.error('[Checkpoint 6] Synchronous error launching html2pdf:', err);
+      logError('[Checkpoint 6] Synchronous error launching html2pdf:', err);
       if (document.body.contains(iframe)) document.body.removeChild(iframe);
     }
   };
 
   const waitForResources = async () => {
-    console.log('[Checkpoint 5] Waiting for iframe fonts.ready...');
-    await doc.fonts.ready;
-    const imgs = doc.getElementsByTagName('img');
-    if (imgs.length > 0) {
-      console.log('[Checkpoint 5] Waiting for', imgs.length, 'image(s) in iframe...');
-      await Promise.all(Array.from(imgs).map(img =>
-        new Promise(resolve => {
-          if (img.complete) return resolve();
-          img.onload = resolve;
-          img.onerror = resolve;
-        })
-      ));
+    try {
+      logDebug('[Checkpoint 5] Waiting for iframe resources...');
+      const resourcePromise = (async () => {
+        await doc.fonts.ready;
+        const imgs = doc.getElementsByTagName('img');
+        if (imgs.length > 0) {
+          logDebug('[Checkpoint 5] Waiting for image(s) in iframe...');
+          await Promise.all(Array.from(imgs).map(img =>
+            new Promise(resolve => {
+              if (img.complete) return resolve();
+              img.onload = resolve;
+              img.onerror = resolve;
+            })
+          ));
+        }
+      })();
+
+      const timeoutPromise = new Promise(resolve => setTimeout(resolve, 5000));
+      await Promise.race([resourcePromise, timeoutPromise]);
+      startDownload();
+    } catch (err) {
+      logError('Error waiting for download resources:', err);
+      if (document.body.contains(iframe)) document.body.removeChild(iframe);
     }
-    startDownload();
   };
 
   waitForResources();
 }
 
 export function downloadInvoicePDF(invoice, business) {
-  console.log('[Checkpoint 1] downloadInvoicePDF — invoice:', invoice?.invoice_number, '| business:', business?.company_name);
+  logDebug('[Checkpoint 1] downloadInvoicePDF started');
   const html = generateInvoiceHTML(invoice, business);
   downloadPDFFromHTML(html, `Invoice_${invoice.invoice_number || 'Draft'}.pdf`);
 }
 
 export function downloadPayslipPDF(data, user, business) {
-  console.log('[Checkpoint 1] downloadPayslipPDF — user:', user?.name, '| month:', data?.month, data?.year);
+  logDebug('[Checkpoint 1] downloadPayslipPDF started');
   const monthName = MONTHS[(parseInt(data.month) || 1) - 1];
   const userName = user?.name?.replace(/\s+/g, '_') || 'Employee';
   const html = generatePayslipHTML(data, user, business);

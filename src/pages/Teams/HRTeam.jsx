@@ -160,6 +160,7 @@ function EmployeeDirectory() {
   const [selectedEmpId, setSelectedEmpId] = useState(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingEmp, setEditingEmp] = useState(null)
+  const [toggleStatusModal, setToggleStatusModal] = useState({ isOpen: false, employee: null })
 
   const fetchEmployees = async () => {
     setLoading(true)
@@ -181,14 +182,20 @@ function EmployeeDirectory() {
     fetchEmployees()
   }, [search, deptFilter, statusFilter])
 
-  const handleToggleStatus = async (id) => {
-    if (confirm('Are you sure you want to change this employee status?')) {
-      try {
-        await toggleEmployeeStatus(id)
-        fetchEmployees()
-      } catch (err) {
-        alert(err.response?.data?.message || 'Failed to toggle status')
-      }
+  const handleToggleStatus = (emp) => {
+    setToggleStatusModal({ isOpen: true, employee: emp })
+  }
+
+  const confirmToggleStatus = async () => {
+    const emp = toggleStatusModal.employee
+    setToggleStatusModal({ isOpen: false, employee: null })
+    if (!emp) return
+    try {
+      await toggleEmployeeStatus(emp.id)
+      toast.success(emp.isActive ? 'Employee account deactivated' : 'Employee account activated')
+      fetchEmployees()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to toggle status')
     }
   }
 
@@ -300,7 +307,7 @@ function EmployeeDirectory() {
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
-                        onClick={() => handleToggleStatus(emp.id)}
+                        onClick={() => handleToggleStatus(emp)}
                         className={`px-2 py-1 text-xs font-semibold rounded-md border transition ${
                           emp.isActive 
                             ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' 
@@ -328,6 +335,32 @@ function EmployeeDirectory() {
             fetchEmployees()
           }} 
         />
+      )}
+ 
+      {/* Custom Confirmation Modal */}
+      {toggleStatusModal.isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border p-6">
+            <h3 className="text-lg font-bold text-slate-800">Confirm Status Change</h3>
+            <p className="mt-2 text-sm text-slate-500">
+              Are you sure you want to {toggleStatusModal.employee?.isActive ? 'deactivate' : 'activate'} employee <strong>{toggleStatusModal.employee?.name}</strong>?
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button 
+                onClick={() => setToggleStatusModal({ isOpen: false, employee: null })}
+                className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmToggleStatus}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Details Side-Drawer / Modal */}
@@ -412,6 +445,22 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
       // If edit and password is empty, don't send it to backend to avoid changing it
       if (isEdit && !payload.password) {
         delete payload.password
+      }
+
+      // Input format validations
+      if (payload.panNumber && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(payload.panNumber.trim().toUpperCase())) {
+        throw new Error('Invalid PAN number format (expected ABCDE1234F)')
+      }
+      if (payload.ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(payload.ifscCode.trim().toUpperCase())) {
+        throw new Error('Invalid IFSC code format (expected ABCD0123456)')
+      }
+      const cleanAadhaar = payload.aadhaarNumber.replace(/\s+/g, '')
+      if (payload.aadhaarNumber && !/^[2-9][0-9]{11}$/.test(cleanAadhaar)) {
+        throw new Error('Invalid Aadhaar number (expected 12 digits, starting with 2-9)')
+      }
+      const cleanAccount = payload.accountNumber.replace(/\s+/g, '')
+      if (payload.accountNumber && !/^\d{9,18}$/.test(cleanAccount)) {
+        throw new Error('Invalid Bank Account Number (expected 9-18 digits)')
       }
       
       if (isEdit) {
@@ -724,6 +773,34 @@ function EmployeeProfileView({ employeeId }) {
   const [historySearch, setHistorySearch] = useState('')
   const [historyMonth, setHistoryMonth] = useState('all')
   const [historyYear, setHistoryYear] = useState('all')
+  const [revealFields, setRevealFields] = useState({})
+
+  const maskValue = (val, visibleCount = 4) => {
+    if (!val) return '—';
+    const str = String(val).trim();
+    if (str.length <= visibleCount) return str;
+    return '•'.repeat(str.length - visibleCount) + str.slice(-visibleCount);
+  };
+
+  const renderSensitiveField = (label, val, fieldKey, visibleCount = 4) => {
+    const isRevealed = !!revealFields[fieldKey];
+    return (
+      <>
+        <span className="font-medium">{label}:</span>
+        <span className="inline-flex items-center gap-2">
+          <span>{isRevealed ? (val || '—') : maskValue(val, visibleCount)}</span>
+          {val && (
+            <button
+              onClick={() => setRevealFields(prev => ({ ...prev, [fieldKey]: !prev[fieldKey] }))}
+              className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold focus:outline-none ml-1 cursor-pointer"
+            >
+              {isRevealed ? 'Hide' : 'Reveal'}
+            </button>
+          )}
+        </span>
+      </>
+    );
+  };
 
   useEffect(() => {
     setLoading(true)
@@ -883,13 +960,13 @@ function EmployeeProfileView({ employeeId }) {
             <h4 className="font-semibold text-slate-700 border-b pb-1 flex items-center gap-1.5"><Shield className="w-4 h-4 text-indigo-500" /> Financial & Compliance</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2 text-slate-600">
               <span className="font-medium">Bank Name:</span> <span>{employee.bankName || '—'}</span>
-              <span className="font-medium">Account Number:</span> <span>{employee.accountNumber || '—'}</span>
-              <span className="font-medium">IFSC Code:</span> <span>{employee.ifscCode || '—'}</span>
-              <span className="font-medium">PAN:</span> <span>{employee.panNumber || '—'}</span>
-              <span className="font-medium">UAN:</span> <span>{employee.uan || '—'}</span>
-              <span className="font-medium">PF Number:</span> <span>{employee.pfNumber || '—'}</span>
-              <span className="font-medium">Aadhaar:</span> <span>{employee.aadhaarNumber || '—'}</span>
-              <span className="font-medium">Passport:</span> <span>{employee.passportNumber || '—'}</span>
+              {renderSensitiveField('Account Number', employee.accountNumber, 'accountNumber')}
+              {renderSensitiveField('IFSC Code', employee.ifscCode, 'ifscCode')}
+              {renderSensitiveField('PAN', employee.panNumber, 'pan', 4)}
+              {renderSensitiveField('UAN', employee.uan, 'uan', 4)}
+              {renderSensitiveField('PF Number', employee.pfNumber, 'pfNumber', 4)}
+              {renderSensitiveField('Aadhaar', employee.aadhaarNumber, 'aadhaarNumber', 4)}
+              {renderSensitiveField('Passport', employee.passportNumber, 'passport', 4)}
             </div>
           </div>
 
