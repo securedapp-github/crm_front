@@ -462,6 +462,12 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
       if (payload.accountNumber && !/^\d{9,18}$/.test(cleanAccount)) {
         throw new Error('Invalid Bank Account Number (expected 9-18 digits)')
       }
+      if (payload.uan && !/^\d{12}$/.test(payload.uan.trim())) {
+        throw new Error('Invalid UAN format (expected 12 digits)')
+      }
+      if (payload.pfNumber && !(/^[A-Z]{2}\/[A-Z]{3}\/\d{7}\/\d{3}\/\d{7}$/.test(payload.pfNumber.trim().toUpperCase()) || /^[A-Z]{2}[A-Z]{3}\d{17}$/.test(payload.pfNumber.trim().toUpperCase()))) {
+        throw new Error('Invalid PF account number format (expected e.g. MH/BAN/0012345/000/0000123)')
+      }
       
       if (isEdit) {
         await updateEmployee(employee.id, payload)
