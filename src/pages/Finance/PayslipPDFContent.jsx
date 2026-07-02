@@ -1,106 +1,186 @@
 import React from 'react';
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 export default function PayslipPDFContent({ data, user, business }) {
   const basic = parseFloat(data.basicPay || 0);
-  const allowances = parseFloat(data.allowances || 0);
-  const deductions = parseFloat(data.deductions || 0);
-  const netPay = (basic + allowances) - deductions;
+  const hra = parseFloat(data.hra || 0);
+  const conveyance = parseFloat(data.conveyance || 0);
+  const specialAllowance = parseFloat(data.specialAllowance || 0);
+  const totalEarnings = basic + hra + conveyance + specialAllowance;
+  const pf = parseFloat(data.providentFund || 0);
+  const pt = parseFloat(data.professionalTax || 0);
+  const tds = parseFloat(data.tds || 0);
+  const totalDeductions = pf + pt + tds;
+  const netPay = totalEarnings - totalDeductions;
   const monthName = MONTHS[(parseInt(data.month) || 1) - 1];
   
   return (
-    <div className="bg-white text-gray-900 p-8 font-sans" style={{ width: '800px', minHeight: '1000px' }}>
+    <div className="bg-white text-black p-8 font-sans mx-auto" style={{ width: '800px', minHeight: '1000px' }}>
+      
       {/* Header */}
-      <div className="border-b-2 border-emerald-600 pb-6 mb-6 flex justify-between items-start">
-        <div>
+      <div className="relative mb-8 mt-4">
+        <div className="absolute top-0 left-0">
           {business?.logo_url ? (
-            <img src={business.logo_url} alt="Logo" className="h-12 mb-2 object-contain" />
+            <img src={business.logo_url} alt="Logo" className="w-24 h-24 object-contain" />
           ) : (
-            <h1 className="text-2xl font-bold text-emerald-800 uppercase tracking-wide">{business?.company_name || 'Your Company'}</h1>
+            <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-xs">Logo</div>
           )}
-          <p className="text-sm text-gray-500 mt-1">{business?.address_line1 || '123 Business Avenue, Tech Park'}</p>
-          <p className="text-sm text-gray-500">{business?.city || 'City'}, {business?.state || 'State'}</p>
         </div>
-        <div className="text-right">
-          <h2 className="text-3xl font-bold text-gray-800 tracking-tight">PAYSLIP</h2>
-          <p className="text-emerald-700 font-semibold mt-1">For {monthName} {data.year}</p>
-        </div>
-      </div>
-
-      {/* Employee Details */}
-      <div className="grid grid-cols-2 gap-8 mb-8">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Employee Summary</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex"><span className="w-32 text-gray-500">Employee Name:</span> <span className="font-medium">{user?.name || 'Employee Name'}</span></div>
-            <div className="flex"><span className="w-32 text-gray-500">Employee ID:</span> <span className="font-medium">{data.employeeId || 'EMP-001'}</span></div>
-            <div className="flex"><span className="w-32 text-gray-500">Designation:</span> <span className="font-medium">{data.designation || 'Staff'}</span></div>
-            <div className="flex"><span className="w-32 text-gray-500">Department:</span> <span className="font-medium">{data.department || 'General'}</span></div>
-          </div>
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Bank Details</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex"><span className="w-32 text-gray-500">Bank Name:</span> <span className="font-medium">{data.bankName || '-'}</span></div>
-            <div className="flex"><span className="w-32 text-gray-500">Account No:</span> <span className="font-medium">{data.accountNumber || '-'}</span></div>
-            <div className="flex"><span className="w-32 text-gray-500">IFSC Code:</span> <span className="font-medium">{data.ifscCode || '-'}</span></div>
-            <div className="flex"><span className="w-32 text-gray-500">PAN Number:</span> <span className="font-medium">{data.panNumber || '-'}</span></div>
-          </div>
+        <div className="text-center w-full pt-2">
+          <h1 className="text-4xl mb-2 text-black font-normal">{data.companyName || business?.company_name || 'Company Demo'}</h1>
+          <p className="text-sm text-black">{data.addressLine1 || business?.address_line1 || 'Bhulbhulaiya,Double trouble'}</p>
+          <p className="text-sm text-black">{data.city || business?.city || 'Bengaluru'}, {data.state || business?.state || 'Karnataka'}, IN - {data.pincode || business?.pincode || '560048'}</p>
         </div>
       </div>
 
-      {/* Salary Details */}
-      <div className="grid grid-cols-2 gap-0 border border-gray-200 rounded-lg overflow-hidden mb-6">
-        <div className="border-r border-gray-200">
-          <div className="bg-emerald-50 px-4 py-3 border-b border-gray-200 font-semibold text-emerald-800">Earnings</div>
-          <div className="p-4 space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Basic Pay</span>
-              <span className="font-medium">${basic.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Allowances</span>
-              <span className="font-medium">${allowances.toFixed(2)}</span>
-            </div>
+      <div className="text-center font-bold text-sm mb-6">
+        Payslip for the month of {monthName}, {data.year}
+      </div>
+
+      {/* Employee Details Box */}
+      <div className="border border-black mb-6 flex text-sm">
+        <div className="w-1/2 p-3 border-r border-black">
+          <div className="grid grid-cols-[140px_1fr] gap-1 mb-1.5">
+            <div className="font-semibold">Name:</div>
+            <div>{user?.name || '-'}</div>
           </div>
-          <div className="px-4 py-3 border-t border-gray-200 flex justify-between bg-gray-50 font-semibold h-full mt-4">
-            <span>Total Earnings</span>
-            <span>${(basic + allowances).toFixed(2)}</span>
+          <div className="grid grid-cols-[140px_1fr] gap-1 mb-1.5">
+            <div className="font-semibold">Designation:</div>
+            <div>{data.designation || user?.designation || '-'}</div>
+          </div>
+          <div className="grid grid-cols-[140px_1fr] gap-1 mb-1.5">
+            <div className="font-semibold">Department:</div>
+            <div>{data.department || user?.department || '-'}</div>
+          </div>
+          <div className="grid grid-cols-[140px_1fr] gap-1 mb-1.5">
+            <div className="font-semibold">Location:</div>
+            <div>{business?.city || '-'}</div>
+          </div>
+          <div className="grid grid-cols-[140px_1fr] gap-1 mb-1.5">
+            <div className="font-semibold">LOP:</div>
+            <div>0.0</div>
+          </div>
+          {(data.uan || user?.uan) && (
+            <div className="grid grid-cols-[140px_1fr] gap-1 mb-1.5">
+              <div className="font-semibold">UAN:</div>
+              <div>{data.uan || user?.uan}</div>
+            </div>
+          )}
+        </div>
+        
+        <div className="w-1/2 p-3">
+          <div className="grid grid-cols-[180px_1fr] gap-1 mb-1.5">
+            <div className="font-semibold">Employee ID:</div>
+            <div>{data.employeeId || user?.employeeId || '-'}</div>
+          </div>
+          <div className="grid grid-cols-[180px_1fr] gap-1 mb-1.5">
+            <div className="font-semibold">Bank Name:</div>
+            <div>{data.bankName || user?.bankName || '-'}</div>
+          </div>
+          <div className="grid grid-cols-[180px_1fr] gap-1 mb-1.5">
+            <div className="font-semibold">Bank Account Number:</div>
+            <div>{data.accountNumber || user?.accountNumber || '-'}</div>
+          </div>
+          <div className="grid grid-cols-[180px_1fr] gap-1 mb-1.5">
+            <div className="font-semibold">PAN:</div>
+            <div>{data.panNumber || user?.panNumber || '-'}</div>
+          </div>
+          <div className="grid grid-cols-[180px_1fr] gap-1 mb-1.5">
+            <div className="font-semibold">IFSC Code:</div>
+            <div>{data.ifscCode || user?.ifscCode || '-'}</div>
+          </div>
+          {(data.pfNumber || user?.pfNumber) && (
+            <div className="grid grid-cols-[180px_1fr] gap-1 mb-1.5">
+              <div className="font-semibold">PF Number:</div>
+              <div>{data.pfNumber || user?.pfNumber}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Salary Table */}
+      <div className="border border-black text-sm mb-6">
+        {/* Table Header */}
+        <div className="flex border-b border-black font-semibold">
+          <div className="w-1/2 flex border-r border-black px-3 py-2">
+            <div className="w-2/3">Earnings</div>
+            <div className="w-1/3 text-right">Amount</div>
+          </div>
+          <div className="w-1/2 flex px-3 py-2">
+            <div className="w-2/3">Deductions</div>
+            <div className="w-1/3 text-right">Amount</div>
           </div>
         </div>
         
-        <div className="flex flex-col">
-          <div className="bg-red-50 px-4 py-3 border-b border-gray-200 font-semibold text-red-800">Deductions</div>
-          <div className="p-4 space-y-3 text-sm flex-1">
+        {/* Table Body */}
+        <div className="flex min-h-[180px]">
+          {/* Earnings Column */}
+          <div className="w-1/2 border-r border-black p-3 flex flex-col gap-2">
             <div className="flex justify-between">
-              <span className="text-gray-600">Provident Fund / Tax</span>
-              <span className="font-medium">${deductions.toFixed(2)}</span>
+              <div>Basic</div>
+              <div>₹ {basic.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            </div>
+            <div className="flex justify-between">
+              <div>HRA</div>
+              <div>₹ {hra.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            </div>
+            <div className="flex justify-between">
+              <div>Conveyance</div>
+              <div>₹ {conveyance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            </div>
+            <div className="flex justify-between">
+              <div>Special Allowance</div>
+              <div>₹ {specialAllowance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
             </div>
           </div>
-          <div className="px-4 py-3 border-t border-gray-200 flex justify-between bg-gray-50 font-semibold">
-            <span>Total Deductions</span>
-            <span>${deductions.toFixed(2)}</span>
+          
+          {/* Deductions Column */}
+          <div className="w-1/2 p-3 flex flex-col gap-2">
+            <div className="flex justify-between">
+              <div>Income Tax</div>
+              <div>₹ {tds.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            </div>
+            <div className="flex justify-between">
+              <div>Provident Fund</div>
+              <div>₹ {pf.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            </div>
+            <div className="flex justify-between">
+              <div>Professional Tax</div>
+              <div>₹ {pt.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Table Footer */}
+        <div className="flex border-t border-black font-semibold">
+          <div className="w-1/2 flex border-r border-black p-3">
+            <div className="w-2/3">Total Earnings</div>
+            <div className="w-1/3 text-right">{totalEarnings.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+          </div>
+          <div className="w-1/2 flex p-3">
+            <div className="w-2/3">Total Deductions</div>
+            <div className="w-1/3 text-right">{totalDeductions.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
           </div>
         </div>
       </div>
 
-      {/* Net Salary */}
-      <div className="bg-emerald-600 text-white p-6 rounded-lg flex justify-between items-center mb-8">
+      {/* Net Pay */}
+      <div className="text-sm mb-10">
+        <span className="font-semibold">Net Pay for the month: ₹ {netPay.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+      </div>
+
+      <hr className="border-t border-gray-300 mb-8" />
+
+      {/* Footer text */}
+      <div className="text-center text-sm space-y-8">
+        <p>This is a system generated payslip and does not require signature.</p>
+        
         <div>
-          <p className="text-emerald-100 text-sm uppercase tracking-wider mb-1">Net Salary Payable</p>
-          <p className="text-3xl font-bold">${netPay.toFixed(2)}</p>
-        </div>
-        <div className="text-right max-w-[200px]">
-          <p className="text-sm text-emerald-100 opacity-90 italic">This is a computer generated document and does not require a signature.</p>
+          <p>Generated by {business?.company_name || 'Our Company'}</p>
         </div>
       </div>
       
-      {data.remarks && (
-        <div className="text-sm text-gray-500">
-          <span className="font-semibold text-gray-700">Remarks:</span> {data.remarks}
-        </div>
-      )}
     </div>
   );
 }

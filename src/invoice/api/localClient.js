@@ -56,7 +56,19 @@ export const invoiceApi = {
   },
   integrations: {
     Core: {
-      UploadFile: async () => ({ file_url: '' }),
+      UploadFile: async ({ file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`${API_BASE}/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          throw new Error(`Upload error ${res.status}: ${err}`);
+        }
+        return res.json();
+      },
     },
   },
 };

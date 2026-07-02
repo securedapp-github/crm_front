@@ -10,6 +10,11 @@ export default defineConfig({
     },
   },
   server: {
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost',
+      path: '/ws'
+    },
     proxy: {
       '/local-api': {
         target: 'http://localhost:5000',

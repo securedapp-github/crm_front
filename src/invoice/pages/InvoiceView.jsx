@@ -8,12 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/invoice/components/ui/dialog';
 import { Input } from '@/invoice/components/ui/input';
 import { Label } from '@/invoice/components/ui/label';
-import { ArrowLeft, Pencil, CreditCard, Share2, Copy, Mail, MessageCircle, Check } from 'lucide-react';
+import { ArrowLeft, Pencil, CreditCard, Share2, Copy, Mail, MessageCircle, Check, Download, Printer } from 'lucide-react';
 import { formatCurrency, getStatusColor, getStatusLabel } from '@/invoice/lib/invoiceUtils';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import InvoicePDFContent from '@/invoice/components/invoice/InvoicePDFContent';
-import { printInvoicePDF } from '@/invoice/lib/printUtils';
+import { printInvoicePDF, downloadInvoicePDF } from '@/utils/pdfManager';
 
 export default function InvoiceView() {
   const { id } = useParams();
@@ -74,6 +74,11 @@ export default function InvoiceView() {
     printInvoicePDF(invoice, business);
   };
 
+  const handleDownload = () => {
+    if (!invoice) return;
+    downloadInvoicePDF(invoice, business);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
@@ -132,8 +137,11 @@ export default function InvoiceView() {
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShareOpen(true)}>
             <Share2 className="h-3.5 w-3.5" /> Share
           </Button>
-          <Button variant="primary" size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handlePrint}>
-            Download PDF
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
+            <Printer className="h-3.5 w-3.5" /> Print
+          </Button>
+          <Button variant="primary" size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleDownload}>
+            <Download className="h-3.5 w-3.5" /> Download PDF
           </Button>
         </div>
       </div>
