@@ -155,6 +155,16 @@ export default function Login() {
     }
   }
 
+  const handleModeChange = (newMode) => {
+    setError('')
+    if (newMode === 'admin' && mode === 'sales') {
+      setAdminForm({ email: salesForm.email, password: salesForm.password })
+    } else if (newMode === 'sales' && mode === 'admin') {
+      setSalesForm({ email: adminForm.email, password: adminForm.password })
+    }
+    setMode(newMode)
+  }
+
   return (
     <main className="relative min-h-[calc(100vh-68px)] flex items-center justify-center bg-[#fafbfe] bg-grid-pattern px-4 py-8 sm:py-12 overflow-hidden">
       {/* Glow backgrounds */}
@@ -177,7 +187,7 @@ export default function Login() {
             <div className="mt-8 mb-6 bg-slate-100/80 p-1.5 rounded-2xl flex items-center gap-1">
               <button 
                 type="button" 
-                onClick={() => setMode('sales')} 
+                onClick={() => handleModeChange('sales')} 
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${
                   mode === 'sales' 
                     ? 'bg-white text-emerald-600 shadow-[0_2px_8px_rgba(16,185,129,0.12)] border border-emerald-100/50' 
@@ -188,7 +198,7 @@ export default function Login() {
               </button>
               <button 
                 type="button" 
-                onClick={() => setMode('admin')} 
+                onClick={() => handleModeChange('admin')} 
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${
                   mode === 'admin' 
                     ? 'bg-white text-blue-600 shadow-[0_2px_8px_rgba(37, 99, 235, 0.12)] border border-blue-100/50' 
