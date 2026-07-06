@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { getUsersForPayslip, generatePayslip, getAllPayslips, deletePayslip, updatePayslip } from '../../api/payslip'
 import { getEmployeeById } from '../../api/employee'
 import { invoiceApi } from '@/invoice/api/invoiceClient'
+import { exportToCSV } from '@/invoice/lib/exportUtils'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { printPayslipPDF, downloadPayslipPDF } from '@/utils/pdfManager'
 import PayslipPDFContent from './PayslipPDFContent'
 import { toast } from 'sonner'
+import { getFullFileUrl } from '@/invoice/lib/invoiceUtils'
 import { Download, ArrowLeft, Save, Building2, Search, Trash2, Edit2, FileSpreadsheet, Eye } from 'lucide-react'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -61,13 +63,16 @@ export default function PayslipGenerator() {
   }, [business])
 
   const saveSettingsMutation = useMutation({
-    mutationFn: () => {
-      if (business?.id) return invoiceApi.entities.Business.update(business.id, settingsForm);
-      return invoiceApi.entities.Business.create(settingsForm);
+    mutationFn: (dataToSave) => {
+      if (business?.id) return invoiceApi.entities.Business.update(business.id, dataToSave);
+      return invoiceApi.entities.Business.create(dataToSave);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business'] });
       toast.success('Company settings saved successfully');
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to save company settings');
     }
   })
 
@@ -188,7 +193,7 @@ export default function PayslipGenerator() {
         providentFund: parseFloat(form.providentFund || 0),
         professionalTax: parseFloat(form.professionalTax || 0),
         tds: parseFloat(form.tds || 0),
-        remarks: form.remarks || ''
+        remarks: ''
       }
       
       let res;
@@ -203,11 +208,17 @@ export default function PayslipGenerator() {
       fetchPayslips()
       setEditingPayslipId(null)
       setTab('history')
-      // Simply reset the userId and remarks; the useEffect will clear the rest of the employee details
+      // Reset form: advance month/year to next month for convenience
+      const monthNum = parseInt(form.month, 10);
+      const yearNum = parseInt(form.year, 10);
+      const nextMonth = monthNum === 12 ? 1 : monthNum + 1;
+      const nextYear = monthNum === 12 ? yearNum + 1 : yearNum;
       setForm(prev => ({
         ...prev,
         userId: '',
-        remarks: ''
+        remarks: '',
+        month: nextMonth,
+        year: nextYear,
       }))
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save payslip')
@@ -274,33 +285,19 @@ export default function PayslipGenerator() {
   }
 
   const handleExportCSV = (list) => {
-    const headers = ['Employee', 'Period', 'Basic Pay', 'HRA', 'Conveyance', 'Special Allowance', 'PF', 'Professional Tax', 'TDS', 'Net Pay', 'Remarks'];
-    const rows = list.map(ps => [
-      ps.user?.name || 'Unknown',
-      `${MONTHS[ps.month - 1]} ${ps.year}`,
-      ps.basicPay,
-      ps.hra,
-      ps.conveyance,
-      ps.specialAllowance,
-      ps.providentFund,
-      ps.professionalTax,
-      ps.tds,
-      ps.netPay,
-      ps.remarks || ''
-    ]);
-
-    const csvContent = [headers, ...rows]
-      .map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `payslip_history_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportToCSV(list, [
+      { label: 'Employee', accessor: (r) => r.user?.name || 'Unknown' },
+      { label: 'Period', accessor: (r) => `${MONTHS[r.month - 1]} ${r.year}` },
+      { label: 'Basic Pay', accessor: (r) => r.basicPay },
+      { label: 'HRA', accessor: (r) => r.hra },
+      { label: 'Conveyance', accessor: (r) => r.conveyance },
+      { label: 'Special Allowance', accessor: (r) => r.specialAllowance },
+      { label: 'PF', accessor: (r) => r.providentFund },
+      { label: 'Professional Tax', accessor: (r) => r.professionalTax },
+      { label: 'TDS', accessor: (r) => r.tds },
+      { label: 'Net Pay', accessor: (r) => r.netPay },
+      { label: 'Remarks', accessor: (r) => r.remarks || '' }
+    ], `payslip_history_${new Date().toISOString().slice(0, 10)}`);
   }
 
   const filteredPayslips = payslips.filter(ps => {
@@ -326,11 +323,8 @@ export default function PayslipGenerator() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link to="/dashboard/finance" className="p-2 hover:bg-slate-100 rounded-lg transition text-slate-500 hover:text-slate-800" title="Back to Finance Hub">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 tracking-tight">Payslip Generator</h1>
+            <h2 className="text-lg font-bold text-slate-800 tracking-tight">Payslip Generator</h2>
             <p className="text-sm text-slate-500 mt-1">Generate and manage monthly salary slips.</p>
           </div>
         </div>
@@ -486,10 +480,7 @@ export default function PayslipGenerator() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">Remarks (optional)</label>
-                <textarea value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} rows={2} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
-              </div>
+
 
               <div className="flex justify-between items-center pt-4 border-t mt-4">
                 <div className="text-sm space-y-0.5">
@@ -628,7 +619,7 @@ export default function PayslipGenerator() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-slate-800">Company Settings</h2>
               <button
-                onClick={() => saveSettingsMutation.mutate()}
+                onClick={() => saveSettingsMutation.mutate(settingsForm)}
                 disabled={saveSettingsMutation.isPending}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition flex items-center gap-2"
               >
@@ -639,7 +630,7 @@ export default function PayslipGenerator() {
               <div className="flex items-center gap-4 pb-4 border-b">
                 <div className="relative">
                   {settingsForm.logo_url ? (
-                    <img src={settingsForm.logo_url} alt="Company Logo" className="h-16 w-16 rounded-xl object-contain border" />
+                    <img src={getFullFileUrl(settingsForm.logo_url)} alt="Company Logo" className="h-16 w-16 rounded-xl object-contain border" />
                   ) : (
                     <div className="h-16 w-16 rounded-xl bg-slate-100 flex items-center justify-center border border-dashed text-xs text-slate-400">
                       Logo

@@ -132,3 +132,18 @@ export function numberToWords(num) {
   result += ' Only';
   return result;
 }
+
+export function getFullFileUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) return url;
+  const viteApiUrl = import.meta.env.VITE_API_URL;
+  if (viteApiUrl) {
+    try {
+      const parsed = new URL(viteApiUrl);
+      return `${parsed.origin}${url}`;
+    } catch (e) {
+      return url;
+    }
+  }
+  return url;
+}

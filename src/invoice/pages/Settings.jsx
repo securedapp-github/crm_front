@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/invoice/components/ui/tabs';
 import { Save, Building2, CreditCard, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { getFullFileUrl } from '@/invoice/lib/invoiceUtils';
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -37,28 +38,39 @@ export default function Settings() {
   }, [business]);
 
   const saveMutation = useMutation({
-    mutationFn: () => {
-      if (business?.id) return invoiceApi.entities.Business.update(business.id, form);
-      return invoiceApi.entities.Business.create(form);
+    mutationFn: (dataToSave) => {
+      if (business?.id) return invoiceApi.entities.Business.update(business.id, dataToSave);
+      return invoiceApi.entities.Business.create(dataToSave);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business'] });
       toast.success('Settings saved successfully');
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to save settings');
     }
   });
 
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const { file_url } = await invoiceApi.integrations.Core.UploadFile({ file });
-    setForm((prev) => ({ ...prev, logo_url: file_url }));
+    try {
+      const { file_url } = await invoiceApi.integrations.Core.UploadFile({ file });
+      setForm((prev) => ({ ...prev, logo_url: file_url }));
+    } catch (err) {
+      toast.error('Failed to upload logo');
+    }
   };
 
   const handleSignatureUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const { file_url } = await invoiceApi.integrations.Core.UploadFile({ file });
-    setForm((prev) => ({ ...prev, signature_url: file_url }));
+    try {
+      const { file_url } = await invoiceApi.integrations.Core.UploadFile({ file });
+      setForm((prev) => ({ ...prev, signature_url: file_url }));
+    } catch (err) {
+      toast.error('Failed to upload signature');
+    }
   };
 
   if (isLoading) {
@@ -76,7 +88,7 @@ export default function Settings() {
           <h1 className="text-2xl lg:text-3xl font-bold font-display tracking-tight">Invoice Settings</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage your business information</p>
         </div>
-        <Button className="gap-2" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+        <Button className="gap-2" onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}>
           <Save className="h-4 w-4" /> Save Changes
         </Button>
       </div>
@@ -92,7 +104,7 @@ export default function Settings() {
           <div className="flex items-center gap-6">
             <div className="relative">
               {form.logo_url ? (
-                <img src={form.logo_url} alt="Logo" className="h-20 w-20 rounded-xl object-contain border" />
+                <img src={getFullFileUrl(form.logo_url)} alt="Logo" className="h-20 w-20 rounded-xl object-contain border" />
               ) : (
                 <div className="h-20 w-20 rounded-xl bg-muted flex items-center justify-center border border-dashed">
                   Upload
@@ -271,7 +283,7 @@ export default function Settings() {
             <Label>Signature</Label>
             <div className="mt-2 flex items-center gap-4">
               {form.signature_url ? (
-                <img src={form.signature_url} alt="Signature" className="h-16 border rounded-lg p-1" />
+                <img src={getFullFileUrl(form.signature_url)} alt="Signature" className="h-16 border rounded-lg p-1" />
               ) : (
                 <div className="h-16 w-40 rounded-lg border border-dashed flex items-center justify-center relative">
                   <p className="text-xs text-muted-foreground">Upload signature</p>
