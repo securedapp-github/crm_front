@@ -31,7 +31,7 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isIOS = typeof navigator !== 'undefined' && typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
 async function toBase64DataUrl(url) {
   if (!url || url.startsWith('data:')) return url;

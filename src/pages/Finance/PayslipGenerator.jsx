@@ -209,8 +209,10 @@ export default function PayslipGenerator() {
       setEditingPayslipId(null)
       setTab('history')
       // Reset form: advance month/year to next month for convenience
-      const nextMonth = form.month === 12 ? 1 : form.month + 1
-      const nextYear = form.month === 12 ? form.year + 1 : form.year
+      const monthNum = parseInt(form.month, 10);
+      const yearNum = parseInt(form.year, 10);
+      const nextMonth = monthNum === 12 ? 1 : monthNum + 1;
+      const nextYear = monthNum === 12 ? yearNum + 1 : yearNum;
       setForm(prev => ({
         ...prev,
         userId: '',

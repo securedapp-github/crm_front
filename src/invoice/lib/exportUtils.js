@@ -11,7 +11,7 @@ export function exportToCSV(rows, columns, filename) {
 
   const csv = header + '\n' + body;
   
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isIOS = typeof navigator !== 'undefined' && typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
   if (isIOS) {
     window.open('data:text/csv;charset=utf-8,' + encodeURIComponent(csv), '_blank');
