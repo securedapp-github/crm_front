@@ -587,10 +587,12 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
                   )}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Last Working Day</label>
-                <input type="date" value={form.lastWorkingDay} onChange={e => setForm({ ...form, lastWorkingDay: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
-              </div>
+              {isEdit && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Last Working Day</label>
+                  <input type="date" value={form.lastWorkingDay} onChange={e => setForm({ ...form, lastWorkingDay: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Basic Salary (₹/mo)</label>
                 <input type="number" step="0.01" value={form.basicPay} onChange={e => setForm({ ...form, basicPay: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
@@ -603,10 +605,12 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
                 <label className="block text-xs font-medium text-slate-500 mb-1">Appraisal Cycle</label>
                 <input type="text" value={form.appraisalCycle} onChange={e => setForm({ ...form, appraisalCycle: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Annual (Jan)" />
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Reason for Leaving</label>
-                <input type="text" value={form.reasonForLeaving} onChange={e => setForm({ ...form, reasonForLeaving: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Optional notes on exit..." />
-              </div>
+              {isEdit && (
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Reason for Leaving</label>
+                  <input type="text" value={form.reasonForLeaving} onChange={e => setForm({ ...form, reasonForLeaving: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Optional notes on exit..." />
+                </div>
+              )}
             </div>
           </div>
         )
