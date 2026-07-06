@@ -31,6 +31,36 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+async function toBase64DataUrl(url) {
+  if (!url || url.startsWith('data:')) return url;
+  let targetUrl = url;
+  if (url.startsWith('/uploads')) {
+    const viteApiUrl = import.meta.env.VITE_API_URL;
+    if (viteApiUrl) {
+      try {
+        const parsed = new URL(viteApiUrl);
+        targetUrl = `${parsed.origin}${url}`;
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+  try {
+    const res = await fetch(targetUrl);
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return url;
+  }
+}
+
 // ── Invoice HTML ──────────────────────────────────────────────────────
 
 export function generateInvoiceHTML(invoice, business) {
@@ -767,13 +797,24 @@ function downloadPDFFromHTML(htmlContent, filename) {
     try {
       const pdfBuilder = typeof html2pdf === 'function' ? html2pdf : html2pdf.default;
 
-      pdfBuilder().set(opt).from(doc.documentElement).save().then(() => {
-        logDebug('[Checkpoint 7] PDF saved successfully — cleaning up iframe');
-        if (document.body.contains(iframe)) document.body.removeChild(iframe);
-      }).catch((err) => {
-        logError('[Checkpoint 6/7] html2pdf error:', err);
-        if (document.body.contains(iframe)) document.body.removeChild(iframe);
-      });
+      if (isIOS) {
+        pdfBuilder().set(opt).from(doc.documentElement).output('bloburl').then((url) => {
+          logDebug('[Checkpoint 7] PDF generated successfully for iOS — cleaning up iframe');
+          window.open(url, '_blank');
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        }).catch((err) => {
+          logError('[Checkpoint 6/7] html2pdf error (iOS):', err);
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        });
+      } else {
+        pdfBuilder().set(opt).from(doc.documentElement).save().then(() => {
+          logDebug('[Checkpoint 7] PDF saved successfully — cleaning up iframe');
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        }).catch((err) => {
+          logError('[Checkpoint 6/7] html2pdf error:', err);
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        });
+      }
     } catch (err) {
       logError('[Checkpoint 6] Synchronous error launching html2pdf:', err);
       if (document.body.contains(iframe)) document.body.removeChild(iframe);
@@ -810,16 +851,26 @@ function downloadPDFFromHTML(htmlContent, filename) {
   waitForResources();
 }
 
-export function downloadInvoicePDF(invoice, business) {
+export async function downloadInvoicePDF(invoice, business) {
   logDebug('[Checkpoint 1] downloadInvoicePDF started');
-  const html = generateInvoiceHTML(invoice, business);
+  const businessCopy = { ...business };
+  if (businessCopy) {
+    if (businessCopy.logo_url) businessCopy.logo_url = await toBase64DataUrl(businessCopy.logo_url);
+    if (businessCopy.signature_url) businessCopy.signature_url = await toBase64DataUrl(businessCopy.signature_url);
+  }
+  const html = generateInvoiceHTML(invoice, businessCopy);
   downloadPDFFromHTML(html, `Invoice_${invoice.invoice_number || 'Draft'}.pdf`);
 }
 
-export function downloadPayslipPDF(data, user, business) {
+export async function downloadPayslipPDF(data, user, business) {
   logDebug('[Checkpoint 1] downloadPayslipPDF started');
+  const businessCopy = { ...business };
+  if (businessCopy) {
+    if (businessCopy.logo_url) businessCopy.logo_url = await toBase64DataUrl(businessCopy.logo_url);
+    if (businessCopy.signature_url) businessCopy.signature_url = await toBase64DataUrl(businessCopy.signature_url);
+  }
   const monthName = MONTHS[(parseInt(data.month) || 1) - 1];
   const userName = user?.name?.replace(/\s+/g, '_') || 'Employee';
-  const html = generatePayslipHTML(data, user, business);
+  const html = generatePayslipHTML(data, user, businessCopy);
   downloadPDFFromHTML(html, `Payslip_${userName}_${monthName}_${data.year}.pdf`);
 }

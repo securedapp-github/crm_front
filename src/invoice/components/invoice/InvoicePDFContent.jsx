@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency, numberToWords } from '@/invoice/lib/invoiceUtils';
+import { formatCurrency, numberToWords, getFullFileUrl } from '@/invoice/lib/invoiceUtils';
 import { format } from 'date-fns';
 
 export default function InvoicePDFContent({ invoice, business }) {
@@ -22,7 +22,7 @@ export default function InvoicePDFContent({ invoice, business }) {
         </div>
         <div>
           {business?.logo_url ? (
-            <img src={business.logo_url} alt="Logo" className="max-h-16 max-w-[200px] object-contain" />
+            <img src={getFullFileUrl(business.logo_url)} alt="Logo" className="max-h-16 max-w-[200px] object-contain" />
           ) : (
             <h2 className="text-xl font-bold text-gray-700">{business?.company_name || 'Your Business'}</h2>
           )}

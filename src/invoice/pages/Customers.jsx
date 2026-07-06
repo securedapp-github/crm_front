@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/invoice/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/invoice/components/ui/dropdown-menu';
 import { Plus, Search, MoreHorizontal, Pencil, Trash2, Users, User } from 'lucide-react';
+import { toast } from 'sonner';
 
 const emptyCustomer = { name: '', email: '', phone: '', gst_number: '', pan_number: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', country: 'India', notes: '' };
 
@@ -34,6 +35,10 @@ export default function Customers() {
       setEditOpen(false);
       setForm({ ...emptyCustomer });
       setEditId(null);
+      toast.success(editId ? 'Customer updated successfully' : 'Customer added successfully');
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to save customer');
     }
   });
 
@@ -42,6 +47,10 @@ export default function Customers() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       setDeleteId(null);
+      toast.success('Customer deleted successfully');
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to delete customer');
     }
   });
 

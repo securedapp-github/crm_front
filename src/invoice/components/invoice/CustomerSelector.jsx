@@ -7,6 +7,7 @@ import { Label } from '@/invoice/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/invoice/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/invoice/components/ui/popover';
 import { Search, Plus, User } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function CustomerSelector({ value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -35,11 +36,16 @@ export default function CustomerSelector({ value, onChange }) {
   };
 
   const handleCreateNew = async () => {
-    const created = await invoiceApi.entities.Customer.create(newCustomer);
-    refetch();
-    handleSelect(created);
-    setShowNew(false);
-    setNewCustomer({ name: '', email: '', phone: '', gst_number: '', address_line1: '', city: '', state: '', pincode: '' });
+    try {
+      const created = await invoiceApi.entities.Customer.create(newCustomer);
+      toast.success('Client added successfully');
+      refetch();
+      handleSelect(created);
+      setShowNew(false);
+      setNewCustomer({ name: '', email: '', phone: '', gst_number: '', address_line1: '', city: '', state: '', pincode: '' });
+    } catch (err) {
+      toast.error(err.message || 'Failed to add client');
+    }
   };
 
   return (

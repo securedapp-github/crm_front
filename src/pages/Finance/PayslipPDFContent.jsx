@@ -1,4 +1,5 @@
 import React from 'react';
+import { getFullFileUrl } from '@/invoice/lib/invoiceUtils';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -22,7 +23,7 @@ export default function PayslipPDFContent({ data, user, business }) {
       <div className="relative mb-8 mt-4">
         <div className="absolute top-0 left-0">
           {business?.logo_url ? (
-            <img src={business.logo_url} alt="Logo" className="w-24 h-24 object-contain" />
+            <img src={getFullFileUrl(business.logo_url)} alt="Logo" className="w-24 h-24 object-contain" />
           ) : (
             <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-xs">Logo</div>
           )}

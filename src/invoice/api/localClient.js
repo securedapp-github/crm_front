@@ -1,4 +1,17 @@
-const API_BASE = '/local-api';
+const getApiBase = () => {
+  const viteApiUrl = import.meta.env.VITE_API_URL;
+  if (viteApiUrl) {
+    try {
+      const url = new URL(viteApiUrl);
+      return `${url.origin}/local-api`;
+    } catch (e) {
+      return '/local-api';
+    }
+  }
+  return '/local-api';
+};
+
+const API_BASE = getApiBase();
 
 const fetchJSON = async (url, options = {}) => {
   const { timeout = 10000 } = options;

@@ -3,9 +3,8 @@ import { getMe } from '../../api/auth'
 import { createLeaveRequest, getMyLeaves, getAllLeaves, approveLeave, rejectLeave, assignLeave } from '../../api/leave'
 import { getEmployees, getEmployeeById, createEmployee, updateEmployee, toggleEmployeeStatus } from '../../api/employee'
 import { Search, Plus, Edit2, User as UserIcon, Calendar, CreditCard, X, Eye, Phone, MapPin, Briefcase, Heart, Shield, DollarSign, Key, FileText, Home, Globe, Download, FileSpreadsheet } from 'lucide-react'
-import { printPayslipPDF, downloadPayslipPDF } from '@/utils/pdfManager'
-import { invoiceApi } from '@/invoice/api/invoiceClient'
 import { toast } from 'sonner'
+import PayslipGenerator from '../Finance/PayslipGenerator'
 
 export default function HRTeam() {
   const [user, setUser] = useState(null)
@@ -67,6 +66,18 @@ export default function HRTeam() {
             Leave Manager
           </button>
         )}
+        {isAdmin && (
+          <button 
+            onClick={() => setMainTab('payroll')} 
+            className={`px-4 py-2 border-b-2 font-medium text-sm transition-all ${
+              mainTab === 'payroll' 
+                ? 'border-indigo-600 text-indigo-600' 
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            Payroll Manager
+          </button>
+        )}
         {!isAdmin && (
           <button 
             onClick={() => setMainTab('profile')} 
@@ -95,6 +106,7 @@ export default function HRTeam() {
 
       {/* Content Rendering */}
       {mainTab === 'employees' && isAdmin && <EmployeeDirectory />}
+      {mainTab === 'payroll' && isAdmin && <PayslipGenerator />}
       
       {mainTab === 'leaves' && (
         <div className="space-y-6">
@@ -387,7 +399,7 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
     basicPay: '0', bankName: '', accountNumber: '', ifscCode: '', panNumber: '',
     uan: '', pfNumber: '',
     contactNumber: '', reportingManager: '', officeLocation: '',
-    employmentType: '', employmentStatus: '', lastWorkingDay: '', reasonForLeaving: '',
+    employmentType: '', employmentStatus: 'Active', lastWorkingDay: '', reasonForLeaving: '',
     personalAddress: '', personalEmail: '', emergencyContactName: '',
     emergencyContactRelationship: '', emergencyContactPhone: '', dateOfBirth: '',
     aadhaarNumber: '', passportNumber: '', variablePay: '0', appraisalCycle: '', consentLogId: ''
@@ -562,11 +574,17 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Employment Status</label>
                 <select value={form.employmentStatus} onChange={e => setForm({ ...form, employmentStatus: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
-                  <option value="">Select...</option>
-                  <option value="Active">Active</option>
-                  <option value="On Notice">On Notice</option>
-                  <option value="Terminated">Terminated</option>
-                  <option value="Resigned">Resigned</option>
+                  {!isEdit ? (
+                    <option value="Active">Active</option>
+                  ) : (
+                    <>
+                      <option value="">Select...</option>
+                      <option value="Active">Active</option>
+                      <option value="On Notice">On Notice</option>
+                      <option value="Terminated">Terminated</option>
+                      <option value="Resigned">Resigned</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div>
@@ -1398,3 +1416,4 @@ function statusBadge(status) {
     default: return 'bg-slate-50 text-slate-600 border border-slate-200'
   }
 }
+

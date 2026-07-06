@@ -8,13 +8,6 @@ const FINANCE_CARDS = [
     description: 'Create, manage, and track invoices for your clients.',
     disabled: false,
   },
-  {
-    href: '/dashboard/finance/payslip-generator',
-    icon: '💸',
-    label: 'Payslip Generator',
-    description: 'Generate and download monthly salary slips for employees.',
-    disabled: false,
-  },
 ]
 
 export default function FinanceHub() {
