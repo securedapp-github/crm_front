@@ -340,6 +340,7 @@ function EmployeeDirectory() {
       {/* Add/Edit Modal */}
       {isFormOpen && (
         <EmployeeFormModal 
+          key={editingEmp ? `edit-${editingEmp.id}` : 'new-employee'}
           employee={editingEmp} 
           onClose={() => setIsFormOpen(false)} 
           onSave={() => {
@@ -389,6 +390,7 @@ function EmployeeDirectory() {
 function EmployeeFormModal({ employee, onClose, onSave }) {
   const isEdit = !!employee
   const [submitting, setSubmitting] = useState(false)
+  const [loadingEmployee, setLoadingEmployee] = useState(false)
   const [error, setError] = useState(null)
   
   const [formTab, setFormTab] = useState('core')
@@ -405,48 +407,74 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
     aadhaarNumber: '', passportNumber: '', variablePay: '0', appraisalCycle: '', consentLogId: ''
   })
 
+  // Map field names to their respective tabs for better validation error reporting
+  const fieldToTabMap = {
+    name: 'core', email: 'core', contactNumber: 'core', employeeId: 'core', department: 'core', designation: 'core', reportingManager: 'core', officeLocation: 'core',
+    joinDate: 'employment', employmentType: 'employment', employmentStatus: 'employment', lastWorkingDay: 'employment', basicPay: 'employment', variablePay: 'employment', appraisalCycle: 'employment', reasonForLeaving: 'employment',
+    dateOfBirth: 'personal', personalEmail: 'personal', personalAddress: 'personal', emergencyContactName: 'personal', emergencyContactRelationship: 'personal', emergencyContactPhone: 'personal',
+    bankName: 'financial', accountNumber: 'financial', ifscCode: 'financial', panNumber: 'financial', uan: 'financial', pfNumber: 'financial', aadhaarNumber: 'financial', passportNumber: 'financial',
+    password: 'system', role: 'system', consentLogId: 'system'
+  }
+
+  const updateField = (fieldName, value) => {
+    setForm(prev => ({ ...prev, [fieldName]: value }))
+    setError(null) // Clear error when user corrects it
+  }
+
   useEffect(() => {
     if (employee) {
-      setForm({
-        name: employee.name || '',
-        email: employee.email || '',
-        password: '',
-        role: employee.role || 'user',
-        employeeId: employee.employeeId || '',
-        department: employee.department || '',
-        designation: employee.designation || '',
-        joinDate: employee.joinDate || '',
-        basicPay: employee.basicPay?.toString() || '0',
-        bankName: employee.bankName || '',
-        accountNumber: employee.accountNumber || '',
-        ifscCode: employee.ifscCode || '',
-        panNumber: employee.panNumber || '',
-        uan: employee.uan || '',
-        pfNumber: employee.pfNumber || '',
-        contactNumber: employee.contactNumber || '',
-        reportingManager: employee.reportingManager || '',
-        officeLocation: employee.officeLocation || '',
-        employmentType: employee.employmentType || '',
-        employmentStatus: employee.employmentStatus || '',
-        lastWorkingDay: employee.lastWorkingDay || '',
-        reasonForLeaving: employee.reasonForLeaving || '',
-        personalAddress: employee.personalAddress || '',
-        personalEmail: employee.personalEmail || '',
-        emergencyContactName: employee.emergencyContactName || '',
-        emergencyContactRelationship: employee.emergencyContactRelationship || '',
-        emergencyContactPhone: employee.emergencyContactPhone || '',
-        dateOfBirth: employee.dateOfBirth || '',
-        aadhaarNumber: employee.aadhaarNumber || '',
-        passportNumber: employee.passportNumber || '',
-        variablePay: employee.variablePay?.toString() || '0',
-        appraisalCycle: employee.appraisalCycle || '',
-        consentLogId: employee.consentLogId || ''
-      })
+      setLoadingEmployee(true)
+      getEmployeeById(employee.id)
+        .then(res => {
+          const fullEmp = res.data.data
+          if (fullEmp) {
+            setForm({
+              name: fullEmp.name || '',
+              email: fullEmp.email || '',
+              password: '',
+              role: fullEmp.role || 'user',
+              employeeId: fullEmp.employeeId || '',
+              department: fullEmp.department || '',
+              designation: fullEmp.designation || '',
+              joinDate: fullEmp.joinDate || '',
+              basicPay: fullEmp.basicPay?.toString() || '0',
+              bankName: fullEmp.bankName || '',
+              accountNumber: fullEmp.accountNumber || '',
+              ifscCode: fullEmp.ifscCode || '',
+              panNumber: fullEmp.panNumber || '',
+              uan: fullEmp.uan || '',
+              pfNumber: fullEmp.pfNumber || '',
+              contactNumber: fullEmp.contactNumber || '',
+              reportingManager: fullEmp.reportingManager || '',
+              officeLocation: fullEmp.officeLocation || '',
+              employmentType: fullEmp.employmentType || '',
+              employmentStatus: fullEmp.employmentStatus || '',
+              lastWorkingDay: fullEmp.lastWorkingDay || '',
+              reasonForLeaving: fullEmp.reasonForLeaving || '',
+              personalAddress: fullEmp.personalAddress || '',
+              personalEmail: fullEmp.personalEmail || '',
+              emergencyContactName: fullEmp.emergencyContactName || '',
+              emergencyContactRelationship: fullEmp.emergencyContactRelationship || '',
+              emergencyContactPhone: fullEmp.emergencyContactPhone || '',
+              dateOfBirth: fullEmp.dateOfBirth || '',
+              aadhaarNumber: fullEmp.aadhaarNumber || '',
+              passportNumber: fullEmp.passportNumber || '',
+              variablePay: fullEmp.variablePay?.toString() || '0',
+              appraisalCycle: fullEmp.appraisalCycle || '',
+              consentLogId: fullEmp.consentLogId || ''
+            })
+          }
+        })
+        .catch(err => {
+          setError(err.response?.data?.message || 'Failed to fetch complete employee details')
+        })
+        .finally(() => {
+          setLoadingEmployee(false)
+        })
     }
   }, [employee])
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
     setSubmitting(true)
     setError(null)
     try {
@@ -459,27 +487,24 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
         delete payload.password
       }
 
-      // Input format validations
-      if (payload.panNumber && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(payload.panNumber.trim().toUpperCase())) {
-        throw new Error('Invalid PAN number format (expected ABCDE1234F)')
+      // Input format validations with tab redirect suggestion helper
+      const validateOrThrow = (field, checkFn, msg) => {
+        if (payload[field] && !checkFn(payload[field])) {
+          const tabName = fieldToTabMap[field] || 'core'
+          const tabLabel = TABS.find(t => t.key === tabName)?.label || tabName
+          throw { message: `${msg} (Check the '${tabLabel}' tab)` }
+        }
       }
-      if (payload.ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(payload.ifscCode.trim().toUpperCase())) {
-        throw new Error('Invalid IFSC code format (expected ABCD0123456)')
-      }
-      const cleanAadhaar = payload.aadhaarNumber.replace(/\s+/g, '')
-      if (payload.aadhaarNumber && !/^[2-9][0-9]{11}$/.test(cleanAadhaar)) {
-        throw new Error('Invalid Aadhaar number (expected 12 digits, starting with 2-9)')
-      }
-      const cleanAccount = payload.accountNumber.replace(/\s+/g, '')
-      if (payload.accountNumber && !/^\d{9,18}$/.test(cleanAccount)) {
-        throw new Error('Invalid Bank Account Number (expected 9-18 digits)')
-      }
-      if (payload.uan && !/^\d{12}$/.test(payload.uan.trim())) {
-        throw new Error('Invalid UAN format (expected 12 digits)')
-      }
-      if (payload.pfNumber && !(/^[A-Z]{2}\/[A-Z]{3}\/\d{7}\/\d{3}\/\d{7}$/.test(payload.pfNumber.trim().toUpperCase()) || /^[A-Z]{2}[A-Z]{3}\d{17}$/.test(payload.pfNumber.trim().toUpperCase()))) {
-        throw new Error('Invalid PF account number format (expected e.g. MH/BAN/0012345/000/0000123)')
-      }
+
+      validateOrThrow('panNumber', val => /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(val.trim().toUpperCase()), 'Invalid PAN number format (expected ABCDE1234F)')
+      validateOrThrow('ifscCode', val => /^[A-Z]{4}0[A-Z0-9]{6}$/.test(val.trim().toUpperCase()), 'Invalid IFSC code format (expected ABCD0123456)')
+      validateOrThrow('aadhaarNumber', val => /^[2-9][0-9]{11}$/.test(val.replace(/\s+/g, '')), 'Invalid Aadhaar number (expected 12 digits, starting with 2-9)')
+      validateOrThrow('accountNumber', val => /^\d{9,18}$/.test(val.replace(/\s+/g, '')), 'Invalid Bank Account Number (expected 9-18 digits)')
+      validateOrThrow('uan', val => /^\d{12}$/.test(val.trim()), 'Invalid UAN format (expected 12 digits)')
+      validateOrThrow('pfNumber', val => {
+        const cleanVal = val.trim().toUpperCase()
+        return /^[A-Z]{2}\/[A-Z]{3}\/\d{7}\/\d{3}\/\d{7}$/.test(cleanVal) || /^[A-Z]{2}[A-Z]{3}\d{17}$/.test(cleanVal)
+      }, 'Invalid PF account number format (expected e.g. MH/BAN/0012345/000/0000123)')
       
       if (isEdit) {
         await updateEmployee(employee.id, payload)
@@ -489,8 +514,9 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
       onSave()
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Action failed')
+    } finally {
+      setSubmitting(false)
     }
-    setSubmitting(false)
   }
 
   const TABS = [
@@ -510,23 +536,23 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Full Name <span className="text-red-500">*</span></label>
-                <input required type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                <input required type="text" value={form.name} onChange={e => updateField('name', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Email Address <span className="text-red-500">*</span></label>
-                <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                <input required type="email" value={form.email} onChange={e => updateField('email', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Contact Number</label>
-                <input type="text" value={form.contactNumber} onChange={e => setForm({ ...form, contactNumber: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. +91 9876543210" />
+                <input type="text" value={form.contactNumber} onChange={e => updateField('contactNumber', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. +91 9876543210" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Employee ID</label>
-                <input type="text" value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. EMP-105" />
+                <input type="text" value={form.employeeId} onChange={e => updateField('employeeId', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. EMP-105" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Department</label>
-                <select value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
+                <select value={form.department} onChange={e => updateField('department', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
                   <option value="">Select Department...</option>
                   <option value="Engineering">Engineering</option>
                   <option value="Sales">Sales</option>
@@ -538,15 +564,15 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Designation</label>
-                <input type="text" value={form.designation} onChange={e => setForm({ ...form, designation: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Junior Developer" />
+                <input type="text" value={form.designation} onChange={e => updateField('designation', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Junior Developer" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Reporting Manager</label>
-                <input type="text" value={form.reportingManager} onChange={e => setForm({ ...form, reportingManager: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Jane Doe" />
+                <input type="text" value={form.reportingManager} onChange={e => updateField('reportingManager', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Jane Doe" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Office Location</label>
-                <input type="text" value={form.officeLocation} onChange={e => setForm({ ...form, officeLocation: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Bangalore" />
+                <input type="text" value={form.officeLocation} onChange={e => updateField('officeLocation', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Bangalore" />
               </div>
             </div>
           </div>
@@ -558,11 +584,11 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Join Date</label>
-                <input type="date" value={form.joinDate} onChange={e => setForm({ ...form, joinDate: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                <input type="date" value={form.joinDate} onChange={e => updateField('joinDate', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Employment Type</label>
-                <select value={form.employmentType} onChange={e => setForm({ ...form, employmentType: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
+                <select value={form.employmentType} onChange={e => updateField('employmentType', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
                   <option value="">Select...</option>
                   <option value="Full-time">Full-time</option>
                   <option value="Part-time">Part-time</option>
@@ -573,7 +599,7 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Employment Status</label>
-                <select value={form.employmentStatus} onChange={e => setForm({ ...form, employmentStatus: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
+                <select value={form.employmentStatus} onChange={e => updateField('employmentStatus', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
                   {!isEdit ? (
                     <option value="Active">Active</option>
                   ) : (
@@ -590,25 +616,25 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
               {isEdit && (
                 <div>
                   <label className="block text-xs font-medium text-slate-500 mb-1">Last Working Day</label>
-                  <input type="date" value={form.lastWorkingDay} onChange={e => setForm({ ...form, lastWorkingDay: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                  <input type="date" value={form.lastWorkingDay} onChange={e => updateField('lastWorkingDay', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
                 </div>
               )}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Basic Salary (₹/mo)</label>
-                <input type="number" step="0.01" value={form.basicPay} onChange={e => setForm({ ...form, basicPay: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                <input type="number" step="0.01" value={form.basicPay} onChange={e => updateField('basicPay', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Variable Pay (₹/mo)</label>
-                <input type="number" step="0.01" value={form.variablePay} onChange={e => setForm({ ...form, variablePay: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                <input type="number" step="0.01" value={form.variablePay} onChange={e => updateField('variablePay', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Appraisal Cycle</label>
-                <input type="text" value={form.appraisalCycle} onChange={e => setForm({ ...form, appraisalCycle: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Annual (Jan)" />
+                <input type="text" value={form.appraisalCycle} onChange={e => updateField('appraisalCycle', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Annual (Jan)" />
               </div>
               {isEdit && (
                 <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-slate-500 mb-1">Reason for Leaving</label>
-                  <input type="text" value={form.reasonForLeaving} onChange={e => setForm({ ...form, reasonForLeaving: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Optional notes on exit..." />
+                  <input type="text" value={form.reasonForLeaving} onChange={e => updateField('reasonForLeaving', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Optional notes on exit..." />
                 </div>
               )}
             </div>
@@ -621,28 +647,28 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Date of Birth</label>
-                <input type="date" value={form.dateOfBirth} onChange={e => setForm({ ...form, dateOfBirth: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                <input type="date" value={form.dateOfBirth} onChange={e => updateField('dateOfBirth', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Personal Email</label>
-                <input type="email" value={form.personalEmail} onChange={e => setForm({ ...form, personalEmail: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. personal@email.com" />
+                <input type="email" value={form.personalEmail} onChange={e => updateField('personalEmail', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. personal@email.com" />
               </div>
               <div className="md:col-span-2">
                 <label className="block text-xs font-medium text-slate-500 mb-1">Personal Address</label>
-                <input type="text" value={form.personalAddress} onChange={e => setForm({ ...form, personalAddress: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Full residential address..." />
+                <input type="text" value={form.personalAddress} onChange={e => updateField('personalAddress', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Full residential address..." />
               </div>
               <div className="md:col-span-2 border-t pt-3">
                 <h5 className="text-xs font-semibold text-slate-600 flex items-center gap-1 mb-2"><Phone className="w-3.5 h-3.5" /> Emergency Contact</h5>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Contact Name</label>
-                <input type="text" value={form.emergencyContactName} onChange={e => setForm({ ...form, emergencyContactName: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. John Doe" />
+                <input type="text" value={form.emergencyContactName} onChange={e => updateField('emergencyContactName', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. John Doe" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Relationship & Phone</label>
                 <div className="flex gap-2">
-                  <input type="text" value={form.emergencyContactRelationship} onChange={e => setForm({ ...form, emergencyContactRelationship: e.target.value })} className="w-1/3 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Spouse" />
-                  <input type="text" value={form.emergencyContactPhone} onChange={e => setForm({ ...form, emergencyContactPhone: e.target.value })} className="w-2/3 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. +91 9876543210" />
+                  <input type="text" value={form.emergencyContactRelationship} onChange={e => updateField('emergencyContactRelationship', e.target.value)} className="w-1/3 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Spouse" />
+                  <input type="text" value={form.emergencyContactPhone} onChange={e => updateField('emergencyContactPhone', e.target.value)} className="w-2/3 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. +91 9876543210" />
                 </div>
               </div>
             </div>
@@ -655,35 +681,35 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Bank Name</label>
-                <input type="text" value={form.bankName} onChange={e => setForm({ ...form, bankName: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. HDFC Bank" />
+                <input type="text" value={form.bankName} onChange={e => updateField('bankName', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. HDFC Bank" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Account Number</label>
-                <input type="text" value={form.accountNumber} onChange={e => setForm({ ...form, accountNumber: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. 1234567890" />
+                <input type="text" value={form.accountNumber} onChange={e => updateField('accountNumber', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. 1234567890" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">IFSC Code</label>
-                <input type="text" value={form.ifscCode} onChange={e => setForm({ ...form, ifscCode: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. HDFC0001234" />
+                <input type="text" value={form.ifscCode} onChange={e => updateField('ifscCode', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. HDFC0001234" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">PAN Number</label>
-                <input type="text" value={form.panNumber} onChange={e => setForm({ ...form, panNumber: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. ABCDE1234F" />
+                <input type="text" value={form.panNumber} onChange={e => updateField('panNumber', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. ABCDE1234F" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">UAN Number</label>
-                <input type="text" value={form.uan} onChange={e => setForm({ ...form, uan: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. 123456789012" />
+                <input type="text" value={form.uan} onChange={e => updateField('uan', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. 123456789012" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">PF Account</label>
-                <input type="text" value={form.pfNumber} onChange={e => setForm({ ...form, pfNumber: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. PF/1234567" />
+                <input type="text" value={form.pfNumber} onChange={e => updateField('pfNumber', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. PF/1234567" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Aadhaar Number</label>
-                <input type="text" value={form.aadhaarNumber} onChange={e => setForm({ ...form, aadhaarNumber: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. 1234 5678 9012" />
+                <input type="text" value={form.aadhaarNumber} onChange={e => updateField('aadhaarNumber', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. 1234 5678 9012" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Passport Number</label>
-                <input type="text" value={form.passportNumber} onChange={e => setForm({ ...form, passportNumber: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. A1234567" />
+                <input type="text" value={form.passportNumber} onChange={e => updateField('passportNumber', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. A1234567" />
               </div>
             </div>
           </div>
@@ -697,11 +723,11 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
                 <label className="block text-xs font-medium text-slate-500 mb-1">
                   {isEdit ? 'New Password (leave empty to keep current)' : 'Default Password'}
                 </label>
-                <input required={!isEdit} type="text" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder={isEdit ? 'Leave blank to keep current' : 'Employee password'} />
+                <input required={!isEdit} type="text" value={form.password} onChange={e => updateField('password', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder={isEdit ? 'Leave blank to keep current' : 'Employee password'} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Portal Role</label>
-                <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
+                <select value={form.role} onChange={e => updateField('role', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
                   <option value="user">Employee</option>
                   <option value="admin">Admin</option>
                   <option value="sales">Intern</option>
@@ -709,7 +735,7 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Consent Log ID</label>
-                <input type="text" value={form.consentLogId} onChange={e => setForm({ ...form, consentLogId: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. CL-2024-001" />
+                <input type="text" value={form.consentLogId} onChange={e => updateField('consentLogId', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. CL-2024-001" />
               </div>
             </div>
           </div>
@@ -762,7 +788,14 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
                   {error}
                 </div>
               )}
-              {renderTabFields()}
+              {loadingEmployee ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                  <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2"></div>
+                  <span>Fetching complete profile...</span>
+                </div>
+              ) : (
+                renderTabFields()
+              )}
             </div>
 
             <div className="flex justify-end gap-2 border-t px-6 py-4 shrink-0 bg-white">
