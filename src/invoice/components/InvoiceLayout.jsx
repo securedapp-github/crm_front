@@ -34,10 +34,10 @@ export default function InvoiceLayout() {
               <Link
                 key={tab.href}
                 to={tab.href}
-                className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   active
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100'
+                    ? 'bg-emerald-100 text-emerald-800 shadow-sm border border-emerald-200/50'
+                    : 'text-slate-600 hover:text-emerald-700 hover:bg-slate-100'
                 }`}
               >
                 {tab.label}
@@ -46,7 +46,9 @@ export default function InvoiceLayout() {
           })}
         </div>
       </div>
-      <Outlet />
+      <div className="animate-fade-up">
+        <Outlet />
+      </div>
     </div>
   )
 }

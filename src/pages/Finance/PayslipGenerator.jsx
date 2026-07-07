@@ -320,7 +320,7 @@ export default function PayslipGenerator() {
   const netPay = totalEarnings - totalDeductions
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-up">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div>
@@ -331,13 +331,13 @@ export default function PayslipGenerator() {
       </div>
 
       <div className="flex gap-2">
-        <button onClick={() => setTab('generate')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === 'generate' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-300'}`}>
+        <button onClick={() => setTab('generate')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'generate' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700'}`}>
           Generate Payslip
         </button>
-        <button onClick={() => setTab('history')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === 'history' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-300'}`}>
+        <button onClick={() => setTab('history')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'history' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700'}`}>
           Payslip History
         </button>
-        <button onClick={() => setTab('settings')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === 'settings' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-300'}`}>
+        <button onClick={() => setTab('settings')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'settings' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700'}`}>
           Settings
         </button>
       </div>
