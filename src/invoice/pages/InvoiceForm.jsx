@@ -250,7 +250,7 @@ export default function InvoiceForm() {
           </div>
         </div>
         <div className="border rounded-xl overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="bg-muted/50 text-xs text-muted-foreground">
                 <th className="p-2 text-center w-10">#</th>

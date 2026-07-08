@@ -10,6 +10,7 @@ export default function Navbar() {
   const [authed, setAuthed] = useState(false)
   const [role, setRole] = useState('')
   const [name, setName] = useState('')
+  const [dropdownOpen, setDropdownOpen] = useState(false)
   const onDashboard = location.pathname.startsWith('/dashboard')
   const navLinks = useMemo(() => {
     const links = [{ href: '/', label: 'Home' }]
@@ -144,17 +145,45 @@ export default function Navbar() {
           </nav>
 
           {authed ? (
-            <div className="flex items-center gap-4 border-l border-slate-200/60 pl-6">
+            <div className="flex items-center gap-4 border-l border-slate-200/60 pl-6 relative">
               <div className="flex flex-col text-right leading-tight">
-                <span className="text-xs font-semibold text-slate-700">{name ? `Hi, ${name}` : 'Welcome'}</span>
+                <span className="text-xs font-semibold text-slate-700">{name ? `Hi, ${name.split(' ')[0]}` : 'Welcome'}</span>
                 <span className="text-[10px] font-bold text-emerald-600/80 uppercase tracking-wider">{role === 'sales' ? 'Sales Cloud' : 'Account Owner'}</span>
               </div>
-              <button 
-                onClick={onLogout} 
-                className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-600 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              
+              {/* Avatar Dropdown */}
+              <div 
+                className="relative group cursor-pointer"
+                onMouseEnter={() => setDropdownOpen(true)}
+                onMouseLeave={() => setDropdownOpen(false)}
               >
-                Logout
-              </button>
+                <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-bold text-sm shadow-sm border-2 border-white">
+                  {name ? name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                
+                {/* Dropdown Menu */}
+                <div className={`absolute right-0 top-full pt-2 w-48 transition-all duration-200 origin-top-right ${dropdownOpen ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}`}>
+                  <div className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden py-1">
+                    <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
+                      <p className="text-xs font-semibold text-slate-800 truncate">{name}</p>
+                      <p className="text-[10px] text-slate-500 truncate">{role === 'admin' ? 'Administrator' : 'Sales Rep'}</p>
+                    </div>
+                    
+                    <Link to="/dashboard/settings?tab=account" className="flex items-center px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
+                      Account Settings
+                    </Link>
+                    <Link to="/dashboard/settings?tab=security" className="flex items-center px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
+                      Change Password
+                    </Link>
+                    
+                    <div className="h-px bg-slate-100 my-1"></div>
+                    
+                    <button onClick={onLogout} className="w-full text-left flex items-center px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors">
+                      Log out
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : checking ? (
             <div className="h-8 w-24 animate-pulse rounded-full bg-slate-100 pl-6" />
@@ -215,17 +244,40 @@ export default function Navbar() {
 
           <div className="mt-5 border-t border-slate-100 pt-5">
             {authed ? (
-              <div className="space-y-4">
-                <div className="px-4 py-2 bg-slate-50 rounded-xl">
-                  <div className="text-xs font-semibold text-slate-800">{name || 'User'}</div>
-                  <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mt-0.5">{role === 'sales' ? 'Sales Cloud' : 'Account Owner'}</div>
+              <div className="space-y-3">
+                <div className="px-4 py-3 bg-slate-50 rounded-xl flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                    {name ? name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-800">{name || 'User'}</div>
+                    <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mt-0.5">{role === 'sales' ? 'Sales Cloud' : 'Account Owner'}</div>
+                  </div>
                 </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    to="/dashboard/settings?tab=account"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex-1 rounded-xl bg-slate-50 text-slate-700 px-4 py-2.5 text-xs font-semibold hover:bg-slate-100 text-center transition duration-200"
+                  >
+                    Settings
+                  </Link>
+                  <Link
+                    to="/dashboard/settings?tab=security"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex-1 rounded-xl bg-slate-50 text-slate-700 px-4 py-2.5 text-xs font-semibold hover:bg-slate-100 text-center transition duration-200"
+                  >
+                    Security
+                  </Link>
+                </div>
+
                 <button
                   onClick={() => {
                     onLogout()
                     setMobileMenuOpen(false)
                   }}
-                  className="w-full rounded-xl bg-rose-50 text-rose-600 px-4 py-3 text-xs font-semibold hover:bg-rose-100 text-left transition duration-200"
+                  className="w-full rounded-xl bg-rose-50 text-rose-600 px-4 py-3 text-xs font-semibold hover:bg-rose-100 text-center transition duration-200"
                 >
                   Logout
                 </button>

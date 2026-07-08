@@ -67,6 +67,38 @@ export function generateInvoiceHTML(invoice, business) {
   const items = invoice.items || [];
   const taxType = invoice.tax_type || 'gst';
 
+  const colWidths = {
+    gst: {
+      index: '4%',
+      item: '24%',
+      gstRate: '8%',
+      qty: '8%',
+      rate: '11%',
+      amount: '11%',
+      cgst: '11%',
+      sgst: '11%',
+      total: '12%'
+    },
+    igst: {
+      index: '4%',
+      item: '28%',
+      gstRate: '8%',
+      qty: '8%',
+      rate: '13%',
+      amount: '13%',
+      igst: '14%',
+      total: '12%'
+    },
+    none: {
+      index: '5%',
+      item: '45%',
+      qty: '10%',
+      rate: '13%',
+      amount: '13%',
+      total: '14%'
+    }
+  }[taxType] || {};
+
   return `
     <!DOCTYPE html>
     <html>
@@ -154,18 +186,19 @@ export function generateInvoiceHTML(invoice, business) {
           border: 1px solid #e2e8f0;
           border-radius: 8px;
           overflow: hidden;
+          table-layout: fixed;
         }
         table.items-table th {
           background-color: #06b6d4; /* cyan-500 */
           color: #ffffff;
           font-weight: 600;
           text-align: left;
-          padding: 10px 14px;
+          padding: 10px 8px;
           font-size: 12px;
           text-transform: uppercase;
         }
         table.items-table td {
-          padding: 12px 14px;
+          padding: 12px 8px;
           border-bottom: 1px solid #f1f5f9;
           font-size: 13px;
           color: #475569;
@@ -332,14 +365,14 @@ export function generateInvoiceHTML(invoice, business) {
       <table class="items-table">
         <thead>
           <tr>
-            <th style="width: 5%;">#</th>
-            <th style="width: 30%;">Item</th>
-            ${taxType !== 'none' ? '<th class="text-center" style="width: 10%;">GST Rate</th>' : ''}
-            <th class="text-center" style="width: 10%;">Quantity</th>
-            <th class="text-right" style="width: 12%;">Rate</th>
-            <th class="text-right" style="width: 12%;">Amount</th>
-            ${taxType !== 'none' ? (taxType === 'gst' ? '<th class="text-right" style="width: 10%;">CGST</th><th class="text-right" style="width: 10%;">SGST</th>' : '<th class="text-right" style="width: 15%;">IGST</th>') : ''}
-            <th class="text-right" style="width: 12%;">Total</th>
+            <th style="width: ${colWidths.index};">#</th>
+            <th style="width: ${colWidths.item};">Item</th>
+            ${taxType !== 'none' ? `<th class="text-center" style="width: ${colWidths.gstRate};">GST Rate</th>` : ''}
+            <th class="text-center" style="width: ${colWidths.qty};">Quantity</th>
+            <th class="text-right" style="width: ${colWidths.rate};">Rate</th>
+            <th class="text-right" style="width: ${colWidths.amount};">Amount</th>
+            ${taxType !== 'none' ? (taxType === 'gst' ? `<th class="text-right" style="width: ${colWidths.cgst};">CGST</th><th class="text-right" style="width: ${colWidths.sgst};">SGST</th>` : `<th class="text-right" style="width: ${colWidths.igst};">IGST</th>`) : ''}
+            <th class="text-right" style="width: ${colWidths.total};">Total</th>
           </tr>
         </thead>
         <tbody>

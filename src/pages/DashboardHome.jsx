@@ -254,8 +254,24 @@ export default function DashboardHome() {
             </div>
           </div>
         </section>
+        
+        {/* Quick Actions Strip */}
+        <section className="flex flex-wrap items-center gap-3 animate-fade-up">
+          <button onClick={() => navigate('/dashboard/sales/deals/new')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-emerald-200 hover:text-emerald-700 transition-all shadow-sm">
+            <span className="text-emerald-600">+</span> New Deal
+          </button>
+          <button onClick={() => navigate('/dashboard/finance/invoice-generator')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-emerald-200 hover:text-emerald-700 transition-all shadow-sm">
+            <span className="text-emerald-600">+</span> Create Invoice
+          </button>
+          <button onClick={() => navigate('/dashboard/marketing-team/sequences/new')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-emerald-200 hover:text-emerald-700 transition-all shadow-sm">
+            <span className="text-emerald-600">+</span> New Sequence
+          </button>
+          <button onClick={() => navigate('/dashboard/sales')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-emerald-200 hover:text-emerald-700 transition-all shadow-sm">
+            Pipeline View
+          </button>
+        </section>
 
-        <section className="grid gap-4 xl:grid-cols-3">
+        <section className="grid gap-4 xl:grid-cols-3 animate-fade-up" style={{ animationDelay: '100ms' }}>
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center justify-between gap-3">

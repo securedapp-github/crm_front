@@ -17,7 +17,7 @@ export default function PayslipPDFContent({ data, user, business }) {
   const monthName = MONTHS[(parseInt(data.month) || 1) - 1];
   
   return (
-    <div className="bg-white text-black p-8 font-sans mx-auto" style={{ width: '800px', minHeight: '1000px' }}>
+    <div className="bg-white text-black p-8 font-sans mx-auto border border-slate-200 shadow-sm" style={{ maxWidth: '800px', width: '100%', minHeight: '1000px' }}>
       
       {/* Header */}
       <div className="relative mb-8 mt-4">

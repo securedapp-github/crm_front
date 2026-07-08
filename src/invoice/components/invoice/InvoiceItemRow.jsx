@@ -14,8 +14,8 @@ export default function InvoiceItemRow({ item, index, onChange, onRemove, showHs
   return (
     <tr className="border-b border-border last:border-0 group">
       <td className="p-2 text-center text-xs text-muted-foreground">{index + 1}</td>
-      <td className="p-2">
-        <Input value={item.name || ''} onChange={(e) => handleChange('name', e.target.value)} placeholder="Item name" className="text-sm h-9" />
+      <td className="p-2 min-w-[200px]">
+        <Input value={item.name || ''} onChange={(e) => handleChange('name', e.target.value)} placeholder="Item name" className="text-sm h-9 w-full min-w-[180px]" />
       </td>
       {showHsn && (
         <td className="p-2">

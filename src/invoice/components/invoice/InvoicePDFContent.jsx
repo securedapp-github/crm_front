@@ -4,7 +4,37 @@ import { format } from 'date-fns';
 
 export default function InvoicePDFContent({ invoice, business }) {
   const items = invoice.items || [];
-  const taxType = invoice.tax_type || 'gst';
+  const colWidths = {
+    gst: {
+      index: 'w-[4%]',
+      item: 'w-[24%]',
+      gstRate: 'w-[8%]',
+      qty: 'w-[8%]',
+      rate: 'w-[11%]',
+      amount: 'w-[11%]',
+      cgst: 'w-[11%]',
+      sgst: 'w-[11%]',
+      total: 'w-[12%]'
+    },
+    igst: {
+      index: 'w-[4%]',
+      item: 'w-[28%]',
+      gstRate: 'w-[8%]',
+      qty: 'w-[8%]',
+      rate: 'w-[13%]',
+      amount: 'w-[13%]',
+      igst: 'w-[14%]',
+      total: 'w-[12%]'
+    },
+    none: {
+      index: 'w-[5%]',
+      item: 'w-[45%]',
+      qty: 'w-[10%]',
+      rate: 'w-[13%]',
+      amount: 'w-[13%]',
+      total: 'w-[14%]'
+    }
+  }[taxType] || {};
 
   return (
     <div className="bg-white text-gray-900 rounded-2xl border shadow-sm p-8 space-y-6 print:shadow-none print:border-0 print:rounded-none print:p-0">
@@ -54,27 +84,27 @@ export default function InvoicePDFContent({ invoice, business }) {
       </div>
 
       {/* Items Table */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden">
-        <table className="w-full text-sm border-collapse">
+      <div className="border border-gray-200 rounded-xl overflow-x-auto print:overflow-visible">
+        <table className="w-full text-sm border-collapse min-w-[768px] print:min-w-0 table-fixed">
           <thead>
             <tr className="bg-cyan-500 text-white text-xs uppercase font-semibold">
-              <th className="text-left px-4 py-3 w-[5%]">#</th>
-              <th className="text-left px-4 py-3 w-[35%]">Item</th>
-              {taxType !== 'none' && <th className="text-center px-4 py-3 w-[10%]">GST Rate</th>}
-              <th className="text-center px-4 py-3 w-[10%]">Quantity</th>
-              <th className="text-right px-4 py-3 w-[12%]">Rate</th>
-              <th className="text-right px-4 py-3 w-[12%]">Amount</th>
+              <th className={`text-left px-2 py-3 ${colWidths.index}`}>#</th>
+              <th className={`text-left px-2 py-3 ${colWidths.item}`}>Item</th>
+              {taxType !== 'none' && <th className={`text-center px-2 py-3 ${colWidths.gstRate}`}>GST Rate</th>}
+              <th className={`text-center px-2 py-3 ${colWidths.qty}`}>Quantity</th>
+              <th className={`text-right px-2 py-3 ${colWidths.rate}`}>Rate</th>
+              <th className={`text-right px-2 py-3 ${colWidths.amount}`}>Amount</th>
               {taxType !== 'none' && (
                 taxType === 'gst' ? (
                   <>
-                    <th className="text-right px-4 py-3 w-[10%]">CGST</th>
-                    <th className="text-right px-4 py-3 w-[10%]">SGST</th>
+                    <th className={`text-right px-2 py-3 ${colWidths.cgst}`}>CGST</th>
+                    <th className={`text-right px-2 py-3 ${colWidths.sgst}`}>SGST</th>
                   </>
                 ) : (
-                  <th className="text-right px-4 py-3 w-[12%]">IGST</th>
+                  <th className={`text-right px-2 py-3 ${colWidths.igst}`}>IGST</th>
                 )
               )}
-              <th className="text-right px-4 py-3 w-[12%]">Total</th>
+              <th className={`text-right px-2 py-3 ${colWidths.total}`}>Total</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-gray-700">
@@ -88,44 +118,44 @@ export default function InvoicePDFContent({ invoice, business }) {
               const itemTotal = taxable + taxAmt;
               return (
                 <tr key={i} className="align-top">
-                  <td className="px-4 py-3 text-gray-400">{i + 1}.</td>
-                  <td className="px-4 py-3">
+                  <td className="px-2 py-3 text-gray-400">{i + 1}.</td>
+                  <td className="px-2 py-3">
                     <strong className="text-gray-900 font-medium block">{item.name || '-'}</strong>
                     {item.description && <p className="text-xs text-gray-400 mt-1">{item.description}</p>}
                   </td>
-                  {taxType !== 'none' && <td className="px-4 py-3 text-center">{item.tax_percent || 0}%</td>}
-                  <td className="px-4 py-3 text-center">{qty}</td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(rate, invoice.currency)}</td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(baseAmount, invoice.currency)}</td>
+                  {taxType !== 'none' && <td className="px-2 py-3 text-center">{item.tax_percent || 0}%</td>}
+                  <td className="px-2 py-3 text-center">{qty}</td>
+                  <td className="px-2 py-3 text-right">{formatCurrency(rate, invoice.currency)}</td>
+                  <td className="px-2 py-3 text-right">{formatCurrency(baseAmount, invoice.currency)}</td>
                   {taxType !== 'none' && (
                     taxType === 'gst' ? (
                       <>
-                        <td className="px-4 py-3 text-right">{formatCurrency(taxAmt / 2, invoice.currency)}</td>
-                        <td className="px-4 py-3 text-right">{formatCurrency(taxAmt / 2, invoice.currency)}</td>
+                        <td className="px-2 py-3 text-right">{formatCurrency(taxAmt / 2, invoice.currency)}</td>
+                        <td className="px-2 py-3 text-right">{formatCurrency(taxAmt / 2, invoice.currency)}</td>
                       </>
                     ) : (
-                      <td className="px-4 py-3 text-right">{formatCurrency(taxAmt, invoice.currency)}</td>
+                      <td className="px-2 py-3 text-right">{formatCurrency(taxAmt, invoice.currency)}</td>
                     )
                   )}
-                  <td className="px-4 py-3 text-right font-semibold text-gray-900">{formatCurrency(itemTotal, invoice.currency)}</td>
+                  <td className="px-2 py-3 text-right font-semibold text-gray-900">{formatCurrency(itemTotal, invoice.currency)}</td>
                 </tr>
               );
             })}
             <tr className="bg-gray-50/75 border-t-2 border-gray-200 font-bold text-gray-900">
-              <td colSpan={2} className="px-4 py-3">Total</td>
-              {taxType !== 'none' && <td className="px-4 py-3" />}
-              <td className="px-4 py-3 text-center">{items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</td>
-              <td className="px-4 py-3" />
-              <td className="px-4 py-3 text-right">{formatCurrency(items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0), invoice.currency)}</td>
+              <td colSpan={2} className="px-2 py-3">Total</td>
+              {taxType !== 'none' && <td className="px-2 py-3" />}
+              <td className="px-2 py-3 text-center">{items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</td>
+              <td className="px-2 py-3" />
+              <td className="px-2 py-3 text-right">{formatCurrency(items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0), invoice.currency)}</td>
               {taxType === 'gst' ? (
                 <>
-                  <td className="px-4 py-3" />
-                  <td className="px-4 py-3" />
+                  <td className="px-2 py-3" />
+                  <td className="px-2 py-3" />
                 </>
               ) : (
-                taxType === 'igst' && <td className="px-4 py-3" />
+                taxType === 'igst' && <td className="px-2 py-3" />
               )}
-              <td className="px-4 py-3 text-right text-gray-950">{formatCurrency(invoice.grand_total, invoice.currency)}</td>
+              <td className="px-2 py-3 text-right text-gray-950">{formatCurrency(invoice.grand_total, invoice.currency)}</td>
             </tr>
           </tbody>
         </table>
