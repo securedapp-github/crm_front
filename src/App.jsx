@@ -47,13 +47,14 @@ import InvoicePayments from '@/invoice/pages/Payments'
 import InvoiceProducts from '@/invoice/pages/Products'
 import InvoiceSettings from '@/invoice/pages/Settings'
 import InvoiceLayout from '@/invoice/components/InvoiceLayout'
-
+import { Toaster } from 'sonner'
 
 function App() {
   return (
     <QueryClientProvider client={queryClientInstance}>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ToastProvider>
+          <Toaster position="top-center" richColors />
           <Navbar />
           <Routes>
             <Route path="/" element={<Landing />} />

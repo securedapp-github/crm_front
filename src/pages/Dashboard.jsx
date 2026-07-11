@@ -1,19 +1,35 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { useEffect, useMemo, useState } from "react"
 import { getMe } from "../api/auth"
+import { 
+  HomeIcon, 
+  DashboardIcon, 
+  EnvelopeClosedIcon, 
+  CheckCircledIcon, 
+  ArchiveIcon, 
+  SpeakerLoudIcon, 
+  PaperPlaneIcon, 
+  ClipboardIcon, 
+  CardStackIcon, 
+  PersonIcon, 
+  AvatarIcon, 
+  ActivityLogIcon, 
+  GearIcon, 
+  LaptopIcon 
+} from "@radix-ui/react-icons"
 
 const DEFAULT_SECTIONS = [
-  { href: "/dashboard", label: "Dashboard", icon: "🏠" },
+  { href: "/dashboard", label: "Dashboard", icon: <HomeIcon className="w-5 h-5" /> },
 ]
 
 const SALES_SECTIONS = [
-  { href: "/dashboard/sales-dashboard", label: "Team Login", icon: "🧭" },
-  { href: "/dashboard/sales/mail", label: "Send Mail", icon: "✉️" },
-  { href: "/dashboard/sales/completed", label: "Completed Deals", icon: "✅" },
-  { href: "/dashboard/company-assets", label: "Company Assets", icon: "📂" },
-  { href: "/dashboard/sales/activities", label: "My Marketing Activities", icon: "📢" },
-  { href: "/dashboard/sales-dashboard/sequences", label: "Email Sequences", icon: "📨" },
-  { href: "/dashboard/sales/leave", label: "Leave Requests", icon: "📋" },
+  { href: "/dashboard/sales-dashboard", label: "Team Login", icon: <DashboardIcon className="w-5 h-5" /> },
+  { href: "/dashboard/sales/mail", label: "Send Mail", icon: <EnvelopeClosedIcon className="w-5 h-5" /> },
+  { href: "/dashboard/sales/completed", label: "Completed Deals", icon: <CheckCircledIcon className="w-5 h-5" /> },
+  { href: "/dashboard/company-assets", label: "Company Assets", icon: <ArchiveIcon className="w-5 h-5" /> },
+  { href: "/dashboard/sales/activities", label: "My Marketing Activities", icon: <SpeakerLoudIcon className="w-5 h-5" /> },
+  { href: "/dashboard/sales-dashboard/sequences", label: "Email Sequences", icon: <PaperPlaneIcon className="w-5 h-5" /> },
+  { href: "/dashboard/sales/leave", label: "Leave Requests", icon: <ClipboardIcon className="w-5 h-5" /> },
 ]
 
 export default function Dashboard() {
@@ -50,7 +66,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (checking) return
     if (user?.role === 'sales') {
-      const allowedPrefixes = ['/dashboard/sales-dashboard', '/dashboard/sales/completed', '/dashboard/sales/mail', '/dashboard/company-assets', '/dashboard/sales/activities', '/dashboard/sales/leave']
+      const allowedPrefixes = ['/dashboard/sales-dashboard', '/dashboard/sales/completed', '/dashboard/sales/mail', '/dashboard/company-assets', '/dashboard/sales/activities', '/dashboard/sales/leave', '/dashboard/settings']
       const isAllowed = allowedPrefixes.some((prefix) => location.pathname.startsWith(prefix))
       if (!isAllowed) {
         navigate('/dashboard/sales-dashboard', { replace: true })
@@ -92,7 +108,7 @@ export default function Dashboard() {
             }`}
         >
           <span className="flex items-center gap-3 text-left">
-            <span className="text-lg">{item.icon}</span>
+            <span className="flex items-center justify-center w-6 h-6">{item.icon}</span>
             <span>{item.label}</span>
           </span>
           <span className={`text-xs transition ${active ? "text-indigo-500" : "text-slate-300 group-hover:text-indigo-400"}`}>
@@ -120,7 +136,7 @@ export default function Dashboard() {
             }`}
           >
             <span className="flex items-center gap-3">
-              <span className="text-lg">💰</span>
+              <span className="flex items-center justify-center w-6 h-6"><CardStackIcon className="w-5 h-5" /></span>
               <span>Finance</span>
             </span>
             <span className={`text-xs transition ${isFinanceActive ? 'text-indigo-500' : 'text-slate-300 group-hover:text-indigo-400'}`}>
@@ -141,7 +157,7 @@ export default function Dashboard() {
                 }`}
             >
               <span className="flex items-center gap-3">
-                <span className="text-lg">👥</span>
+                <span className="flex items-center justify-center w-6 h-6"><PersonIcon className="w-5 h-5" /></span>
                 <span>Sales Team</span>
               </span>
               <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/sales-team')
@@ -163,7 +179,7 @@ export default function Dashboard() {
                 }`}
             >
               <span className="flex items-center gap-3">
-                <span className="text-lg">📣</span>
+                <span className="flex items-center justify-center w-6 h-6"><SpeakerLoudIcon className="w-5 h-5" /></span>
                 <span>Marketing Team</span>
               </span>
               <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/marketing-team')
@@ -185,7 +201,7 @@ export default function Dashboard() {
                 }`}
             >
               <span className="flex items-center gap-3">
-                <span className="text-lg">📈</span>
+                <span className="flex items-center justify-center w-6 h-6"><ActivityLogIcon className="w-5 h-5" /></span>
                 <span>Growth Team</span>
               </span>
               <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/growth-team')
@@ -207,7 +223,7 @@ export default function Dashboard() {
                 }`}
             >
               <span className="flex items-center gap-3">
-                <span className="text-lg">🏭</span>
+                <span className="flex items-center justify-center w-6 h-6"><GearIcon className="w-5 h-5" /></span>
                 <span>Operations Team</span>
               </span>
               <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/operations-team')
@@ -229,7 +245,7 @@ export default function Dashboard() {
                 }`}
             >
               <span className="flex items-center gap-3">
-                <span className="text-lg">💻</span>
+                <span className="flex items-center justify-center w-6 h-6"><LaptopIcon className="w-5 h-5" /></span>
                 <span>Tech Team</span>
               </span>
               <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/tech-team')
@@ -251,7 +267,7 @@ export default function Dashboard() {
                 }`}
             >
               <span className="flex items-center gap-3">
-                <span className="text-lg">🧑‍💼</span>
+                <span className="flex items-center justify-center w-6 h-6"><AvatarIcon className="w-5 h-5" /></span>
                 <span>HR Team</span>
               </span>
               <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/hr-team')

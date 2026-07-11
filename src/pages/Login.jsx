@@ -172,7 +172,7 @@ export default function Login() {
       <div className={`absolute bottom-[10%] right-[10%] w-[35rem] h-[35rem] rounded-full ${mode === 'admin' ? 'bg-blue-200/10' : 'bg-emerald-200/10'} blur-[100px] pointer-events-none`} />
 
       {/* Main Glass Card container */}
-      <div className="relative w-full max-w-5xl bg-white/80 border border-slate-200/60 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-md">
+      <div className="relative w-full max-w-5xl bg-white/80 border border-white/10 rounded-3xl shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_10px_40px_-10px_rgba(0,0,0,0.08)] overflow-hidden backdrop-blur-2xl">
         <div className="grid grid-cols-1 lg:grid-cols-12">
           
           {/* Left Form Column */}

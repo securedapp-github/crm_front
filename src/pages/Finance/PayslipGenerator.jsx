@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { getUsersForPayslip, generatePayslip, getAllPayslips, deletePayslip, updatePayslip } from '../../api/payslip'
+import { getUsersForPayslip, generatePayslip, getAllPayslips, deletePayslip, updatePayslip, getLeavePreviewForPayslip } from '../../api/payslip'
 import { getEmployeeById } from '../../api/employee'
 import { invoiceApi } from '@/invoice/api/invoiceClient'
 import { exportToCSV } from '@/invoice/lib/exportUtils'
@@ -22,6 +22,9 @@ export default function PayslipGenerator() {
   const [historyMonth, setHistoryMonth] = useState('all')
   const [historyYear, setHistoryYear] = useState('all')
   const [editingPayslipId, setEditingPayslipId] = useState(null)
+  
+  const [leaveSummary, setLeaveSummary] = useState(null)
+  const [leaveLoading, setLeaveLoading] = useState(false)
 
   const [form, setForm] = useState({
     userId: '', month: new Date().getMonth() + 1, year: new Date().getFullYear(),
@@ -30,7 +33,8 @@ export default function PayslipGenerator() {
     employeeId: '', designation: '', department: '',
     bankName: '', accountNumber: '', ifscCode: '', panNumber: '',
     uan: '', pfNumber: '',
-    companyName: '', addressLine1: '', city: '', state: '', pincode: ''
+    companyName: '', addressLine1: '', city: '', state: '', pincode: '',
+    leaveDeduction: '0'
   })
   const [submitting, setSubmitting] = useState(false)
   const skipAutofillRef = useRef(false)
@@ -169,6 +173,32 @@ export default function PayslipGenerator() {
     }
   }, [form.userId])
 
+  useEffect(() => {
+    if (form.userId && form.month && form.year) {
+      setLeaveLoading(true);
+      getLeavePreviewForPayslip(form.userId, form.month, form.year)
+        .then(res => {
+          const data = res.data.data;
+          setLeaveSummary(data);
+          
+          if (data && data.leaveDays > 0) {
+            const bp = parseFloat(form.basicPay || 0);
+            const deduct = (data.leaveDays * (bp / 26)).toFixed(2);
+            setForm(prev => ({ ...prev, leaveDeduction: deduct }));
+          } else {
+            setForm(prev => ({ ...prev, leaveDeduction: '0' }));
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch leave preview', err);
+          setLeaveSummary(null);
+        })
+        .finally(() => setLeaveLoading(false));
+    } else {
+      setLeaveSummary(null);
+    }
+  }, [form.userId, form.month, form.year, form.basicPay])
+
   const fetchPayslips = async () => {
     setLoading(true)
     try {
@@ -193,7 +223,10 @@ export default function PayslipGenerator() {
         providentFund: parseFloat(form.providentFund || 0),
         professionalTax: parseFloat(form.professionalTax || 0),
         tds: parseFloat(form.tds || 0),
-        remarks: ''
+        remarks: '',
+        leaveDays: leaveSummary?.leaveDays || 0,
+        leaveDeduction: parseFloat(form.leaveDeduction || 0),
+        leaveDates: leaveSummary?.leaveDates || null
       }
       
       let res;
@@ -447,8 +480,23 @@ export default function PayslipGenerator() {
                     <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">Income Tax / TDS (₹)</label>
                     <input type="number" step="0.01" value={form.tds} onChange={e => setForm({ ...form, tds: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
                   </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">Leave Deduction (₹)</label>
+                    <input type="number" step="0.01" value={form.leaveDeduction} onChange={e => setForm({ ...form, leaveDeduction: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                  </div>
                 </div>
               </div>
+
+              {leaveLoading && <div className="text-sm text-indigo-600 font-medium py-2">Calculating leaves...</div>}
+              {leaveSummary && leaveSummary.leaveDays > 0 && (
+                <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 mt-4 text-sm">
+                  <p className="font-semibold text-amber-800">Leave Deduction Applied</p>
+                  <p className="text-amber-700">
+                    Found <strong>{leaveSummary.leaveDays}</strong> approved leave days in this month. 
+                    A deduction of <strong>₹{form.leaveDeduction}</strong> has been auto-calculated.
+                  </p>
+                </div>
+              )}
 
               <div className="pt-2">
                 <h3 className="text-sm font-semibold text-slate-800 mb-3 border-b pb-2">Bank & PF Details</h3>

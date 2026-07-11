@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 
 export default function InvoicePDFContent({ invoice, business }) {
   const items = invoice.items || [];
+  const taxType = invoice.tax_type || 'gst';
   const colWidths = {
     gst: {
       index: 'w-[4%]',
@@ -85,9 +86,9 @@ export default function InvoicePDFContent({ invoice, business }) {
 
       {/* Items Table */}
       <div className="border border-gray-200 rounded-xl overflow-x-auto print:overflow-visible">
-        <table className="w-full text-sm border-collapse min-w-[768px] print:min-w-0 table-fixed">
+        <table className="w-full text-sm border-collapse table-auto break-words">
           <thead>
-            <tr className="bg-cyan-500 text-white text-xs uppercase font-semibold">
+            <tr className="bg-cyan-500 text-white text-xs uppercase font-semibold whitespace-nowrap">
               <th className={`text-left px-2 py-3 ${colWidths.index}`}>#</th>
               <th className={`text-left px-2 py-3 ${colWidths.item}`}>Item</th>
               {taxType !== 'none' && <th className={`text-center px-2 py-3 ${colWidths.gstRate}`}>GST Rate</th>}
@@ -117,36 +118,36 @@ export default function InvoicePDFContent({ invoice, business }) {
               const taxAmt = taxable * ((item.tax_percent || 0) / 100);
               const itemTotal = taxable + taxAmt;
               return (
-                <tr key={i} className="align-top">
+                <tr key={i} className="align-top break-inside-avoid">
                   <td className="px-2 py-3 text-gray-400">{i + 1}.</td>
                   <td className="px-2 py-3">
                     <strong className="text-gray-900 font-medium block">{item.name || '-'}</strong>
                     {item.description && <p className="text-xs text-gray-400 mt-1">{item.description}</p>}
                   </td>
                   {taxType !== 'none' && <td className="px-2 py-3 text-center">{item.tax_percent || 0}%</td>}
-                  <td className="px-2 py-3 text-center">{qty}</td>
-                  <td className="px-2 py-3 text-right">{formatCurrency(rate, invoice.currency)}</td>
-                  <td className="px-2 py-3 text-right">{formatCurrency(baseAmount, invoice.currency)}</td>
+                  <td className="px-2 py-3 text-center whitespace-nowrap">{qty}</td>
+                  <td className="px-2 py-3 text-right whitespace-nowrap">{formatCurrency(rate, invoice.currency)}</td>
+                  <td className="px-2 py-3 text-right whitespace-nowrap">{formatCurrency(baseAmount, invoice.currency)}</td>
                   {taxType !== 'none' && (
                     taxType === 'gst' ? (
                       <>
-                        <td className="px-2 py-3 text-right">{formatCurrency(taxAmt / 2, invoice.currency)}</td>
-                        <td className="px-2 py-3 text-right">{formatCurrency(taxAmt / 2, invoice.currency)}</td>
+                        <td className="px-2 py-3 text-right whitespace-nowrap">{formatCurrency(taxAmt / 2, invoice.currency)}</td>
+                        <td className="px-2 py-3 text-right whitespace-nowrap">{formatCurrency(taxAmt / 2, invoice.currency)}</td>
                       </>
                     ) : (
-                      <td className="px-2 py-3 text-right">{formatCurrency(taxAmt, invoice.currency)}</td>
+                      <td className="px-2 py-3 text-right whitespace-nowrap">{formatCurrency(taxAmt, invoice.currency)}</td>
                     )
                   )}
-                  <td className="px-2 py-3 text-right font-semibold text-gray-900">{formatCurrency(itemTotal, invoice.currency)}</td>
+                  <td className="px-2 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">{formatCurrency(itemTotal, invoice.currency)}</td>
                 </tr>
               );
             })}
-            <tr className="bg-gray-50/75 border-t-2 border-gray-200 font-bold text-gray-900">
+            <tr className="bg-gray-50/75 border-t-2 border-gray-200 font-bold text-gray-900 break-inside-avoid">
               <td colSpan={2} className="px-2 py-3">Total</td>
               {taxType !== 'none' && <td className="px-2 py-3" />}
-              <td className="px-2 py-3 text-center">{items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</td>
+              <td className="px-2 py-3 text-center whitespace-nowrap">{items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</td>
               <td className="px-2 py-3" />
-              <td className="px-2 py-3 text-right">{formatCurrency(items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0), invoice.currency)}</td>
+              <td className="px-2 py-3 text-right whitespace-nowrap">{formatCurrency(items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0), invoice.currency)}</td>
               {taxType === 'gst' ? (
                 <>
                   <td className="px-2 py-3" />
@@ -155,14 +156,15 @@ export default function InvoicePDFContent({ invoice, business }) {
               ) : (
                 taxType === 'igst' && <td className="px-2 py-3" />
               )}
-              <td className="px-2 py-3 text-right text-gray-950">{formatCurrency(invoice.grand_total, invoice.currency)}</td>
+              <td className="px-2 py-3 text-right text-gray-950 whitespace-nowrap">{formatCurrency(invoice.grand_total, invoice.currency)}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       {/* Bottom Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+      <div className="break-inside-avoid space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
         {/* Bank Details */}
         <div className="bg-cyan-50/55 border border-cyan-100 rounded-xl p-4 self-start space-y-3">
           <h3 className="text-xs uppercase font-semibold text-cyan-600 tracking-wider">Bank Details</h3>
@@ -284,10 +286,9 @@ export default function InvoicePDFContent({ invoice, business }) {
       <div className="border-t border-gray-100 pt-4 text-center text-xs text-gray-600">
         For any enquiry, reach out via email at <strong className="text-gray-800">{business?.email || '-'}</strong>, call on <strong className="text-gray-800">{business?.phone || '-'}</strong>
       </div>
-
-      <div className="text-center text-[10px] text-gray-400 pt-2">
-        Generated by SecuredApp CRM
+      
       </div>
+
     </div>
   );
 }
