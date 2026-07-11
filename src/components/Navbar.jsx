@@ -17,13 +17,12 @@ export default function Navbar() {
     if (authed && role === 'sales') {
       links.push(
         { href: '/dashboard/sales-dashboard', label: 'Team Login', protected: true },
-        { href: '/dashboard/sales/completed', label: 'Completed Deals', protected: true },
-        { href: '/dashboard/sales-team', label: 'Team', protected: true }
+        { href: '/dashboard/sales/completed', label: 'Completed Deals', protected: true }
       )
     } else {
       links.push({ href: '/dashboard', label: 'Dashboard', protected: true })
     }
-    if (authed && role !== 'sales') {
+    if (authed) {
       links.push({ href: '/dashboard/settings', label: 'Settings', protected: true })
     }
     return links
@@ -94,7 +93,7 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200/50 bg-white/70 shadow-sm backdrop-blur-md transition-all duration-300">
+    <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_1px_3px_rgba(0,0,0,0.02)] backdrop-blur-xl transition-all duration-300">
       <div className="container mx-auto flex items-center justify-between px-6 py-3.5">
         <div className="flex items-center">
           <div className="flex items-center space-x-3.5">
@@ -162,7 +161,7 @@ export default function Navbar() {
                 </div>
                 
                 {/* Dropdown Menu */}
-                <div className={`absolute right-0 top-full pt-2 w-48 transition-all duration-200 origin-top-right ${dropdownOpen ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}`}>
+                <div className={`absolute right-0 top-full pt-2 w-48 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] origin-top-right ${dropdownOpen ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}`}>
                   <div className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden py-1">
                     <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
                       <p className="text-xs font-semibold text-slate-800 truncate">{name}</p>

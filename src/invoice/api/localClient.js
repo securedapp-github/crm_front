@@ -21,7 +21,7 @@ const fetchJSON = async (url, options = {}) => {
   try {
     const res = await fetch(url, {
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
+      credentials: 'include',
       signal: controller.signal,
       ...options,
     });
@@ -105,7 +105,7 @@ export const invoiceApi = {
           const res = await fetch(`${API_BASE}/upload`, {
             method: 'POST',
             body: formData,
-            credentials: 'same-origin',
+            credentials: 'include',
             signal: controller.signal,
           });
           clearTimeout(timeoutId);

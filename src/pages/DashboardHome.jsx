@@ -161,12 +161,14 @@ export default function DashboardHome() {
   return (
     <main className="min-h-[calc(100vh-112px)] bg-slate-50 p-4 md:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl space-y-8">
-        <section className="rounded-3xl bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 p-6 text-white shadow-2xl sm:p-8">
+        <section className="relative overflow-hidden rounded-[2.5rem] bg-slate-950 p-6 text-white shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] sm:p-10 border border-slate-800/60">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/15 via-transparent to-transparent pointer-events-none"></div>
+          <div className="relative z-10">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-indigo-100">control center</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">control center</p>
               <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">Customer Growth Command Hub</h1>
-              <p className="mt-3 max-w-2xl text-sm text-indigo-100/90">
+              <p className="mt-3 max-w-2xl text-sm text-slate-400 leading-relaxed">
                 Monitor capture, scoring, lead velocity, and sales momentum in one glance. All metrics update automatically as your teams work.
               </p>
             </div>
@@ -227,31 +229,32 @@ export default function DashboardHome() {
               </div>
             )}
           </div>
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl bg-white/15 p-4 backdrop-blur">
-              <div className="text-xs uppercase tracking-wide text-indigo-100/80">Capture</div>
-              <div className="mt-2 text-3xl font-semibold">{captureStats.active}/{captureStats.total}</div>
-              <p className="mt-1 text-xs text-indigo-100/70">Active campaigns (total {captureStats.total || 0})</p>
-              <p className="mt-2 text-[11px] text-indigo-100/60">New leads waiting: {captureStats.newLeads}</p>
+          <div className="mt-8 border-t border-white/10 pt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="text-left group cursor-default">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-300 transition-colors">Capture</div>
+              <div className="mt-1.5 text-3xl font-mono font-bold tracking-tight text-white">{captureStats.active}/{captureStats.total}</div>
+              <p className="mt-1 text-xs text-slate-500">Active campaigns (total {captureStats.total || 0})</p>
+              <p className="mt-1.5 text-[10px] font-medium text-emerald-400/80">New leads waiting: {captureStats.newLeads}</p>
             </div>
-            <div className="rounded-2xl bg-white/15 p-4 backdrop-blur">
-              <div className="text-xs uppercase tracking-wide text-indigo-100/80">Scoring</div>
-              <div className="mt-2 text-3xl font-semibold">{scoringStats.hotDeals}</div>
-              <p className="mt-1 text-xs text-indigo-100/70">Hot opportunities flagged</p>
-              <p className="mt-2 text-[11px] text-indigo-100/60">Average deal score: {scoringStats.avgScore}</p>
+            <div className="text-left group cursor-default">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-300 transition-colors">Scoring</div>
+              <div className="mt-1.5 text-3xl font-mono font-bold tracking-tight text-white">{scoringStats.hotDeals}</div>
+              <p className="mt-1 text-xs text-slate-500">Hot opportunities flagged</p>
+              <p className="mt-1.5 text-[10px] font-medium text-emerald-400/80">Average deal score: {scoringStats.avgScore}</p>
             </div>
-            <div className="rounded-2xl bg-white/15 p-4 backdrop-blur">
-              <div className="text-xs uppercase tracking-wide text-indigo-100/80">Leads</div>
-              <div className="mt-2 text-3xl font-semibold">{leadStats.total}</div>
-              <p className="mt-1 text-xs text-indigo-100/70">Total captured across all campaigns</p>
-              <p className="mt-2 text-[11px] text-indigo-100/60">Hot leads: {leadStats.hotLeads} • Conversion: {leadStats.conversionRate}%</p>
+            <div className="text-left group cursor-default">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-300 transition-colors">Leads</div>
+              <div className="mt-1.5 text-3xl font-mono font-bold tracking-tight text-white">{leadStats.total}</div>
+              <p className="mt-1 text-xs text-slate-500">Total captured across campaigns</p>
+              <p className="mt-1.5 text-[10px] font-medium text-emerald-400/80">Hot leads: {leadStats.hotLeads} • Conversion: {leadStats.conversionRate}%</p>
             </div>
-            <div className="rounded-2xl bg-white/15 p-4 backdrop-blur">
-              <div className="text-xs uppercase tracking-wide text-indigo-100/80">Sales</div>
-              <div className="mt-2 text-3xl font-semibold">₹{Number(salesStats.revenueWon || 0).toLocaleString()}</div>
-              <p className="mt-1 text-xs text-indigo-100/70">Revenue won in recent cycles</p>
-              <p className="mt-2 text-[11px] text-indigo-100/60">Won: {salesStats.wonCount} • In progress: {salesStats.inProgress}</p>
+            <div className="text-left group cursor-default">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-300 transition-colors">Sales</div>
+              <div className="mt-1.5 text-3xl font-mono font-bold tracking-tight text-emerald-400">₹{Number(salesStats.revenueWon || 0).toLocaleString()}</div>
+              <p className="mt-1 text-xs text-slate-500">Revenue won in recent cycles</p>
+              <p className="mt-1.5 text-[10px] font-medium text-slate-400/80">Won: {salesStats.wonCount} • In progress: {salesStats.inProgress}</p>
             </div>
+          </div>
           </div>
         </section>
         

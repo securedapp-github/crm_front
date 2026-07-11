@@ -39,7 +39,7 @@ export default function PublicInvoice() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
       </div>
     );
@@ -47,7 +47,7 @@ export default function PublicInvoice() {
 
   if (!invoice) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
           <h1 className="text-2xl font-bold">Invoice Not Found</h1>
           <p className="text-muted-foreground">This invoice may have been removed or the link is incorrect.</p>
@@ -57,7 +57,7 @@ export default function PublicInvoice() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6 px-4">
+    <div className="min-h-[100dvh] bg-gray-50 py-6 px-4">
       <div className="max-w-[900px] mx-auto space-y-4">
         <div className="flex items-center justify-between no-print">
           <div>

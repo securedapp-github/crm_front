@@ -100,7 +100,7 @@ export default function TeamMemberDetail() {
     if (!member) return <div className="p-8 text-center text-slate-500">Team member not found</div>
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+        <div className="min-h-[100dvh] bg-slate-50 p-4 md:p-8">
             <div className="mx-auto max-w-5xl space-y-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>

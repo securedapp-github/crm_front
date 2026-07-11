@@ -115,9 +115,10 @@ export function generateInvoiceHTML(invoice, business) {
         @media print {
           @page { size: A4; margin: 0; }
           body { padding: 1.5cm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          tr, .bottom-section, .bank-details-box, .summary-and-signature,
-          .meta-grid, .invoice-header-row, .terms-conditions, .enquiry-footer, .refrens-footer {
-            page-break-inside: avoid; break-inside: avoid;
+          thead { display: table-header-group; }
+          tr, .summary-block, .bottom-section, .bank-details-box, .summary-and-signature,
+          .meta-grid, .invoice-header-row, .terms-conditions, .enquiry-footer {
+            page-break-inside: avoid !important; break-inside: avoid !important;
           }
         }
         .invoice-header-row {
@@ -186,21 +187,22 @@ export function generateInvoiceHTML(invoice, business) {
           border: 1px solid #e2e8f0;
           border-radius: 8px;
           overflow: hidden;
-          table-layout: fixed;
+          table-layout: auto;
+          word-break: break-word;
         }
         table.items-table th {
           background-color: #06b6d4; /* cyan-500 */
           color: #ffffff;
           font-weight: 600;
           text-align: left;
-          padding: 10px 8px;
-          font-size: 12px;
+          padding: 8px 4px;
+          font-size: 10px;
           text-transform: uppercase;
         }
         table.items-table td {
-          padding: 12px 8px;
+          padding: 10px 4px;
           border-bottom: 1px solid #f1f5f9;
-          font-size: 13px;
+          font-size: 11px;
           color: #475569;
           vertical-align: top;
         }
@@ -212,7 +214,7 @@ export function generateInvoiceHTML(invoice, business) {
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
-        .item-desc { font-size: 11px; color: #64748b; margin-top: 3px; }
+        .item-desc { font-size: 10px; color: #64748b; margin-top: 3px; }
         
         .bottom-section {
           display: grid;
@@ -364,7 +366,7 @@ export function generateInvoiceHTML(invoice, business) {
 
       <table class="items-table">
         <thead>
-          <tr>
+          <tr style="white-space: nowrap;">
             <th style="width: ${colWidths.index};">#</th>
             <th style="width: ${colWidths.item};">Item</th>
             ${taxType !== 'none' ? `<th class="text-center" style="width: ${colWidths.gstRate};">GST Rate</th>` : ''}
@@ -391,34 +393,35 @@ export function generateInvoiceHTML(invoice, business) {
                   <strong style="color: #1e293b;">${escapeHtml(item.name || '-')}</strong>
                   ${item.description ? `<div class="item-desc">${escapeHtml(item.description)}</div>` : ''}
                 </td>
-                ${taxType !== 'none' ? `<td class="text-center">${item.tax_percent || 0}%</td>` : ''}
-                <td class="text-center">${qty}</td>
-                <td class="text-right">${escapeHtml(formatCurrency(rate, invoice.currency))}</td>
-                <td class="text-right">${escapeHtml(formatCurrency(baseAmount, invoice.currency))}</td>
+                ${taxType !== 'none' ? `<td class="text-center" style="white-space: nowrap;">${item.tax_percent || 0}%</td>` : ''}
+                <td class="text-center" style="white-space: nowrap;">${qty}</td>
+                <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(rate, invoice.currency))}</td>
+                <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(baseAmount, invoice.currency))}</td>
                 ${taxType !== 'none' ? (taxType === 'gst' ? `
-                  <td class="text-right">${escapeHtml(formatCurrency(taxAmt / 2, invoice.currency))}</td>
-                  <td class="text-right">${escapeHtml(formatCurrency(taxAmt / 2, invoice.currency))}</td>
+                  <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(taxAmt / 2, invoice.currency))}</td>
+                  <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(taxAmt / 2, invoice.currency))}</td>
                 ` : `
-                  <td class="text-right">${escapeHtml(formatCurrency(taxAmt, invoice.currency))}</td>
+                  <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(taxAmt, invoice.currency))}</td>
                 `) : ''}
-                <td class="text-right" style="font-weight: 600; color: #1e293b;">${escapeHtml(formatCurrency(itemTotal, invoice.currency))}</td>
+                <td class="text-right" style="font-weight: 600; color: #1e293b; white-space: nowrap;">${escapeHtml(formatCurrency(itemTotal, invoice.currency))}</td>
               </tr>
             `;
           }).join('')}
           <tr class="total-row">
             <td colspan="2" style="font-weight: 700;">Total</td>
             ${taxType !== 'none' ? '<td></td>' : ''}
-            <td class="text-center" style="font-weight: 700;">${items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</td>
+            <td class="text-center" style="font-weight: 700; white-space: nowrap;">${items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</td>
             <td></td>
-            <td class="text-right" style="font-weight: 700;">${escapeHtml(formatCurrency(items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0), invoice.currency))}</td>
+            <td class="text-right" style="font-weight: 700; white-space: nowrap;">${escapeHtml(formatCurrency(items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0), invoice.currency))}</td>
             ${taxType === 'gst' ? '<td></td><td></td>' : (taxType === 'igst' ? '<td></td>' : '')}
-            <td class="text-right" style="font-weight: 700; color: #0f172a;">${escapeHtml(formatCurrency(invoice.grand_total, invoice.currency))}</td>
+            <td class="text-right" style="font-weight: 700; color: #0f172a; white-space: nowrap;">${escapeHtml(formatCurrency(invoice.grand_total, invoice.currency))}</td>
           </tr>
         </tbody>
       </table>
 
-      <div class="bottom-section">
-        <div class="bank-details-box">
+      <div class="summary-block">
+        <div class="bottom-section">
+          <div class="bank-details-box">
           <h3>Bank Details</h3>
           <table>
             <tr><td><strong>Account Name</strong></td><td>${escapeHtml(invoice.bank_details?.beneficiary_name || business?.beneficiary_name || '-')}</td></tr>
@@ -496,13 +499,11 @@ export function generateInvoiceHTML(invoice, business) {
         </div>
       ` : ''}
 
-      <div class="enquiry-footer">
-        For any enquiry, reach out via email at <strong>${escapeHtml(business?.email || '-')}</strong>, call on <strong>${escapeHtml(business?.phone || '-')}</strong>
+        <div class="enquiry-footer">
+          For any enquiry, reach out via email at <strong>${escapeHtml(business?.email || '-')}</strong>, call on <strong>${escapeHtml(business?.phone || '-')}</strong>
+        </div>
       </div>
 
-      <div class="refrens-footer">
-        Generated by SecuredApp CRM
-      </div>
     </body>
     </html>
   `;
@@ -702,7 +703,7 @@ export function generatePayslipHTML(data, user, business) {
       ${data.remarks ? `<div class="remarks"><strong>Remarks:</strong> ${escapeHtml(data.remarks)}</div>` : ''}
 
       <div class="print-footer">
-        ${escapeHtml(business?.company_name || 'Company')} — Generated by SecuredApp CRM
+        ${escapeHtml(business?.company_name || 'Company')}
       </div>
     </body>
     </html>
@@ -819,19 +820,41 @@ function downloadPDFFromHTML(htmlContent, filename) {
     logDebug('[Checkpoint 5] All resources ready — starting download');
 
     const opt = {
-      margin: 0.5,
+      margin: [0.5, 0.5, 0.5, 0.5],
       filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 4, useCORS: true, logging: false },
-      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.summary-block', '.bottom-section', '.avoid-break'] }
     };
     logDebug('[Checkpoint 6] Starting html2pdf');
 
     try {
       const pdfBuilder = typeof html2pdf === 'function' ? html2pdf : html2pdf.default;
 
+      // Check if it's an invoice to add "continued" text
+      const isInvoice = filename && filename.toLowerCase().includes('invoice');
+      const invoiceNumMatch = filename ? filename.match(/(INV-[A-Z0-9-]+)/i) : null;
+      const invoiceStr = invoiceNumMatch ? invoiceNumMatch[1] : 'Invoice';
+
+      const applyPagination = (pdf) => {
+        const totalPages = pdf.internal.getNumberOfPages();
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        
+        for (let i = 1; i <= totalPages; i++) {
+          pdf.setPage(i);
+          pdf.setFontSize(9);
+          pdf.setTextColor(150, 150, 150);
+          pdf.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 0.25, { align: 'center' });
+          if (i > 1 && isInvoice) {
+            pdf.text(`${invoiceStr} (continued)`, 0.5, 0.35);
+          }
+        }
+      };
+
       if (isIOS) {
-        pdfBuilder().set(opt).from(doc.documentElement).output('bloburl').then((url) => {
+        pdfBuilder().set(opt).from(doc.documentElement).toPdf().get('pdf').then(applyPagination).output('bloburl').then((url) => {
           logDebug('[Checkpoint 7] PDF generated successfully for iOS — cleaning up iframe');
           window.open(url, '_blank');
           if (document.body.contains(iframe)) document.body.removeChild(iframe);
@@ -840,7 +863,7 @@ function downloadPDFFromHTML(htmlContent, filename) {
           if (document.body.contains(iframe)) document.body.removeChild(iframe);
         });
       } else {
-        pdfBuilder().set(opt).from(doc.documentElement).save().then(() => {
+        pdfBuilder().set(opt).from(doc.documentElement).toPdf().get('pdf').then(applyPagination).save().then(() => {
           logDebug('[Checkpoint 7] PDF saved successfully — cleaning up iframe');
           if (document.body.contains(iframe)) document.body.removeChild(iframe);
         }).catch((err) => {

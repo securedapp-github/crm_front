@@ -47,7 +47,7 @@ export default function HRTeam() {
             onClick={() => setMainTab('employees')} 
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-all ${
               mainTab === 'employees' 
-                ? 'border-indigo-600 text-indigo-600' 
+                ? 'border-emerald-600 text-emerald-600' 
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
             }`}
           >
@@ -59,7 +59,7 @@ export default function HRTeam() {
             onClick={() => setMainTab('leaves')} 
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-all ${
               mainTab === 'leaves' 
-                ? 'border-indigo-600 text-indigo-600' 
+                ? 'border-emerald-600 text-emerald-600' 
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
             }`}
           >
@@ -71,7 +71,7 @@ export default function HRTeam() {
             onClick={() => setMainTab('payroll')} 
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-all ${
               mainTab === 'payroll' 
-                ? 'border-indigo-600 text-indigo-600' 
+                ? 'border-emerald-600 text-emerald-600' 
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
             }`}
           >
@@ -83,7 +83,7 @@ export default function HRTeam() {
             onClick={() => setMainTab('profile')} 
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-all ${
               mainTab === 'profile' 
-                ? 'border-indigo-600 text-indigo-600' 
+                ? 'border-emerald-600 text-emerald-600' 
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
             }`}
           >
@@ -95,7 +95,7 @@ export default function HRTeam() {
             onClick={() => setMainTab('leaves')} 
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-all ${
               mainTab === 'leaves' 
-                ? 'border-indigo-600 text-indigo-600' 
+                ? 'border-emerald-600 text-emerald-600' 
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
             }`}
           >
@@ -115,8 +115,8 @@ export default function HRTeam() {
               onClick={() => setLeaveTab('dashboard')} 
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                 leaveTab === 'dashboard' 
-                  ? 'bg-indigo-600 text-white' 
-                  : 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-300'
+                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200' 
+                  : 'bg-white border border-slate-200 text-slate-600 hover:border-emerald-300'
               }`}
             >
               Leave Dashboard
@@ -126,8 +126,8 @@ export default function HRTeam() {
                 onClick={() => setLeaveTab('assign')} 
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                   leaveTab === 'assign' 
-                    ? 'bg-indigo-600 text-white' 
-                    : 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-300'
+                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200' 
+                    : 'bg-white border border-slate-200 text-slate-600 hover:border-emerald-300'
                 }`}
               >
                 Assign Leave
@@ -138,8 +138,8 @@ export default function HRTeam() {
                 onClick={() => setLeaveTab('request')} 
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                   leaveTab === 'request' 
-                    ? 'bg-indigo-600 text-white' 
-                    : 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-300'
+                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200' 
+                    : 'bg-white border border-slate-200 text-slate-600 hover:border-emerald-300'
                 }`}
               >
                 Request Leave
@@ -487,6 +487,11 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
         delete payload.password
       }
 
+      // Strip read-only / non-editable fields that shouldn't be sent
+      delete payload.payslips
+      delete payload.leaveRequests
+      delete payload.isActive
+
       // Input format validations with tab redirect suggestion helper
       const validateOrThrow = (field, checkFn, msg) => {
         if (payload[field] && !checkFn(payload[field])) {
@@ -508,12 +513,16 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
       
       if (isEdit) {
         await updateEmployee(employee.id, payload)
+        toast.success('Employee details updated successfully!')
       } else {
         await createEmployee(payload)
+        toast.success('Employee created successfully!')
       }
       onSave()
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Action failed')
+      const msg = err.response?.data?.message || err.message || 'Action failed'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setSubmitting(false)
     }
@@ -1050,7 +1059,26 @@ function EmployeeProfileView({ employeeId }) {
           {(!employee.leaveRequests || employee.leaveRequests.length === 0) ? (
             <div className="text-center py-6 text-slate-400 text-sm">No leave records registered yet.</div>
           ) : (
-            <div className="border rounded-lg overflow-hidden">
+            <>
+              <div className="grid grid-cols-4 gap-4 mb-4">
+                <div className="bg-slate-50 p-3 rounded-lg border">
+                  <p className="text-[10px] uppercase font-bold text-slate-500">Total Leaves</p>
+                  <p className="text-xl font-bold text-slate-800">{employee.leaveRequests.length}</p>
+                </div>
+                <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                  <p className="text-[10px] uppercase font-bold text-emerald-600">Approved</p>
+                  <p className="text-xl font-bold text-emerald-700">{employee.leaveRequests.filter(l => l.status === 'approved').length}</p>
+                </div>
+                <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
+                  <p className="text-[10px] uppercase font-bold text-amber-600">Pending</p>
+                  <p className="text-xl font-bold text-amber-700">{employee.leaveRequests.filter(l => l.status === 'pending').length}</p>
+                </div>
+                <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                  <p className="text-[10px] uppercase font-bold text-red-600">Rejected</p>
+                  <p className="text-xl font-bold text-red-700">{employee.leaveRequests.filter(l => l.status === 'rejected').length}</p>
+                </div>
+              </div>
+              <div className="border rounded-lg overflow-hidden">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-slate-50 text-left text-slate-600 border-b">
@@ -1081,6 +1109,7 @@ function EmployeeProfileView({ employeeId }) {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       )}
