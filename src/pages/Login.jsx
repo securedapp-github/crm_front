@@ -50,6 +50,21 @@ export default function Login() {
     setFpMsg('')
   }
 
+  const getLandingPath = (user) => {
+    if (!user || !user.role) return '/login';
+    const roles = user.role.split(',').map(r => r.trim().toLowerCase());
+    
+    if (roles.includes('admin')) return '/dashboard';
+    if (roles.includes('hr')) return '/dashboard/hr-team';
+    if (roles.includes('finance')) return '/dashboard/finance';
+    if (roles.includes('sales')) return '/dashboard/sales-dashboard';
+    if (roles.includes('marketing') || roles.includes('growth')) return '/dashboard';
+    if (roles.includes('operations')) return '/dashboard/operations-team';
+    if (roles.includes('tech')) return '/dashboard/tech-team';
+    
+    return '/dashboard/leave';
+  }
+
   const onSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -57,12 +72,16 @@ export default function Login() {
     try {
       const res = await loginAdmin(adminForm)
       const user = res.data?.user
-      if (!user?.id || user?.role !== 'admin') throw new Error('Invalid admin login response')
+      if (!user?.id) throw new Error('Invalid login response')
+      const roles = (user.role || '').split(',').map(r => r.trim().toLowerCase());
+      if (!roles.includes('admin')) {
+        throw new Error('Not authorized as admin. Please use Team Login.')
+      }
       localStorage.setItem('user', JSON.stringify(user))
       window.dispatchEvent(new Event('auth:changed'))
       navigate('/dashboard')
     } catch (err) {
-      setError(err.response?.data?.error || err.response?.data?.message || 'Login failed')
+      setError(err.response?.data?.error || err.response?.data?.message || err.message || 'Login failed')
     } finally {
       setLoading(false)
     }
@@ -75,12 +94,13 @@ export default function Login() {
     try {
       const res = await loginSales(salesForm)
       const user = res.data?.user
-      if (!user?.id || user?.role !== 'sales') throw new Error('Invalid sales login response')
+      if (!user?.id) throw new Error('Invalid login response')
       localStorage.setItem('user', JSON.stringify(user))
       window.dispatchEvent(new Event('auth:changed'))
-      navigate('/dashboard/sales-dashboard')
+      const landingPath = getLandingPath(user)
+      navigate(landingPath)
     } catch (err) {
-      setError(err.response?.data?.error || err.response?.data?.message || 'Login failed')
+      setError(err.response?.data?.error || err.response?.data?.message || err.message || 'Login failed')
     } finally {
       setLoading(false)
     }

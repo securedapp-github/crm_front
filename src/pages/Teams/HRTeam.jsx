@@ -5,6 +5,7 @@ import { getEmployees, getEmployeeById, createEmployee, updateEmployee, toggleEm
 import { Search, Plus, Edit2, User as UserIcon, Calendar, CreditCard, X, Eye, Phone, MapPin, Briefcase, Heart, Shield, DollarSign, Key, FileText, Home, Globe, Download, FileSpreadsheet } from 'lucide-react'
 import { toast } from 'sonner'
 import PayslipGenerator from '../Finance/PayslipGenerator'
+import { invoiceApi } from '../../invoice/api/invoiceClient'
 
 export default function HRTeam() {
   const [user, setUser] = useState(null)
@@ -16,8 +17,8 @@ export default function HRTeam() {
       if (res.data?.authenticated) {
         const u = res.data.user
         setUser(u)
-        // If not admin, default to profile or leaves
-        if (u.role !== 'admin') {
+        // If not admin or hr, default to profile or leaves
+        if (u.role !== 'admin' && u.role !== 'hr') {
           setMainTab('profile')
         }
       }
@@ -26,7 +27,8 @@ export default function HRTeam() {
 
   if (!user) return null
 
-  const isAdmin = user.role === 'admin'
+  const userRoles = user.role.split(',').map(r => r.trim().toLowerCase())
+  const hasManagerAccess = userRoles.includes('admin') || userRoles.includes('hr')
 
   return (
     <div className="space-y-6">
@@ -34,7 +36,7 @@ export default function HRTeam() {
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">HR Team Portal</h1>
         <p className="mt-1 text-sm text-slate-500">
-          {isAdmin 
+          {hasManagerAccess 
             ? 'Manage employee records, leave requests, and payroll parameters.' 
             : 'Access your profile details, bank settings, and leaves dashboard.'}
         </p>
@@ -42,7 +44,7 @@ export default function HRTeam() {
 
       {/* Main Tabs */}
       <div className="flex gap-2 border-b border-slate-200 pb-px flex-wrap">
-        {isAdmin && (
+        {hasManagerAccess && (
           <button 
             onClick={() => setMainTab('employees')} 
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-all ${
@@ -54,7 +56,7 @@ export default function HRTeam() {
             Employee Manager
           </button>
         )}
-        {isAdmin && (
+        {hasManagerAccess && (
           <button 
             onClick={() => setMainTab('leaves')} 
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-all ${
@@ -66,7 +68,7 @@ export default function HRTeam() {
             Leave Manager
           </button>
         )}
-        {isAdmin && (
+        {hasManagerAccess && (
           <button 
             onClick={() => setMainTab('payroll')} 
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-all ${
@@ -78,7 +80,7 @@ export default function HRTeam() {
             Payroll Manager
           </button>
         )}
-        {!isAdmin && (
+        {!hasManagerAccess && (
           <button 
             onClick={() => setMainTab('profile')} 
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-all ${
@@ -90,7 +92,7 @@ export default function HRTeam() {
             My Profile
           </button>
         )}
-        {!isAdmin && (
+        {!hasManagerAccess && (
           <button 
             onClick={() => setMainTab('leaves')} 
             className={`px-4 py-2 border-b-2 font-medium text-sm transition-all ${
@@ -105,8 +107,8 @@ export default function HRTeam() {
       </div>
 
       {/* Content Rendering */}
-      {mainTab === 'employees' && isAdmin && <EmployeeDirectory />}
-      {mainTab === 'payroll' && isAdmin && <PayslipGenerator />}
+      {mainTab === 'employees' && hasManagerAccess && <EmployeeDirectory />}
+      {mainTab === 'payroll' && hasManagerAccess && <PayslipGenerator />}
       
       {mainTab === 'leaves' && (
         <div className="space-y-6">
@@ -121,7 +123,7 @@ export default function HRTeam() {
             >
               Leave Dashboard
             </button>
-            {isAdmin && (
+            {hasManagerAccess && (
               <button 
                 onClick={() => setLeaveTab('assign')} 
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -133,7 +135,7 @@ export default function HRTeam() {
                 Assign Leave
               </button>
             )}
-            {!isAdmin && (
+            {!hasManagerAccess && (
               <button 
                 onClick={() => setLeaveTab('request')} 
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -147,13 +149,13 @@ export default function HRTeam() {
             )}
           </div>
 
-          {leaveTab === 'dashboard' && <LeaveDashboard user={user} isAdmin={isAdmin} />}
-          {leaveTab === 'request' && !isAdmin && <LeaveRequestForm user={user} />}
-          {leaveTab === 'assign' && isAdmin && <AssignLeaveForm />}
+          {leaveTab === 'dashboard' && <LeaveDashboard user={user} hasManagerAccess={hasManagerAccess} />}
+          {leaveTab === 'request' && !hasManagerAccess && <LeaveRequestForm user={user} />}
+          {leaveTab === 'assign' && hasManagerAccess && <AssignLeaveForm />}
         </div>
       )}
 
-      {mainTab === 'profile' && !isAdmin && <EmployeeProfileView employeeId={user.id} />}
+      {mainTab === 'profile' && !hasManagerAccess && <EmployeeProfileView employeeId={user.id} />}
     </div>
   )
 }
@@ -541,27 +543,27 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
       case 'core':
         return (
           <div className="space-y-4">
-            <p className="text-xs text-slate-400 mb-4">Basic identification, contact, role, and position details.</p>
+            <p className="text-sm text-muted-foreground mb-4">Basic identification, contact, role, and position details.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Full Name <span className="text-red-500">*</span></label>
-                <input required type="text" value={form.name} onChange={e => updateField('name', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Full Name <span className="text-red-500">*</span></label>
+                <input required type="text" value={form.name} onChange={e => updateField('name', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Email Address <span className="text-red-500">*</span></label>
-                <input required type="email" value={form.email} onChange={e => updateField('email', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Email Address <span className="text-red-500">*</span></label>
+                <input required type="email" value={form.email} onChange={e => updateField('email', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Contact Number</label>
-                <input type="text" value={form.contactNumber} onChange={e => updateField('contactNumber', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. +91 9876543210" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Contact Number</label>
+                <input type="text" value={form.contactNumber} onChange={e => updateField('contactNumber', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. +91 9876543210" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Employee ID</label>
-                <input type="text" value={form.employeeId} onChange={e => updateField('employeeId', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. EMP-105" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Employee ID</label>
+                <input type="text" value={form.employeeId} onChange={e => updateField('employeeId', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. EMP-105" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Department</label>
-                <select value={form.department} onChange={e => updateField('department', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
+                <label className="block text-sm font-medium leading-none mb-1.5">Department</label>
+                <select value={form.department} onChange={e => updateField('department', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                   <option value="">Select Department...</option>
                   <option value="Engineering">Engineering</option>
                   <option value="Sales">Sales</option>
@@ -572,16 +574,16 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Designation</label>
-                <input type="text" value={form.designation} onChange={e => updateField('designation', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Junior Developer" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Designation</label>
+                <input type="text" value={form.designation} onChange={e => updateField('designation', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. Junior Developer" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Reporting Manager</label>
-                <input type="text" value={form.reportingManager} onChange={e => updateField('reportingManager', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Jane Doe" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Reporting Manager</label>
+                <input type="text" value={form.reportingManager} onChange={e => updateField('reportingManager', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. Jane Doe" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Office Location</label>
-                <input type="text" value={form.officeLocation} onChange={e => updateField('officeLocation', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Bangalore" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Office Location</label>
+                <input type="text" value={form.officeLocation} onChange={e => updateField('officeLocation', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. Bangalore" />
               </div>
             </div>
           </div>
@@ -589,15 +591,15 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
       case 'employment':
         return (
           <div className="space-y-4">
-            <p className="text-xs text-slate-400 mb-2">Job lifecycle, compensation, and exit tracking.</p>
+            <p className="text-sm text-muted-foreground mb-4">Job lifecycle, compensation, and exit tracking.</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Join Date</label>
-                <input type="date" value={form.joinDate} onChange={e => updateField('joinDate', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Join Date</label>
+                <input type="date" value={form.joinDate} onChange={e => updateField('joinDate', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Employment Type</label>
-                <select value={form.employmentType} onChange={e => updateField('employmentType', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
+                <label className="block text-sm font-medium leading-none mb-1.5">Employment Type</label>
+                <select value={form.employmentType} onChange={e => updateField('employmentType', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                   <option value="">Select...</option>
                   <option value="Full-time">Full-time</option>
                   <option value="Part-time">Part-time</option>
@@ -607,8 +609,8 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Employment Status</label>
-                <select value={form.employmentStatus} onChange={e => updateField('employmentStatus', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
+                <label className="block text-sm font-medium leading-none mb-1.5">Employment Status</label>
+                <select value={form.employmentStatus} onChange={e => updateField('employmentStatus', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                   {!isEdit ? (
                     <option value="Active">Active</option>
                   ) : (
@@ -624,26 +626,26 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
               </div>
               {isEdit && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Last Working Day</label>
-                  <input type="date" value={form.lastWorkingDay} onChange={e => updateField('lastWorkingDay', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                  <label className="block text-sm font-medium leading-none mb-1.5">Last Working Day</label>
+                  <input type="date" value={form.lastWorkingDay} onChange={e => updateField('lastWorkingDay', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Basic Salary (₹/mo)</label>
-                <input type="number" step="0.01" value={form.basicPay} onChange={e => updateField('basicPay', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Basic Salary (₹/mo)</label>
+                <input type="number" step="0.01" value={form.basicPay} onChange={e => updateField('basicPay', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Variable Pay (₹/mo)</label>
-                <input type="number" step="0.01" value={form.variablePay} onChange={e => updateField('variablePay', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Variable Pay (₹/mo)</label>
+                <input type="number" step="0.01" value={form.variablePay} onChange={e => updateField('variablePay', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Appraisal Cycle</label>
-                <input type="text" value={form.appraisalCycle} onChange={e => updateField('appraisalCycle', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Annual (Jan)" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Appraisal Cycle</label>
+                <input type="text" value={form.appraisalCycle} onChange={e => updateField('appraisalCycle', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. Annual (Jan)" />
               </div>
               {isEdit && (
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Reason for Leaving</label>
-                  <input type="text" value={form.reasonForLeaving} onChange={e => updateField('reasonForLeaving', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Optional notes on exit..." />
+                  <label className="block text-sm font-medium leading-none mb-1.5">Reason for Leaving</label>
+                  <input type="text" value={form.reasonForLeaving} onChange={e => updateField('reasonForLeaving', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Optional notes on exit..." />
                 </div>
               )}
             </div>
@@ -652,32 +654,32 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
       case 'personal':
         return (
           <div className="space-y-4">
-            <p className="text-xs text-slate-400 mb-2">Personal details and emergency contacts.</p>
+            <p className="text-sm text-muted-foreground mb-4">Personal details and emergency contacts.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Date of Birth</label>
-                <input type="date" value={form.dateOfBirth} onChange={e => updateField('dateOfBirth', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Date of Birth</label>
+                <input type="date" value={form.dateOfBirth} onChange={e => updateField('dateOfBirth', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Personal Email</label>
-                <input type="email" value={form.personalEmail} onChange={e => updateField('personalEmail', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. personal@email.com" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Personal Email</label>
+                <input type="email" value={form.personalEmail} onChange={e => updateField('personalEmail', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. personal@email.com" />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Personal Address</label>
-                <input type="text" value={form.personalAddress} onChange={e => updateField('personalAddress', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Full residential address..." />
+                <label className="block text-sm font-medium leading-none mb-1.5">Personal Address</label>
+                <input type="text" value={form.personalAddress} onChange={e => updateField('personalAddress', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Full residential address..." />
               </div>
-              <div className="md:col-span-2 border-t pt-3">
-                <h5 className="text-xs font-semibold text-slate-600 flex items-center gap-1 mb-2"><Phone className="w-3.5 h-3.5" /> Emergency Contact</h5>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Contact Name</label>
-                <input type="text" value={form.emergencyContactName} onChange={e => updateField('emergencyContactName', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. John Doe" />
+              <div className="md:col-span-2 border-t border-border pt-4">
+                <h5 className="text-sm font-semibold text-foreground flex items-center gap-1 mb-3"><Phone className="w-4 h-4 text-muted-foreground" /> Emergency Contact</h5>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Relationship & Phone</label>
+                <label className="block text-sm font-medium leading-none mb-1.5">Contact Name</label>
+                <input type="text" value={form.emergencyContactName} onChange={e => updateField('emergencyContactName', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. John Doe" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium leading-none mb-1.5">Relationship & Phone</label>
                 <div className="flex gap-2">
-                  <input type="text" value={form.emergencyContactRelationship} onChange={e => updateField('emergencyContactRelationship', e.target.value)} className="w-1/3 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. Spouse" />
-                  <input type="text" value={form.emergencyContactPhone} onChange={e => updateField('emergencyContactPhone', e.target.value)} className="w-2/3 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. +91 9876543210" />
+                  <input type="text" value={form.emergencyContactRelationship} onChange={e => updateField('emergencyContactRelationship', e.target.value)} className="flex h-10 w-1/3 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. Spouse" />
+                  <input type="text" value={form.emergencyContactPhone} onChange={e => updateField('emergencyContactPhone', e.target.value)} className="flex h-10 w-2/3 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. +91 9876543210" />
                 </div>
               </div>
             </div>
@@ -686,39 +688,39 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
       case 'financial':
         return (
           <div className="space-y-4">
-            <p className="text-xs text-slate-400 mb-2">Banking, government IDs, and compliance details.</p>
+            <p className="text-sm text-muted-foreground mb-4">Banking, government IDs, and compliance details.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Bank Name</label>
-                <input type="text" value={form.bankName} onChange={e => updateField('bankName', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. HDFC Bank" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Bank Name</label>
+                <input type="text" value={form.bankName} onChange={e => updateField('bankName', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. HDFC Bank" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Account Number</label>
-                <input type="text" value={form.accountNumber} onChange={e => updateField('accountNumber', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. 1234567890" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Account Number</label>
+                <input type="text" value={form.accountNumber} onChange={e => updateField('accountNumber', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. 1234567890" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">IFSC Code</label>
-                <input type="text" value={form.ifscCode} onChange={e => updateField('ifscCode', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. HDFC0001234" />
+                <label className="block text-sm font-medium leading-none mb-1.5">IFSC Code</label>
+                <input type="text" value={form.ifscCode} onChange={e => updateField('ifscCode', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. HDFC0001234" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">PAN Number</label>
-                <input type="text" value={form.panNumber} onChange={e => updateField('panNumber', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. ABCDE1234F" />
+                <label className="block text-sm font-medium leading-none mb-1.5">PAN Number</label>
+                <input type="text" value={form.panNumber} onChange={e => updateField('panNumber', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. ABCDE1234F" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">UAN Number</label>
-                <input type="text" value={form.uan} onChange={e => updateField('uan', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. 123456789012" />
+                <label className="block text-sm font-medium leading-none mb-1.5">UAN Number</label>
+                <input type="text" value={form.uan} onChange={e => updateField('uan', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. 123456789012" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">PF Account</label>
-                <input type="text" value={form.pfNumber} onChange={e => updateField('pfNumber', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. PF/1234567" />
+                <label className="block text-sm font-medium leading-none mb-1.5">PF Account</label>
+                <input type="text" value={form.pfNumber} onChange={e => updateField('pfNumber', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. PF/1234567" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Aadhaar Number</label>
-                <input type="text" value={form.aadhaarNumber} onChange={e => updateField('aadhaarNumber', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. 1234 5678 9012" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Aadhaar Number</label>
+                <input type="text" value={form.aadhaarNumber} onChange={e => updateField('aadhaarNumber', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. 1234 5678 9012" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Passport Number</label>
-                <input type="text" value={form.passportNumber} onChange={e => updateField('passportNumber', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. A1234567" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Passport Number</label>
+                <input type="text" value={form.passportNumber} onChange={e => updateField('passportNumber', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. A1234567" />
               </div>
             </div>
           </div>
@@ -726,25 +728,54 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
       case 'system':
         return (
           <div className="space-y-4">
-            <p className="text-xs text-slate-400 mb-2">System access, authentication, and metadata.</p>
+            <p className="text-sm text-muted-foreground mb-4">System access, authentication, and metadata.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">
+                <label className="block text-sm font-medium leading-none mb-1.5">
                   {isEdit ? 'New Password (leave empty to keep current)' : 'Default Password'}
                 </label>
-                <input required={!isEdit} type="text" value={form.password} onChange={e => updateField('password', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder={isEdit ? 'Leave blank to keep current' : 'Employee password'} />
+                <input required={!isEdit} type="text" value={form.password} onChange={e => updateField('password', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder={isEdit ? 'Leave blank to keep current' : 'Employee password'} />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium leading-none mb-3">Portal Roles (Select all that apply)</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { val: 'admin', label: 'Admin' },
+                    { val: 'sales', label: 'Sales Teammate' },
+                    { val: 'marketing', label: 'Marketing Teammate' },
+                    { val: 'growth', label: 'Growth Teammate' },
+                    { val: 'hr', label: 'HR Manager' },
+                    { val: 'finance', label: 'Finance Officer' },
+                    { val: 'user', label: 'General Employee' }
+                  ].map(item => {
+                    const roles = (form.role || '').split(',').map(r => r.trim());
+                    const checked = roles.includes(item.val);
+                    return (
+                      <label key={item.val} className="flex items-center gap-2 cursor-pointer rounded-md border border-input bg-background p-2 hover:bg-accent hover:text-accent-foreground transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={e => {
+                            let newRoles = [...roles];
+                            if (e.target.checked) {
+                              if (!newRoles.includes(item.val)) newRoles.push(item.val);
+                            } else {
+                              newRoles = newRoles.filter(r => r !== item.val);
+                            }
+                            const filtered = newRoles.filter(Boolean);
+                            updateField('role', filtered.join(',') || 'user');
+                          }}
+                          className="h-4 w-4 rounded border-input text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        />
+                        <span className="text-sm text-foreground">{item.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Portal Role</label>
-                <select value={form.role} onChange={e => updateField('role', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
-                  <option value="user">Employee</option>
-                  <option value="admin">Admin</option>
-                  <option value="sales">Intern</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Consent Log ID</label>
-                <input type="text" value={form.consentLogId} onChange={e => updateField('consentLogId', e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="e.g. CL-2024-001" />
+                <label className="block text-sm font-medium leading-none mb-1.5">Consent Log ID</label>
+                <input type="text" value={form.consentLogId} onChange={e => updateField('consentLogId', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. CL-2024-001" />
               </div>
             </div>
           </div>
@@ -756,19 +787,19 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl h-fit max-h-[85vh] overflow-hidden border flex flex-col">
-        <div className="flex justify-between items-center border-b px-6 py-4 shrink-0">
-          <h3 className="font-semibold text-lg text-slate-800">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-3xl h-fit max-h-[85vh] overflow-hidden border border-border flex flex-col">
+        <div className="flex justify-between items-center border-b border-border px-6 py-4 shrink-0">
+          <h3 className="font-semibold text-lg text-foreground">
             {isEdit ? `Edit: ${employee.name}` : 'Add New Employee'}
           </h3>
-          <button type="button" onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full text-slate-400">
+          <button type="button" onClick={onClose} className="p-1 hover:bg-accent rounded-full text-muted-foreground">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="flex flex-1 min-h-0">
           {/* Sidebar Tabs */}
-          <div className="w-48 border-r border-slate-200 bg-slate-50 p-2 space-y-1 shrink-0 overflow-y-auto">
+          <div className="w-48 border-r border-border bg-muted/30 p-2 space-y-1 shrink-0 overflow-y-auto">
             {TABS.map(tab => {
               const Icon = tab.icon
               return (
@@ -777,9 +808,9 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
                   type="button"
                   onClick={() => setFormTab(tab.key)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition text-left ${
-                    formTab === tab.key
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : 'text-slate-600 hover:bg-slate-100'
+                      formTab === tab.key
+                        ? 'bg-muted/50 text-foreground'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
@@ -793,13 +824,13 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
           <div className="flex-1 flex flex-col min-w-0">
             <div className="flex-1 overflow-y-auto p-6">
               {error && (
-                <div className="bg-red-50 text-red-700 text-sm p-3 rounded-lg border border-red-200 mb-4">
+                <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20 mb-4">
                   {error}
                 </div>
               )}
               {loadingEmployee ? (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                  <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2"></div>
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
                   <span>Fetching complete profile...</span>
                 </div>
               ) : (
@@ -807,11 +838,11 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
               )}
             </div>
 
-            <div className="flex justify-end gap-2 border-t px-6 py-4 shrink-0 bg-white">
-              <button type="button" onClick={onClose} className="px-4 py-2 border rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+            <div className="flex justify-end gap-2 border-t border-border px-6 py-4 shrink-0 bg-background">
+              <button type="button" onClick={onClose} className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                 Cancel
               </button>
-              <button type="button" onClick={handleSubmit} disabled={submitting} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50">
+              <button type="button" onClick={handleSubmit} disabled={submitting} className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50">
                 {submitting ? 'Saving...' : 'Save Employee Details'}
               </button>
             </div>
@@ -1221,7 +1252,7 @@ function EmployeeProfileView({ employeeId }) {
    Existing Leave Manager Sub-Module Components (Preserved logic)
    ========================================================================== */
 
-function LeaveDashboard({ user, isAdmin }) {
+function LeaveDashboard({ user, hasManagerAccess }) {
   const [leaves, setLeaves] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
@@ -1229,13 +1260,13 @@ function LeaveDashboard({ user, isAdmin }) {
   const fetchLeaves = async () => {
     setLoading(true)
     try {
-      const res = isAdmin ? await getAllLeaves(filter !== 'all' ? { status: filter } : {}) : await getMyLeaves()
+      const res = hasManagerAccess ? await getAllLeaves(filter !== 'all' ? { status: filter } : {}) : await getMyLeaves()
       setLeaves(res.data.data || [])
     } catch { setLeaves([]) }
     setLoading(false)
   }
 
-  useEffect(() => { fetchLeaves() }, [isAdmin, filter])
+  useEffect(() => { fetchLeaves() }, [hasManagerAccess, filter])
 
   const stats = {
     total: leaves.length,
@@ -1264,7 +1295,7 @@ function LeaveDashboard({ user, isAdmin }) {
         <StatCard label="Rejected" value={stats.rejected} color="text-red-600" />
       </div>
 
-      {isAdmin && (
+      {hasManagerAccess && (
         <div className="flex gap-2 mb-4 flex-wrap">
           {['all', 'pending', 'approved', 'rejected'].map(s => (
             <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition ${filter === s ? 'bg-indigo-100 text-indigo-700' : 'bg-white border border-slate-200 text-slate-500 hover:border-indigo-200'}`}>
@@ -1283,19 +1314,19 @@ function LeaveDashboard({ user, isAdmin }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 text-left text-slate-600">
-                {isAdmin && <th className="px-4 py-3 font-medium">Employee</th>}
+                {hasManagerAccess && <th className="px-4 py-3 font-medium">Employee</th>}
                 <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">From</th>
                 <th className="px-4 py-3 font-medium">To</th>
                 <th className="px-4 py-3 font-medium">Reason</th>
                 <th className="px-4 py-3 font-medium">Status</th>
-                {isAdmin && <th className="px-4 py-3 font-medium">Actions</th>}
+                {hasManagerAccess && <th className="px-4 py-3 font-medium">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {leaves.map(leave => (
                 <tr key={leave.id} className="hover:bg-slate-50">
-                  {isAdmin && <td className="px-4 py-3 text-slate-800 font-medium">{leave.user?.name || 'Unknown'}</td>}
+                  {hasManagerAccess && <td className="px-4 py-3 text-slate-800 font-medium">{leave.user?.name || 'Unknown'}</td>}
                   <td className="px-4 py-3 capitalize text-slate-600">{leave.type}</td>
                   <td className="px-4 py-3 text-slate-600">{leave.startDate}</td>
                   <td className="px-4 py-3 text-slate-600">{leave.endDate}</td>
@@ -1305,7 +1336,7 @@ function LeaveDashboard({ user, isAdmin }) {
                       {leave.status}
                     </span>
                   </td>
-                  {isAdmin && (
+                  {hasManagerAccess && (
                     <td className="px-4 py-3">
                       {leave.status === 'pending' ? (
                         <div className="flex gap-2">

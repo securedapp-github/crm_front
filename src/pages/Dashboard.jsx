@@ -18,19 +18,20 @@ import {
   LaptopIcon 
 } from "@radix-ui/react-icons"
 
-const DEFAULT_SECTIONS = [
-  { href: "/dashboard", label: "Dashboard", icon: <HomeIcon className="w-5 h-5" /> },
-]
-
-const SALES_SECTIONS = [
-  { href: "/dashboard/sales-dashboard", label: "Team Login", icon: <DashboardIcon className="w-5 h-5" /> },
-  { href: "/dashboard/sales/mail", label: "Send Mail", icon: <EnvelopeClosedIcon className="w-5 h-5" /> },
-  { href: "/dashboard/sales/completed", label: "Completed Deals", icon: <CheckCircledIcon className="w-5 h-5" /> },
-  { href: "/dashboard/company-assets", label: "Company Assets", icon: <ArchiveIcon className="w-5 h-5" /> },
-  { href: "/dashboard/sales/activities", label: "My Marketing Activities", icon: <SpeakerLoudIcon className="w-5 h-5" /> },
-  { href: "/dashboard/sales-dashboard/sequences", label: "Email Sequences", icon: <PaperPlaneIcon className="w-5 h-5" /> },
-  { href: "/dashboard/sales/leave", label: "Leave Requests", icon: <ClipboardIcon className="w-5 h-5" /> },
-]
+const getLandingPath = (user) => {
+  if (!user || !user.role) return '/login';
+  const roles = user.role.split(',').map(r => r.trim().toLowerCase());
+  
+  if (roles.includes('admin')) return '/dashboard';
+  if (roles.includes('hr')) return '/dashboard/hr-team';
+  if (roles.includes('finance')) return '/dashboard/finance';
+  if (roles.includes('sales')) return '/dashboard/sales-dashboard';
+  if (roles.includes('marketing') || roles.includes('growth')) return '/dashboard';
+  if (roles.includes('operations')) return '/dashboard/operations-team';
+  if (roles.includes('tech')) return '/dashboard/tech-team';
+  
+  return '/dashboard/leave';
+}
 
 export default function Dashboard() {
   const location = useLocation()
@@ -38,8 +39,6 @@ export default function Dashboard() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [user, setUser] = useState(null)
   const [checking, setChecking] = useState(true)
-  const financePaths = ['/dashboard/finance']
-  const isFinanceActive = financePaths.some((p) => location.pathname.startsWith(p))
 
   useEffect(() => {
     let mounted = true
@@ -64,19 +63,167 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
-    if (checking) return
-    if (user?.role === 'sales') {
-      const allowedPrefixes = ['/dashboard/sales-dashboard', '/dashboard/sales/completed', '/dashboard/sales/mail', '/dashboard/company-assets', '/dashboard/sales/activities', '/dashboard/sales/leave', '/dashboard/settings']
-      const isAllowed = allowedPrefixes.some((prefix) => location.pathname.startsWith(prefix))
-      if (!isAllowed) {
-        navigate('/dashboard/sales-dashboard', { replace: true })
+    if (checking || !user) return;
+    const roles = (user.role || '').split(',').map(r => r.trim().toLowerCase());
+    
+    // admin is superuser
+    if (roles.includes('admin')) return;
+    
+    // Base prefixes allowed for everyone
+    const allowedPrefixes = [
+      '/dashboard/settings',
+      '/dashboard/leave',
+      '/dashboard/team/'
+    ];
+    
+    // Add specific prefixes based on roles
+    if (roles.includes('sales')) {
+      allowedPrefixes.push('/dashboard/sales-dashboard');
+      allowedPrefixes.push('/dashboard/sales/');
+    }
+    
+    if (roles.includes('marketing')) {
+      allowedPrefixes.push('/dashboard/marketing');
+      allowedPrefixes.push('/dashboard/marketing-team');
+    }
+    
+    if (roles.includes('growth')) {
+      allowedPrefixes.push('/dashboard/growth-team');
+      allowedPrefixes.push('/dashboard/marketing');
+    }
+    
+    if (roles.includes('hr')) {
+      allowedPrefixes.push('/dashboard/hr-team');
+    }
+    
+    if (roles.includes('finance') || roles.includes('sales') || roles.includes('marketing') || roles.includes('growth')) {
+      allowedPrefixes.push('/dashboard/finance');
+    }
+    
+    if (roles.includes('operations')) {
+      allowedPrefixes.push('/dashboard/operations-team');
+    }
+    
+    if (roles.includes('tech')) {
+      allowedPrefixes.push('/dashboard/tech-team');
+    }
+    
+    // Check if user is accessing index /dashboard directly
+    if (location.pathname === '/dashboard' || location.pathname === '/dashboard/') {
+      // Dashboard home index is ONLY allowed for admin, sales, marketing, and growth
+      const isIndexAllowed = roles.some(r => ['admin', 'sales', 'marketing', 'growth'].includes(r));
+      if (!isIndexAllowed) {
+        const landing = getLandingPath(user);
+        navigate(landing, { replace: true });
+        return;
       }
+    }
+    
+    const isAllowed = allowedPrefixes.some(prefix => location.pathname.startsWith(prefix)) || 
+                      (location.pathname === '/dashboard' || location.pathname === '/dashboard/');
+                      
+    if (!isAllowed) {
+      const landing = getLandingPath(user);
+      navigate(landing, { replace: true });
     }
   }, [checking, user, location.pathname, navigate])
 
   const sections = useMemo(() => {
-    if (checking) return []
-    return user?.role === 'sales' ? SALES_SECTIONS : DEFAULT_SECTIONS
+    if (checking || !user) return []
+    const roles = (user.role || '').split(',').map(r => r.trim().toLowerCase());
+    
+    const map = {
+      dashboard: { href: "/dashboard", label: "Dashboard", icon: <HomeIcon className="w-5 h-5" /> },
+      salesDashboard: { href: "/dashboard/sales-dashboard", label: "Sales Dashboard", icon: <DashboardIcon className="w-5 h-5" /> },
+      salesMail: { href: "/dashboard/sales/mail", label: "Send Mail", icon: <EnvelopeClosedIcon className="w-5 h-5" /> },
+      salesCompleted: { href: "/dashboard/sales/completed", label: "Completed Deals", icon: <CheckCircledIcon className="w-5 h-5" /> },
+      salesActivities: { href: "/dashboard/sales/activities", label: "My Marketing Activities", icon: <SpeakerLoudIcon className="w-5 h-5" /> },
+      salesSequences: { href: "/dashboard/sales-dashboard/sequences", label: "Email Sequences", icon: <PaperPlaneIcon className="w-5 h-5" /> },
+      marketingDashboard: { href: "/dashboard/marketing", label: "Lead Management", icon: <SpeakerLoudIcon className="w-5 h-5" /> },
+      marketingTeam: { href: "/dashboard/marketing-team", label: "Marketing Portal", icon: <SpeakerLoudIcon className="w-5 h-5" /> },
+      growthTeam: { href: "/dashboard/growth-team", label: "Growth Portal", icon: <ActivityLogIcon className="w-5 h-5" /> },
+      operationsTeam: { href: "/dashboard/operations-team", label: "Operations Portal", icon: <GearIcon className="w-5 h-5" /> },
+      techTeam: { href: "/dashboard/tech-team", label: "Tech Portal", icon: <LaptopIcon className="w-5 h-5" /> },
+      hrTeam: { href: "/dashboard/hr-team", label: "HR Portal", icon: <AvatarIcon className="w-5 h-5" /> },
+      finance: { href: "/dashboard/finance", label: "Finance Hub", icon: <CardStackIcon className="w-5 h-5" /> },
+
+      leave: { href: "/dashboard/leave", label: "Leave Requests", icon: <ClipboardIcon className="w-5 h-5" /> }
+    };
+
+    if (roles.includes('admin')) {
+      return [
+        map.dashboard,
+        map.salesDashboard,
+        map.salesMail,
+        map.salesCompleted,
+        map.salesActivities,
+        map.salesSequences,
+        map.marketingDashboard,
+        map.marketingTeam,
+        map.growthTeam,
+        map.operationsTeam,
+        map.techTeam,
+        map.hrTeam,
+        map.finance,
+
+        map.leave
+      ];
+    }
+
+    const result = [];
+    if (roles.includes('marketing') || roles.includes('growth') || roles.includes('sales')) {
+      result.push(map.dashboard);
+    }
+    
+    if (roles.includes('sales')) {
+      result.push(map.salesDashboard);
+      result.push(map.salesMail);
+      result.push(map.salesCompleted);
+      result.push(map.salesActivities);
+      result.push(map.salesSequences);
+    }
+    
+    if (roles.includes('marketing')) {
+      result.push(map.marketingDashboard);
+      result.push(map.marketingTeam);
+    }
+    
+    if (roles.includes('growth')) {
+      result.push(map.growthTeam);
+      if (!roles.includes('marketing')) {
+        result.push(map.marketingDashboard);
+      }
+    }
+    
+    if (roles.includes('hr')) {
+      result.push(map.hrTeam);
+    }
+    
+    if (roles.includes('finance') || roles.includes('sales') || roles.includes('marketing') || roles.includes('growth')) {
+      result.push(map.finance);
+    }
+    
+    if (roles.includes('operations')) {
+      result.push(map.operationsTeam);
+    }
+    
+    if (roles.includes('tech')) {
+      result.push(map.techTeam);
+    }
+    
+
+    result.push(map.leave);
+    
+    // deduplicate
+    const unique = [];
+    const hrefs = new Set();
+    for (const item of result) {
+      if (!hrefs.has(item.href)) {
+        hrefs.add(item.href);
+        unique.push(item);
+      }
+    }
+    return unique;
   }, [checking, user])
 
   if (checking) {
@@ -125,160 +272,6 @@ export default function Dashboard() {
             <div key={item.href}>{renderLink(item)}</div>
           ))}
         </div>
-
-        {user?.role !== 'sales' && (
-          <Link
-            to="/dashboard/finance"
-            onClick={() => { if (onNavigate) onNavigate() }}
-            className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${isFinanceActive
-              ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-              : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-            }`}
-          >
-            <span className="flex items-center gap-3">
-              <span className="flex items-center justify-center w-6 h-6"><CardStackIcon className="w-5 h-5" /></span>
-              <span>Finance</span>
-            </span>
-            <span className={`text-xs transition ${isFinanceActive ? 'text-indigo-500' : 'text-slate-300 group-hover:text-indigo-400'}`}>
-              →
-            </span>
-          </Link>
-        )}
-        {user?.role !== 'sales' && (
-          <div className="space-y-2">
-            <Link
-              to="/dashboard/sales-team"
-              onClick={() => {
-                if (onNavigate) onNavigate()
-              }}
-              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${location.pathname.startsWith('/dashboard/sales-team')
-                ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-                : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-                }`}
-            >
-              <span className="flex items-center gap-3">
-                <span className="flex items-center justify-center w-6 h-6"><PersonIcon className="w-5 h-5" /></span>
-                <span>Sales Team</span>
-              </span>
-              <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/sales-team')
-                ? 'text-indigo-500'
-                : 'text-slate-300 group-hover:text-indigo-400'
-                }`}>
-                →
-              </span>
-            </Link>
-
-            <Link
-              to="/dashboard/marketing-team"
-              onClick={() => {
-                if (onNavigate) onNavigate()
-              }}
-              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${location.pathname.startsWith('/dashboard/marketing-team')
-                ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-                : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-                }`}
-            >
-              <span className="flex items-center gap-3">
-                <span className="flex items-center justify-center w-6 h-6"><SpeakerLoudIcon className="w-5 h-5" /></span>
-                <span>Marketing Team</span>
-              </span>
-              <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/marketing-team')
-                ? 'text-indigo-500'
-                : 'text-slate-300 group-hover:text-indigo-400'
-                }`}>
-                →
-              </span>
-            </Link>
-
-            <Link
-              to="/dashboard/growth-team"
-              onClick={() => {
-                if (onNavigate) onNavigate()
-              }}
-              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${location.pathname.startsWith('/dashboard/growth-team')
-                ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-                : 'border-transparent text-slate-600 hover-border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-                }`}
-            >
-              <span className="flex items-center gap-3">
-                <span className="flex items-center justify-center w-6 h-6"><ActivityLogIcon className="w-5 h-5" /></span>
-                <span>Growth Team</span>
-              </span>
-              <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/growth-team')
-                ? 'text-indigo-500'
-                : 'text-slate-300 group-hover:text-indigo-400'
-                }`}>
-                →
-              </span>
-            </Link>
-
-            <Link
-              to="/dashboard/operations-team"
-              onClick={() => {
-                if (onNavigate) onNavigate()
-              }}
-              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${location.pathname.startsWith('/dashboard/operations-team')
-                ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-                : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-                }`}
-            >
-              <span className="flex items-center gap-3">
-                <span className="flex items-center justify-center w-6 h-6"><GearIcon className="w-5 h-5" /></span>
-                <span>Operations Team</span>
-              </span>
-              <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/operations-team')
-                ? 'text-indigo-500'
-                : 'text-slate-300 group-hover:text-indigo-400'
-                }`}>
-                →
-              </span>
-            </Link>
-
-            <Link
-              to="/dashboard/tech-team"
-              onClick={() => {
-                if (onNavigate) onNavigate()
-              }}
-              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${location.pathname.startsWith('/dashboard/tech-team')
-                ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-                : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-                }`}
-            >
-              <span className="flex items-center gap-3">
-                <span className="flex items-center justify-center w-6 h-6"><LaptopIcon className="w-5 h-5" /></span>
-                <span>Tech Team</span>
-              </span>
-              <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/tech-team')
-                ? 'text-indigo-500'
-                : 'text-slate-300 group-hover:text-indigo-400'
-                }`}>
-                →
-              </span>
-            </Link>
-
-            <Link
-              to="/dashboard/hr-team"
-              onClick={() => {
-                if (onNavigate) onNavigate()
-              }}
-              className={`group flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${location.pathname.startsWith('/dashboard/hr-team')
-                ? 'border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm'
-                : 'border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600'
-                }`}
-            >
-              <span className="flex items-center gap-3">
-                <span className="flex items-center justify-center w-6 h-6"><AvatarIcon className="w-5 h-5" /></span>
-                <span>HR Team</span>
-              </span>
-              <span className={`text-xs transition ${location.pathname.startsWith('/dashboard/hr-team')
-                ? 'text-indigo-500'
-                : 'text-slate-300 group-hover:text-indigo-400'
-                }`}>
-                →
-              </span>
-            </Link>
-          </div>
-        )}
       </nav>
     )
   }

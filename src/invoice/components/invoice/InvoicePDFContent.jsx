@@ -5,6 +5,8 @@ import { format } from 'date-fns';
 export default function InvoicePDFContent({ invoice, business }) {
   const items = invoice.items || [];
   const taxType = invoice.tax_type || 'gst';
+  const hasLongDesc = items.some(item => (item.description || '').length > 100);
+  const isLarge = items.length >= 3 || (invoice.grand_total || 0) >= 100000 || hasLongDesc;
   const colWidths = {
     gst: {
       index: 'w-[4%]',
@@ -163,7 +165,7 @@ export default function InvoicePDFContent({ invoice, business }) {
       </div>
 
       {/* Bottom Section */}
-      <div className="break-inside-avoid space-y-4">
+      <div className={`break-inside-avoid space-y-4 ${isLarge ? 'border-t-4 border-dashed border-cyan-300 pt-6 mt-8' : ''}`}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
         {/* Bank Details */}
         <div className="bg-cyan-50/55 border border-cyan-100 rounded-xl p-4 self-start space-y-3">

@@ -18,10 +18,3 @@ export const approvePost = (id) => api.post(`/marketing/posts/${id}/approve`);
 export const checkConflict = (data) => api.post('/marketing/conflicts/check', data);
 export const getSummary = (start, end) => api.get(`/marketing/summary?start=${start}&end=${end}`);
 
-// Marketing Assets
-export const getAssets = () => api.get('/marketing-assets');
-export const uploadAsset = (formData) => api.post('/marketing-assets', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-});
-export const deleteAsset = (id) => api.delete(`/marketing-assets/${id}`);
-export const downloadAsset = (id) => api.get(`/marketing-assets/${id}/download`, { responseType: 'blob' });

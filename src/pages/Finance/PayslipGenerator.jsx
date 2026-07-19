@@ -6,6 +6,7 @@ import { invoiceApi } from '@/invoice/api/invoiceClient'
 import { exportToCSV } from '@/invoice/lib/exportUtils'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { printPayslipPDF, downloadPayslipPDF } from '@/utils/pdfManager'
+import { calculatePayslipTotals } from '@/utils/payslipUtils'
 import PayslipPDFContent from './PayslipPDFContent'
 import { toast } from 'sonner'
 import { getFullFileUrl } from '@/invoice/lib/invoiceUtils'
@@ -34,7 +35,9 @@ export default function PayslipGenerator() {
     bankName: '', accountNumber: '', ifscCode: '', panNumber: '',
     uan: '', pfNumber: '',
     companyName: '', addressLine1: '', city: '', state: '', pincode: '',
-    leaveDeduction: '0'
+    leaveDeduction: '0',
+    paidLeaveDays: '0',
+    unpaidLeaveDays: '0'
   })
   const [submitting, setSubmitting] = useState(false)
   const skipAutofillRef = useRef(false)
@@ -184,9 +187,9 @@ export default function PayslipGenerator() {
           if (data && data.leaveDays > 0) {
             const bp = parseFloat(form.basicPay || 0);
             const deduct = (data.leaveDays * (bp / 26)).toFixed(2);
-            setForm(prev => ({ ...prev, leaveDeduction: deduct }));
+            setForm(prev => ({ ...prev, leaveDeduction: deduct, unpaidLeaveDays: String(data.leaveDays), paidLeaveDays: '0' }));
           } else {
-            setForm(prev => ({ ...prev, leaveDeduction: '0' }));
+            setForm(prev => ({ ...prev, leaveDeduction: '0', unpaidLeaveDays: '0', paidLeaveDays: '0' }));
           }
         })
         .catch(err => {
@@ -224,9 +227,11 @@ export default function PayslipGenerator() {
         professionalTax: parseFloat(form.professionalTax || 0),
         tds: parseFloat(form.tds || 0),
         remarks: '',
-        leaveDays: leaveSummary?.leaveDays || 0,
+        leaveDays: (parseFloat(form.paidLeaveDays || 0) + parseFloat(form.unpaidLeaveDays || 0)) || leaveSummary?.leaveDays || 0,
         leaveDeduction: parseFloat(form.leaveDeduction || 0),
-        leaveDates: leaveSummary?.leaveDates || null
+        leaveDates: leaveSummary?.leaveDates || null,
+        paidLeaveDays: parseFloat(form.paidLeaveDays || 0),
+        unpaidLeaveDays: parseFloat(form.unpaidLeaveDays || 0)
       }
       
       let res;
@@ -311,7 +316,10 @@ export default function PayslipGenerator() {
       addressLine1: business?.address_line1 || '',
       city: business?.city || '',
       state: business?.state || '',
-      pincode: business?.pincode || ''
+      pincode: business?.pincode || '',
+      paidLeaveDays: ps.paidLeaveDays?.toString() || '0',
+      unpaidLeaveDays: ps.unpaidLeaveDays?.toString() || '0',
+      leaveDeduction: ps.leaveDeduction?.toString() || '0'
     });
     setTab('generate');
     toast.success('Loaded payslip details for editing.');
@@ -333,6 +341,13 @@ export default function PayslipGenerator() {
     ], `payslip_history_${new Date().toISOString().slice(0, 10)}`);
   }
 
+  const handleUnpaidLeaveChange = (value) => {
+    const unpaidDays = parseFloat(value) || 0;
+    const bp = parseFloat(form.basicPay || 0);
+    const deduct = unpaidDays > 0 ? (unpaidDays * (bp / 26)).toFixed(2) : '0';
+    setForm(prev => ({ ...prev, unpaidLeaveDays: value, leaveDeduction: deduct }));
+  }
+
   const filteredPayslips = payslips.filter(ps => {
     const matchesSearch = !historySearch || 
       ps.user?.name?.toLowerCase().includes(historySearch.toLowerCase()) ||
@@ -348,9 +363,7 @@ export default function PayslipGenerator() {
   })
 
   const selectedUser = users.find(u => u.id == form.userId)
-  const totalEarnings = parseFloat(form.basicPay || 0) + parseFloat(form.hra || 0) + parseFloat(form.conveyance || 0) + parseFloat(form.specialAllowance || 0)
-  const totalDeductions = parseFloat(form.providentFund || 0) + parseFloat(form.professionalTax || 0) + parseFloat(form.tds || 0)
-  const netPay = totalEarnings - totalDeductions
+  const { totalEarnings, totalDeductions, netPay } = calculatePayslipTotals(form)
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -483,6 +496,20 @@ export default function PayslipGenerator() {
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">Leave Deduction (₹)</label>
                     <input type="number" step="0.01" value={form.leaveDeduction} onChange={e => setForm({ ...form, leaveDeduction: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <h3 className="text-sm font-semibold text-slate-800 mb-3 border-b pb-2">Leaves Configuration</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">Paid Leaves (Days)</label>
+                    <input type="number" step="0.5" min="0" value={form.paidLeaveDays} onChange={e => setForm({ ...form, paidLeaveDays: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">LOP / Unpaid Leaves (Days)</label>
+                    <input type="number" step="0.5" min="0" value={form.unpaidLeaveDays} onChange={e => handleUnpaidLeaveChange(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
                   </div>
                 </div>
               </div>

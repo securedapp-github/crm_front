@@ -6,6 +6,20 @@ import { getDeals } from '../api/deal'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Cell } from 'recharts'
 
 export default function DashboardHome() {
+  const [user, setUser] = useState(null)
+  
+  useEffect(() => {
+    try {
+      setUser(JSON.parse(localStorage.getItem('user') || '{}'))
+    } catch (e) {}
+  }, [])
+
+  const canSeeRevenue = useMemo(() => {
+    if (!user || !user.role) return false;
+    const roles = user.role.split(',').map(r => r.trim().toLowerCase());
+    return roles.includes('admin') || roles.includes('finance');
+  }, [user]);
+
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [summary, setSummary] = useState(null)
@@ -250,7 +264,9 @@ export default function DashboardHome() {
             </div>
             <div className="text-left group cursor-default">
               <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-300 transition-colors">Sales</div>
-              <div className="mt-1.5 text-3xl font-mono font-bold tracking-tight text-emerald-400">₹{Number(salesStats.revenueWon || 0).toLocaleString()}</div>
+              <div className="mt-1.5 text-3xl font-mono font-bold tracking-tight text-emerald-400">
+                {canSeeRevenue ? `₹${Number(salesStats.revenueWon || 0).toLocaleString()}` : '₹ ••••'}
+              </div>
               <p className="mt-1 text-xs text-slate-500">Revenue won in recent cycles</p>
               <p className="mt-1.5 text-[10px] font-medium text-slate-400/80">Won: {salesStats.wonCount} • In progress: {salesStats.inProgress}</p>
             </div>
@@ -577,7 +593,9 @@ export default function DashboardHome() {
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Won revenue</div>
-                <div className="mt-1 text-2xl font-semibold text-slate-900">₹{Number(salesStats.revenueWon || 0).toLocaleString()}</div>
+                <div className="mt-1 text-2xl font-semibold text-slate-900">
+                  {canSeeRevenue ? `₹${Number(salesStats.revenueWon || 0).toLocaleString()}` : '₹ ••••'}
+                </div>
                 <p className="mt-1 text-xs text-slate-500">Closed in the last 30 days</p>
               </div>
             </div>
