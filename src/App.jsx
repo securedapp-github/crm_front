@@ -29,7 +29,7 @@ import HRTeam from './pages/Teams/HRTeam'
 import { ToastProvider } from './components/ToastProvider'
 import TeamMemberDetail from './components/TeamMemberDetail'
 import Settings from './pages/Settings'
-import CompanyAssets from './pages/CompanyAssets'
+
 import ActivitiesPage from './pages/Marketing/ActivitiesPage'
 import SalesMarketingActivities from './pages/Sales/SalesMarketingActivities'
 import EmailSequences from './pages/Marketing/EmailSequences'
@@ -85,13 +85,14 @@ function App() {
               <Route path="hr-team" element={<HRTeam />} />
               <Route path="team/:id" element={<TeamMemberDetail />} />
               <Route path="settings" element={<Settings />} />
-              <Route path="company-assets" element={<CompanyAssets />} />
+
               <Route path="marketing-team/activities" element={<ActivitiesPage />} />
               <Route path="marketing-team/sequences" element={<EmailSequences />} />
               <Route path="marketing-team/sequences/new" element={<CreateSequence />} />
               <Route path="marketing-team/sequences/:id" element={<SequenceBuilder />} />
               <Route path="sales/activities" element={<SalesMarketingActivities />} />
               <Route path="sales/leave" element={<SalesLeave />} />
+              <Route path="leave" element={<SalesLeave />} />
               <Route path="sales-dashboard/sequences" element={<EmailSequences />} />
               <Route path="sales-dashboard/sequences/new" element={<CreateSequence />} />
               <Route path="sales-dashboard/sequences/:id" element={<SequenceBuilder />} />

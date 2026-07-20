@@ -1,20 +1,23 @@
 import React from 'react';
 import { getFullFileUrl } from '@/invoice/lib/invoiceUtils';
+import { calculatePayslipTotals } from '@/utils/payslipUtils';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 export default function PayslipPDFContent({ data, user, business }) {
-  const basic = parseFloat(data.basicPay || 0);
-  const hra = parseFloat(data.hra || 0);
-  const conveyance = parseFloat(data.conveyance || 0);
-  const specialAllowance = parseFloat(data.specialAllowance || 0);
-  const totalEarnings = basic + hra + conveyance + specialAllowance;
-  const pf = parseFloat(data.providentFund || 0);
-  const pt = parseFloat(data.professionalTax || 0);
-  const tds = parseFloat(data.tds || 0);
-  const leaveDeduction = parseFloat(data.leaveDeduction || 0);
-  const totalDeductions = pf + pt + tds + leaveDeduction;
-  const netPay = totalEarnings - totalDeductions;
+  const {
+    basic,
+    hra,
+    conveyance,
+    specialAllowance,
+    totalEarnings,
+    pf,
+    pt,
+    tds,
+    leaveDeduction,
+    totalDeductions,
+    netPay
+  } = calculatePayslipTotals(data);
   const monthName = MONTHS[(parseInt(data.month) || 1) - 1];
   
   return (
@@ -60,8 +63,12 @@ export default function PayslipPDFContent({ data, user, business }) {
             <div>{business?.city || '-'}</div>
           </div>
           <div className="grid grid-cols-[140px_1fr] gap-1 mb-1.5">
-            <div className="font-semibold">LOP:</div>
-            <div>0.0</div>
+            <div className="font-semibold">Paid Leave:</div>
+            <div>{data.paidLeaveDays || 0}</div>
+          </div>
+          <div className="grid grid-cols-[140px_1fr] gap-1 mb-1.5">
+            <div className="font-semibold">LOP (Unpaid):</div>
+            <div>{data.unpaidLeaveDays || 0}</div>
           </div>
           {(data.uan || user?.uan) && (
             <div className="grid grid-cols-[140px_1fr] gap-1 mb-1.5">
@@ -153,7 +160,15 @@ export default function PayslipPDFContent({ data, user, business }) {
             </div>
             {leaveDeduction > 0 && (
               <div className="flex justify-between text-red-600">
-                <div>Leave Deduction ({data.leaveDays || 0} Days)</div>
+                <div>Leave Deduction ({data.leaveDays || 0} Days)
+                  {data.leaveDates && data.leaveDates !== '[]' && (() => {
+                    try {
+                      return <span className="text-xs font-normal block text-gray-500">Dates: {JSON.parse(data.leaveDates).join(', ')}</span>;
+                    } catch {
+                      return <span className="text-xs font-normal block text-gray-500">Dates: {data.leaveDates}</span>;
+                    }
+                  })()}
+                </div>
                 <div>₹ {leaveDeduction.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
               </div>
             )}

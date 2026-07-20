@@ -12,17 +12,46 @@ export default function Navbar() {
   const [name, setName] = useState('')
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const onDashboard = location.pathname.startsWith('/dashboard')
+  const formatRoles = (roleStr) => {
+    if (!roleStr) return 'Employee';
+    const mapping = {
+      admin: 'Administrator',
+      sales: 'Sales Cloud',
+      marketing: 'Marketing Teammate',
+      growth: 'Growth Teammate',
+      hr: 'HR Manager',
+      finance: 'Finance Officer',
+      operations: 'Operations Teammate',
+      tech: 'Tech Teammate',
+      user: 'Employee'
+    };
+    return roleStr.split(',')
+      .map(r => mapping[r.trim().toLowerCase()] || r.trim())
+      .join(', ');
+  };
+
   const navLinks = useMemo(() => {
     const links = [{ href: '/', label: 'Home' }]
-    if (authed && role === 'sales') {
-      links.push(
-        { href: '/dashboard/sales-dashboard', label: 'Team Login', protected: true },
-        { href: '/dashboard/sales/completed', label: 'Completed Deals', protected: true }
-      )
-    } else {
-      links.push({ href: '/dashboard', label: 'Dashboard', protected: true })
-    }
     if (authed) {
+      const roles = (role || '').split(',').map(r => r.trim().toLowerCase());
+      if (roles.includes('sales')) {
+        links.push(
+          { href: '/dashboard/sales-dashboard', label: 'Team Login', protected: true },
+          { href: '/dashboard/sales/completed', label: 'Completed Deals', protected: true }
+        )
+      } else if (roles.includes('marketing') || roles.includes('growth') || roles.includes('admin')) {
+        links.push({ href: '/dashboard', label: 'Dashboard', protected: true })
+      } else if (roles.includes('hr')) {
+        links.push({ href: '/dashboard/hr-team', label: 'HR Portal', protected: true })
+      } else if (roles.includes('finance')) {
+        links.push({ href: '/dashboard/finance', label: 'Finance Hub', protected: true })
+      } else if (roles.includes('operations')) {
+        links.push({ href: '/dashboard/operations-team', label: 'Operations Portal', protected: true })
+      } else if (roles.includes('tech')) {
+        links.push({ href: '/dashboard/tech-team', label: 'Tech Portal', protected: true })
+      } else {
+        links.push({ href: '/dashboard/leave', label: 'Leaves', protected: true })
+      }
       links.push({ href: '/dashboard/settings', label: 'Settings', protected: true })
     }
     return links
@@ -147,7 +176,7 @@ export default function Navbar() {
             <div className="flex items-center gap-4 border-l border-slate-200/60 pl-6 relative">
               <div className="flex flex-col text-right leading-tight">
                 <span className="text-xs font-semibold text-slate-700">{name ? `Hi, ${name.split(' ')[0]}` : 'Welcome'}</span>
-                <span className="text-[10px] font-bold text-emerald-600/80 uppercase tracking-wider">{role === 'sales' ? 'Sales Cloud' : 'Account Owner'}</span>
+                <span className="text-[10px] font-bold text-emerald-600/80 uppercase tracking-wider">{formatRoles(role)}</span>
               </div>
               
               {/* Avatar Dropdown */}
@@ -165,7 +194,7 @@ export default function Navbar() {
                   <div className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden py-1">
                     <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
                       <p className="text-xs font-semibold text-slate-800 truncate">{name}</p>
-                      <p className="text-[10px] text-slate-500 truncate">{role === 'admin' ? 'Administrator' : 'Sales Rep'}</p>
+                      <p className="text-[10px] text-slate-500 truncate">{formatRoles(role)}</p>
                     </div>
                     
                     <Link to="/dashboard/settings?tab=account" className="flex items-center px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
@@ -250,7 +279,7 @@ export default function Navbar() {
                   </div>
                   <div>
                     <div className="text-sm font-semibold text-slate-800">{name || 'User'}</div>
-                    <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mt-0.5">{role === 'sales' ? 'Sales Cloud' : 'Account Owner'}</div>
+                    <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mt-0.5">{formatRoles(role)}</div>
                   </div>
                 </div>
                 

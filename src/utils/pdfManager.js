@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import { formatCurrency, numberToWords } from '@/invoice/lib/invoiceUtils';
 import html2pdf from 'html2pdf.js';
+import { calculatePayslipTotals } from './payslipUtils';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -99,6 +100,9 @@ export function generateInvoiceHTML(invoice, business) {
     }
   }[taxType] || {};
 
+  const hasLongDesc = items.some(item => (item.description || '').length > 100);
+  const isLarge = items.length >= 3 || (invoice.grand_total || 0) >= 100000 || hasLongDesc;
+
   return `
     <!DOCTYPE html>
     <html>
@@ -121,6 +125,7 @@ export function generateInvoiceHTML(invoice, business) {
             page-break-inside: avoid !important; break-inside: avoid !important;
           }
         }
+        .page-break { page-break-before: always; }
         .invoice-header-row {
           display: flex;
           justify-content: space-between;
@@ -419,7 +424,7 @@ export function generateInvoiceHTML(invoice, business) {
         </tbody>
       </table>
 
-      <div class="summary-block">
+      <div class="summary-block ${isLarge ? 'page-break' : ''}">
         <div class="bottom-section">
           <div class="bank-details-box">
           <h3>Bank Details</h3>
@@ -512,21 +517,21 @@ export function generateInvoiceHTML(invoice, business) {
 // ── Payslip HTML ──────────────────────────────────────────────────────
 
 export function generatePayslipHTML(data, user, business) {
-  const basic = parseFloat(data.basicPay || 0);
-  const hra = parseFloat(data.hra || 0);
-  const conveyance = parseFloat(data.conveyance || 0);
-  const specialAllowance = parseFloat(data.specialAllowance || 0);
-  const allowances = parseFloat(data.allowances || 0);
-
+  const {
+    basic,
+    hra,
+    conveyance,
+    specialAllowance,
+    totalEarnings,
+    pf,
+    pt,
+    tds,
+    leaveDeduction,
+    totalDeductions: totalAmtDeductions,
+    netPay
+  } = calculatePayslipTotals(data);
+  const allowances = parseFloat(data.allowances) || 0;
   const breakdownSum = hra + conveyance + specialAllowance;
-  const finalAllowances = allowances > 0 ? allowances : breakdownSum;
-  const totalEarnings = basic + finalAllowances;
-
-  const pf = parseFloat(data.providentFund || 0);
-  const pt = parseFloat(data.professionalTax || 0);
-  const tds = parseFloat(data.tds || 0);
-  const totalAmtDeductions = pf + pt + tds;
-  const netPay = totalEarnings - totalAmtDeductions;
   const monthName = MONTHS[(parseInt(data.month) || 1) - 1];
 
   // Build list of earnings rows
@@ -550,6 +555,18 @@ export function generatePayslipHTML(data, user, business) {
   if (pf > 0) deductionsRows.push({ label: 'Provident Fund (PF)', value: pf });
   if (pt > 0) deductionsRows.push({ label: 'Professional Tax (PT)', value: pt });
   if (tds > 0) deductionsRows.push({ label: 'Income Tax (TDS)', value: tds });
+  if (leaveDeduction > 0) {
+    let label = `Leave Deduction (${data.leaveDays || 0} Days)`;
+    if (data.leaveDates && data.leaveDates !== '[]') {
+      try {
+        const dates = JSON.parse(data.leaveDates);
+        label += ` [${dates.join(', ')}]`;
+      } catch {
+        label += ` [${data.leaveDates}]`;
+      }
+    }
+    deductionsRows.push({ label, value: leaveDeduction });
+  }
 
   // Fallback if no deductions to show at least one row
   if (deductionsRows.length === 0) {
@@ -653,6 +670,8 @@ export function generatePayslipHTML(data, user, business) {
             <tr><td class="detail-label">Employee ID:</td><td class="detail-value">${escapeHtml(data.employeeId || user?.employeeId || '-')}</td></tr>
             <tr><td class="detail-label">Designation:</td><td class="detail-value">${escapeHtml(data.designation || user?.designation || '-')}</td></tr>
             <tr><td class="detail-label">Department:</td><td class="detail-value">${escapeHtml(data.department || user?.department || '-')}</td></tr>
+            <tr><td class="detail-label">Paid Leave:</td><td class="detail-value">${data.paidLeaveDays || 0} day(s)</td></tr>
+            <tr><td class="detail-label">LOP (Unpaid):</td><td class="detail-value">${data.unpaidLeaveDays || 0} day(s)</td></tr>
           </table>
         </div>
         <div class="details-block">

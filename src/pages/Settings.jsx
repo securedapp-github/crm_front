@@ -121,9 +121,30 @@ export default function Settings() {
                                 </div>
                                 <div className="mt-6">
                                     <label className="block text-sm font-medium text-slate-700 mb-2">Account Role</label>
-                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase ${user?.role === 'admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                        {user?.role === 'admin' ? 'Administrator' : 'Sales Representative'}
-                                    </span>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(user?.role || 'user').split(',').map(r => {
+                                            const roleName = r.trim().toLowerCase();
+                                            const label = {
+                                                admin: 'Administrator',
+                                                sales: 'Sales Representative',
+                                                marketing: 'Marketing Manager',
+                                                growth: 'Growth Teammate',
+                                                hr: 'HR Manager',
+                                                finance: 'Finance Officer',
+                                                operations: 'Operations Teammate',
+                                                tech: 'Tech Teammate',
+                                                user: 'Employee'
+                                            }[roleName] || roleName;
+                                            const style = roleName === 'admin' 
+                                                ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
+                                                : 'bg-emerald-50 border-emerald-200 text-emerald-700';
+                                            return (
+                                                <span key={roleName} className={`inline-flex items-center px-3 py-1 rounded-full border text-xs font-semibold tracking-wide uppercase ${style}`}>
+                                                    {label}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         </div>
