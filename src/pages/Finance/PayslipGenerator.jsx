@@ -50,7 +50,7 @@ export default function PayslipGenerator() {
   const queryClient = useQueryClient()
 
   const [settingsForm, setSettingsForm] = useState({
-    company_name: '', logo_url: '',
+    company_name: '', logo_url: '', cin_number: '',
     address_line1: '', address_line2: '', city: '', state: '', pincode: '', country: 'India',
   })
 
@@ -59,6 +59,7 @@ export default function PayslipGenerator() {
       setSettingsForm(prev => ({
         company_name: business.company_name || '',
         logo_url: business.logo_url || '',
+        cin_number: business.cin_number || '',
         address_line1: business.address_line1 || '',
         address_line2: business.address_line2 || '',
         city: business.city || '',
@@ -722,6 +723,10 @@ export default function PayslipGenerator() {
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">Company Name</label>
                   <input type="text" value={settingsForm.company_name} onChange={e => setSettingsForm({ ...settingsForm, company_name: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">CIN Number</label>
+                  <input type="text" value={settingsForm.cin_number} onChange={e => setSettingsForm({ ...settingsForm, cin_number: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">Address Line 1</label>

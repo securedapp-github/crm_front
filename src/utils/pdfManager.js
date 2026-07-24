@@ -359,6 +359,7 @@ export function generateInvoiceHTML(invoice, business) {
           ${business?.email ? `<p>Email: ${escapeHtml(business.email)}</p>` : ''}
           ${business?.phone ? `<p>Phone: ${escapeHtml(business.phone)}</p>` : ''}
           ${business?.gst_number ? `<p>GSTIN: ${escapeHtml(business.gst_number)}</p>` : ''}
+          ${business?.cin_number ? `<p>CIN: ${escapeHtml(business.cin_number)}</p>` : ''}
         </div>
         <div class="meta-block">
           <h3>Billed To</h3>
@@ -655,6 +656,7 @@ export function generatePayslipHTML(data, user, business) {
           ${business?.logo_url ? `<img src="${escapeHtml(business.logo_url)}" style="height: 40px; margin-bottom: 8px; object-fit: contain;" />` : ''}
           <h1 style="margin: 0 0 4px 0; font-size: 24px; color: #065f46; font-weight: 700;">${escapeHtml(business?.company_name || 'Your Company')}</h1>
           ${business?.address_line1 ? `<p>${escapeHtml(business.address_line1)}${business.city ? `, ${escapeHtml(business.city)}` : ''}</p>` : ''}
+          ${(data?.cin_number || business?.cin_number) ? `<p>CIN: ${escapeHtml(data.cin_number || business.cin_number)}</p>` : ''}
         </div>
         <div class="header-right">
           <h2>PAYSLIP</h2>

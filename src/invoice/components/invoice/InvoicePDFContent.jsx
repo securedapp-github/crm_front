@@ -75,6 +75,7 @@ export default function InvoicePDFContent({ invoice, business }) {
           {business?.email && <p className="text-sm text-gray-600">Email: {business.email}</p>}
           {business?.phone && <p className="text-sm text-gray-600">Phone: {business.phone}</p>}
           {business?.gst_number && <p className="text-sm text-gray-600">GSTIN: {business.gst_number}</p>}
+          {business?.cin_number && <p className="text-sm text-gray-600">CIN: {business.cin_number}</p>}
         </div>
 
         <div className="bg-cyan-50/55 border border-cyan-100 rounded-xl p-4 space-y-1">

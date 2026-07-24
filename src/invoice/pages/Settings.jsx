@@ -22,7 +22,7 @@ export default function Settings() {
   const business = businessList?.[0];
 
   const [form, setForm] = useState({
-    company_name: '', logo_url: '', gst_number: '', pan_number: '',
+    company_name: '', logo_url: '', gst_number: '', pan_number: '', cin_number: '',
     address_line1: '', address_line2: '', city: '', state: '', pincode: '', country: 'India',
     email: '', phone: '', website: '',
     bank_name: '', account_number: '', ifsc_code: '', upi_id: '',
@@ -129,6 +129,10 @@ export default function Settings() {
             <div>
               <Label>PAN Number</Label>
               <Input value={form.pan_number || ''} onChange={(e) => setForm({ ...form, pan_number: e.target.value })} />
+            </div>
+            <div>
+              <Label>CIN Number</Label>
+              <Input value={form.cin_number || ''} onChange={(e) => setForm({ ...form, cin_number: e.target.value })} />
             </div>
             <div className="col-span-2">
               <Label>Address</Label>
