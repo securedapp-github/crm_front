@@ -176,6 +176,7 @@ export default function InvoiceForm() {
               <p className="font-medium">{business.company_name}</p>
               {business.address_line1 && <p className="text-muted-foreground">{business.address_line1}, {business.city}, {business.state}</p>}
               {business.gst_number && <p className="text-muted-foreground">GSTIN: {business.gst_number}</p>}
+              {business.cin_number && <p className="text-muted-foreground">CIN: {business.cin_number}</p>}
               {business.email && <p className="text-muted-foreground">{business.email}</p>}
             </div>
           ) : (
