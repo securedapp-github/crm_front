@@ -30,6 +30,11 @@ import { ToastProvider } from './components/ToastProvider'
 import TeamMemberDetail from './components/TeamMemberDetail'
 import Settings from './pages/Settings'
 
+import ActivityDashboard from './pages/Activity/ActivityDashboard'
+import ActivityLive from './pages/Activity/ActivityLive'
+import ActivityUserDetail from './pages/Activity/ActivityUserDetail'
+import ActivityAllowedDomains from './pages/Activity/ActivityAllowedDomains'
+
 import ActivitiesPage from './pages/Marketing/ActivitiesPage'
 import SalesMarketingActivities from './pages/Sales/SalesMarketingActivities'
 import EmailSequences from './pages/Marketing/EmailSequences'
@@ -85,6 +90,11 @@ function App() {
               <Route path="hr-team" element={<HRTeam />} />
               <Route path="team/:id" element={<TeamMemberDetail />} />
               <Route path="settings" element={<Settings />} />
+
+              <Route path="activity" element={<ActivityDashboard />} />
+              <Route path="activity/live" element={<ActivityLive />} />
+              <Route path="activity/user/:userId" element={<ActivityUserDetail />} />
+              <Route path="activity/allowed-domains" element={<ActivityAllowedDomains />} />
 
               <Route path="marketing-team/activities" element={<ActivitiesPage />} />
               <Route path="marketing-team/sequences" element={<EmailSequences />} />
