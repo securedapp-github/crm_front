@@ -73,15 +73,13 @@ export default function Login() {
       const res = await loginAdmin(adminForm)
       const user = res.data?.user
       if (!user?.id) throw new Error('Invalid login response')
-      const roles = (user.role || '').split(',').map(r => r.trim().toLowerCase());
-      if (!roles.includes('admin')) {
-        throw new Error('Not authorized as admin. Please use Team Login.')
-      }
+      const roles = (user.role || '').split(',').map(r => r.trim().toLowerCase())
+      if (!roles.includes('admin')) throw new Error('Not authorized as admin. Please use Team Login.')
       localStorage.setItem('user', JSON.stringify(user))
       window.dispatchEvent(new Event('auth:changed'))
       navigate('/dashboard')
     } catch (err) {
-      setError(err.response?.data?.error || err.response?.data?.message || err.message || 'Login failed')
+      setError(err.response?.data?.error || err.response?.data?.message || err.message || 'Login failed.')
     } finally {
       setLoading(false)
     }
