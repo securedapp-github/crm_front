@@ -146,6 +146,9 @@ export default function Dashboard() {
       techTeam: { href: "/dashboard/tech-team", label: "Tech Portal", icon: <LaptopIcon className="w-5 h-5" /> },
       hrTeam: { href: "/dashboard/hr-team", label: "HR Portal", icon: <AvatarIcon className="w-5 h-5" /> },
       finance: { href: "/dashboard/finance", label: "Finance Hub", icon: <CardStackIcon className="w-5 h-5" /> },
+      activity: { href: "/dashboard/activity", label: "Activity Overview", icon: <span className="text-[17px] leading-none">🧩</span> },
+      activityAllowed: { href: "/dashboard/activity/allowed-domains", label: "Chosen Domains Only", icon: <span className="text-[15px] leading-none">🎯</span> },
+      activityLive: { href: "/dashboard/activity/live", label: "Live Stream", icon: <span className="text-[15px] leading-none">🔴</span> },
 
       leave: { href: "/dashboard/leave", label: "Leave Requests", icon: <ClipboardIcon className="w-5 h-5" /> }
     };
@@ -153,6 +156,9 @@ export default function Dashboard() {
     if (roles.includes('admin')) {
       return [
         map.dashboard,
+        map.activity,
+        map.activityAllowed,
+        map.activityLive,
         map.salesDashboard,
         map.salesMail,
         map.salesCompleted,
