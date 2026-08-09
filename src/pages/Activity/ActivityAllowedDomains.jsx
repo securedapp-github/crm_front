@@ -10,6 +10,13 @@ import CategoryBadge from '../../components/activity/CategoryBadge'
 import DomainIcon from '../../components/activity/DomainIcon'
 import { ShieldCheck, Plus, CheckCircle2, XCircle, Trash2, Edit3, Search, X, Check } from 'lucide-react'
 
+const DEFAULT_ALLOWLIST_RULES = [
+  { id: 'def-1', name: 'GitHub Repositories', type: 'allowlist', domainPattern: '*.github.com', category: 'productive', isActive: true },
+  { id: 'def-2', name: 'Google Workspace', type: 'allowlist', domainPattern: 'google.com', category: 'productive', isActive: true },
+  { id: 'def-3', name: 'Jira & Confluence', type: 'allowlist', domainPattern: '*.atlassian.net', category: 'productive', isActive: true },
+  { id: 'def-4', name: 'Slack Communication', type: 'allowlist', domainPattern: 'slack.com', category: 'productive', isActive: true }
+]
+
 export default function ActivityAllowedDomains() {
   const [allowlistRules, setAllowlistRules] = useState([])
   const [loading, setLoading] = useState(true)
@@ -28,6 +35,7 @@ export default function ActivityAllowedDomains() {
   // Live pattern tester
   const [testUrl, setTestUrl] = useState('')
   const [testResult, setTestResult] = useState(null)
+  const [testError, setTestError] = useState('')
 
   const loadAllowlist = async () => {
     setLoading(true)
@@ -35,9 +43,14 @@ export default function ActivityAllowedDomains() {
       const res = await fetchPolicies()
       const allPolicies = res.data || []
       const allowlistOnly = allPolicies.filter(p => p.type === 'allowlist')
-      setAllowlistRules(allowlistOnly)
+      if (allowlistOnly.length > 0) {
+        setAllowlistRules(allowlistOnly)
+      } else {
+        setAllowlistRules(DEFAULT_ALLOWLIST_RULES)
+      }
     } catch (err) {
       console.error('Failed to load allowed domain rules:', err)
+      setAllowlistRules(DEFAULT_ALLOWLIST_RULES)
     } finally {
       setLoading(false)
     }
@@ -104,32 +117,64 @@ export default function ActivityAllowedDomains() {
     }
   }
 
-  const handleTestDomain = () => {
-    if (!testUrl) return
-    const clean = testUrl.toLowerCase().trim()
-    let matched = null
+  const handleTestDomain = (e) => {
+    if (e && e.preventDefault) e.preventDefault()
+    const trimmed = testUrl.trim()
+    if (!trimmed) {
+      setTestError('Please enter a URL or domain to verify.')
+      setTestResult(null)
+      return
+    }
+
+    setTestError('')
+    const cleanInput = trimmed.toLowerCase()
+
+    // Extract normalized hostname
+    let hostname = cleanInput
+      .replace(/^(https?:\/\/)?(www\.)?/, '')
+      .split('/')[0]
+      .split('?')[0]
+      .split('#')[0]
+
+    let matchedRule = null
 
     for (const rule of allowlistRules) {
       if (!rule.isActive) continue
       const pattern = rule.domainPattern.toLowerCase().trim()
       let isMatch = false
-      if (pattern.startsWith('*.')) {
-        const base = pattern.replace('*.', '')
-        isMatch = clean.endsWith(base) || clean.includes(base)
-      } else if (pattern.includes('*')) {
-        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$', 'i')
-        isMatch = regex.test(clean)
+
+      const cleanPattern = pattern.replace(/^(https?:\/\/)?(www\.)?/, '')
+
+      if (cleanPattern.startsWith('*.')) {
+        const base = cleanPattern.replace('*.', '')
+        isMatch = (
+          hostname === base ||
+          hostname.endsWith('.' + base) ||
+          cleanInput.includes(base)
+        )
+      } else if (cleanPattern.includes('*')) {
+        const regexStr = '^' + cleanPattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$'
+        const regex = new RegExp(regexStr, 'i')
+        isMatch = regex.test(hostname) || regex.test(cleanInput)
       } else {
-        isMatch = clean.includes(pattern)
+        isMatch = (
+          hostname === cleanPattern ||
+          hostname.endsWith('.' + cleanPattern) ||
+          cleanInput.includes(cleanPattern)
+        )
       }
 
       if (isMatch) {
-        matched = rule
+        matchedRule = rule
         break
       }
     }
 
-    setTestResult(matched)
+    setTestResult({
+      isMatch: matchedRule !== null,
+      rule: matchedRule,
+      domain: trimmed
+    })
   }
 
   return (
@@ -160,8 +205,8 @@ export default function ActivityAllowedDomains() {
 
       {/* Real-time Domain Pattern Tester */}
       <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-2xs space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Allowlist Match Verifier</h3>
-        <div className="flex items-center gap-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">ALLOWLIST MATCH VERIFIER</h3>
+        <form onSubmit={handleTestDomain} className="flex items-center gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             <input
@@ -171,31 +216,50 @@ export default function ActivityAllowedDomains() {
               onChange={(e) => {
                 setTestUrl(e.target.value)
                 setTestResult(null)
+                setTestError('')
               }}
-              className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-xs text-slate-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none font-mono"
+              className="w-full rounded-xl border border-slate-200 pl-9 pr-8 py-2 text-xs text-slate-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none font-mono"
             />
+            {testUrl && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTestUrl('')
+                  setTestResult(null)
+                  setTestError('')
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
           <button
-            onClick={handleTestDomain}
-            className="rounded-xl border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 transition-colors"
+            type="submit"
+            className="rounded-xl border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
           >
+            <Search className="h-3.5 w-3.5" />
             Verify Domain
           </button>
-        </div>
+        </form>
 
-        {testResult !== null && (
+        {testError && (
+          <p className="text-xs text-rose-500 font-medium">{testError}</p>
+        )}
+
+        {testResult && (
           <div className={`rounded-xl p-3.5 text-xs border transition-all ${
-            testResult ? 'border-emerald-200 bg-emerald-50/70 text-emerald-900' : 'border-rose-200 bg-rose-50/70 text-rose-800'
+            testResult.isMatch ? 'border-emerald-200 bg-emerald-50/70 text-emerald-900' : 'border-rose-200 bg-rose-50/70 text-rose-800'
           }`}>
-            {testResult ? (
+            {testResult.isMatch ? (
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-                <span><strong>RECORDED:</strong> Domain matches allowlist rule <strong>"{testResult.name}"</strong> (<code className="font-mono">{testResult.domainPattern}</code>). Activity will be logged.</span>
+                <span><strong>RECORDED:</strong> Domain <strong>"{testResult.domain}"</strong> matches allowlist rule <strong>"{testResult.rule.name}"</strong> (<code className="font-mono">{testResult.rule.domainPattern}</code>). Activity will be logged.</span>
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <XCircle className="h-4 w-4 text-rose-600 flex-shrink-0" />
-                <span><strong>SILENTLY DROPPED:</strong> Domain is NOT on the chosen allowlist. No URL, title, or time will be recorded.</span>
+                <span><strong>SILENTLY DROPPED:</strong> Domain <strong>"{testResult.domain}"</strong> is NOT on the chosen allowlist. No URL, title, or time will be recorded.</span>
               </div>
             )}
           </div>
@@ -204,26 +268,30 @@ export default function ActivityAllowedDomains() {
 
       {/* Allowed Domain Rules Table */}
       <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xs">
-        <h2 className="text-base font-bold text-slate-900 mb-4">Configured Chosen Domains ({allowlistRules.length})</h2>
+        {(() => {
+          const displayRules = allowlistRules.filter(rule => !rule.type || rule.type === 'allowlist')
+          return (
+            <>
+              <h2 className="text-base font-bold text-slate-900 mb-4">Configured Chosen Domains ({displayRules.length})</h2>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-slate-100 bg-slate-50/50 text-slate-500 font-semibold uppercase tracking-wider">
-              <tr>
-                <th className="py-3 px-4">Domain Name</th>
-                <th className="py-3 px-4">Pattern</th>
-                <th className="py-3 px-4">Assigned Category</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {loading ? (
-                <tr>
-                  <td colSpan="5" className="py-8 text-center text-slate-400">Loading allowed domains...</td>
-                </tr>
-              ) : allowlistRules.length > 0 ? (
-                allowlistRules.map((rule) => (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-100 bg-slate-50/50 text-slate-500 font-semibold uppercase tracking-wider">
+                    <tr>
+                      <th className="py-3 px-4">Domain Name</th>
+                      <th className="py-3 px-4">Pattern</th>
+                      <th className="py-3 px-4">Assigned Category</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {loading ? (
+                      <tr>
+                        <td colSpan="5" className="py-8 text-center text-slate-400">Loading allowed domains...</td>
+                      </tr>
+                    ) : displayRules.length > 0 ? (
+                      displayRules.map((rule) => (
                   <tr key={rule.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-3.5 px-4 font-semibold text-slate-900">
                       <div className="flex items-center gap-2.5">
@@ -274,7 +342,10 @@ export default function ActivityAllowedDomains() {
             </tbody>
           </table>
         </div>
-      </div>
+      </>
+    )
+  })()}
+</div>
 
       {/* Modal for Add / Edit */}
       {modalOpen && (

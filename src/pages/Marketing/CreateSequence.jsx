@@ -137,8 +137,9 @@ export default function CreateSequence() {
                 >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
                 </button>
-                <h1 className="text-3xl font-extrabold text-slate-900 font-serif tracking-tight">Create New Sequence</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Create New Sequence</h1>
             </div>
+
 
             <div className="max-w-4xl mx-auto">
                 <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-sm">
