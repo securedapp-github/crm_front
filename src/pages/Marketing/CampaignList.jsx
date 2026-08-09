@@ -433,10 +433,11 @@ export default function CampaignList({ autoOpenKey = 0 }) {
   }, [filtered, currentPage])
 
   return (
-    <div className="space-y-4 w-full max-w-full overflow-x-hidden px-4 sm:px-6 lg:px-8">
+    <div className="space-y-4 w-full max-w-full overflow-hidden p-1">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-slate-900">Campaigns</h2>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <h2 className="text-xl font-bold text-slate-900">Campaigns</h2>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+
           <input className="px-3 py-2 border rounded-md text-sm flex-1 sm:flex-none sm:w-64" placeholder="Search" value={query} onChange={e => setQuery(e.target.value)} />
 
           {/* Dropdown Menu for + New button */}

@@ -227,6 +227,59 @@ export default function Login() {
               </button>
             </div>
 
+            {/* Quick Demo Login Credentials Box (Local Dev Mode) */}
+            <div className="mb-6 p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <span>⚡ Quick Demo Credentials</span>
+                <span className="text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">Local SQLite</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('admin')
+                    setAdminForm({ email: 'jrnikiljr@gmail.com', password: 'Password123' })
+                  }}
+                  className="px-2.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200/80 text-purple-700 text-xs font-bold text-center transition-all active:scale-95"
+                >
+                  Fill Nikil (Admin)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('sales')
+                    setSalesForm({ email: 'jrnikiljr@gmail.com', password: 'Password123' })
+                  }}
+                  className="px-2.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 text-indigo-700 text-xs font-bold text-center transition-all active:scale-95"
+                >
+                  Fill Nikil (User)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('admin')
+                    setAdminForm({ email: 'admin@demo.com', password: 'Password123' })
+                  }}
+                  className="px-2.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200/80 text-blue-700 text-xs font-bold text-center transition-all active:scale-95"
+                >
+                  Fill Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('sales')
+                    setSalesForm({ email: 'user@demo.com', password: 'Password123' })
+                  }}
+                  className="px-2.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-emerald-700 text-xs font-bold text-center transition-all active:scale-95"
+                >
+                  Fill User
+                </button>
+              </div>
+
+            </div>
+
+
+
             {/* Admin Form */}
             {mode === 'admin' ? (
               <form onSubmit={onSubmit} className="space-y-4">

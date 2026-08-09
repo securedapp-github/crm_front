@@ -103,6 +103,8 @@ function App() {
               <Route path="sales/activities" element={<SalesMarketingActivities />} />
               <Route path="sales/leave" element={<SalesLeave />} />
               <Route path="leave" element={<SalesLeave />} />
+              <Route path="tickets" element={<Tickets />} />
+
               <Route path="sales-dashboard/sequences" element={<EmailSequences />} />
               <Route path="sales-dashboard/sequences/new" element={<CreateSequence />} />
               <Route path="sales-dashboard/sequences/:id" element={<SequenceBuilder />} />

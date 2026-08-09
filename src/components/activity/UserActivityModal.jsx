@@ -4,6 +4,7 @@ import CategoryBadge from './CategoryBadge'
 import DomainIcon from './DomainIcon'
 import ActivityTimeline from './ActivityTimeline'
 import { fetchUserActivity, exportActivityCSV } from '../../api/activity'
+import { sanitizeDomainPrivacy } from '../../utils/privacyGuard'
 
 export default function UserActivityModal({ isOpen, onClose, user }) {
   const [data, setData] = useState(null)
@@ -218,25 +219,26 @@ export default function UserActivityModal({ isOpen, onClose, user }) {
                       </div>
                       <div className="text-xl font-extrabold text-indigo-600 mt-1 font-mono">{Math.round(stats?.productivityScore || 0)}%</div>
                     </div>
-                  </div>
-
-                  {/* Top Frequented Destinations */}
+                  </div>                  {/* Top Frequented Destinations */}
                   <div>
                     <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Top Frequented Destinations</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {topDomains.length > 0 ? (
-                        topDomains.map((d, index) => (
-                          <div key={`${d.domain}-${index}`} className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-white p-2.5 px-3 shadow-2xs hover:border-indigo-300 transition-colors">
-                            <div className="flex items-center gap-2.5 truncate">
-                              <DomainIcon domain={d.domain} size={18} />
-                              <div className="truncate">
-                                <div className="font-bold text-slate-900 text-xs truncate">{d.domain}</div>
-                                <div className="text-[10px] text-slate-400 font-mono">{formatMins(d.duration)} focused</div>
+                        topDomains.map((d, index) => {
+                          const safeDomain = sanitizeDomainPrivacy(d.domain)
+                          return (
+                            <div key={`${d.domain}-${index}`} className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-white p-2.5 px-3 shadow-2xs hover:border-indigo-300 transition-colors">
+                              <div className="flex items-center gap-2.5 truncate">
+                                <DomainIcon domain={safeDomain} size={18} />
+                                <div className="truncate">
+                                  <div className={`font-bold text-xs truncate ${safeDomain.includes('Private') ? 'text-slate-500 italic' : 'text-slate-900'}`}>{safeDomain}</div>
+                                  <div className="text-[10px] text-slate-400 font-mono">{formatMins(d.duration)} focused</div>
+                                </div>
                               </div>
+                              <CategoryBadge category={safeDomain.includes('Private') ? 'neutral' : d.category} size="small" />
                             </div>
-                            <CategoryBadge category={d.category} size="small" />
-                          </div>
-                        ))
+                          )
+                        })
                       ) : (
                         <div className="col-span-2 rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">
                           No top destinations recorded yet
@@ -301,30 +303,34 @@ export default function UserActivityModal({ isOpen, onClose, user }) {
                         </thead>
                         <tbody className="divide-y divide-slate-100 font-medium">
                           {filteredActivities.length > 0 ? (
-                            filteredActivities.map((act, index) => (
-                              <tr key={act.id || `${act.domain}-${index}`} className="hover:bg-slate-50/60 transition-colors">
-                                <td className="py-2.5 px-3">
-                                  <div className="flex items-center gap-2.5 max-w-md truncate">
-                                    <DomainIcon domain={act.domain} size={16} />
-                                    <div className="truncate">
-                                      <div className="font-bold text-slate-900 truncate">{act.domain}</div>
-                                      <div className="text-[10px] text-slate-400 font-mono truncate" title={act.pageTitle || act.url}>
-                                        {act.pageTitle || act.url}
+                            filteredActivities.map((act, index) => {
+                              const safeDomain = sanitizeDomainPrivacy(act.domain)
+                              const isPrivate = safeDomain.includes('Private')
+                              return (
+                                <tr key={act.id || `${act.domain}-${index}`} className="hover:bg-slate-50/60 transition-colors">
+                                  <td className="py-2.5 px-3">
+                                    <div className="flex items-center gap-2.5 max-w-md truncate">
+                                      <DomainIcon domain={safeDomain} size={16} />
+                                      <div className="truncate">
+                                        <div className={`font-bold truncate ${isPrivate ? 'text-slate-500 italic' : 'text-slate-900'}`}>{safeDomain}</div>
+                                        <div className="text-[10px] text-slate-400 font-mono truncate" title={isPrivate ? 'Protected Private Site' : (act.pageTitle || act.url)}>
+                                          {isPrivate ? 'Title & URL hidden to protect privacy' : (act.pageTitle || act.url)}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                </td>
-                                <td className="py-2.5 px-3">
-                                  <CategoryBadge category={act.category} size="small" />
-                                </td>
-                                <td className="py-2.5 px-3 font-mono text-slate-700">
-                                  {formatMins(act.durationSeconds)}
-                                </td>
-                                <td className="py-2.5 px-3 text-slate-400 font-mono text-[11px]">
-                                  {formatTime(act.startTime || act.createdAt || act.updatedAt)}
-                                </td>
-                              </tr>
-                            ))
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    <CategoryBadge category={isPrivate ? 'neutral' : act.category} size="small" />
+                                  </td>
+                                  <td className="py-2.5 px-3 font-mono text-slate-700">
+                                    {formatMins(act.durationSeconds)}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-slate-400 font-mono text-[11px]">
+                                    {formatTime(act.startTime || act.createdAt || act.updatedAt)}
+                                  </td>
+                                </tr>
+                              )
+                            })
                           ) : (
                             <tr>
                               <td colSpan="4" className="py-8 text-center text-slate-400">

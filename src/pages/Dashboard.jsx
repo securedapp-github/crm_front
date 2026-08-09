@@ -17,6 +17,7 @@ import {
   GearIcon, 
   LaptopIcon 
 } from "@radix-ui/react-icons"
+import { LifeBuoy } from "lucide-react"
 
 const getLandingPath = (user) => {
   if (!user || !user.role) return '/login';
@@ -73,6 +74,7 @@ export default function Dashboard() {
     const allowedPrefixes = [
       '/dashboard/settings',
       '/dashboard/leave',
+      '/dashboard/tickets',
       '/dashboard/team/'
     ];
     
@@ -142,13 +144,12 @@ export default function Dashboard() {
       marketingDashboard: { href: "/dashboard/marketing", label: "Lead Management", icon: <SpeakerLoudIcon className="w-5 h-5" /> },
       marketingTeam: { href: "/dashboard/marketing-team", label: "Marketing Portal", icon: <SpeakerLoudIcon className="w-5 h-5" /> },
       growthTeam: { href: "/dashboard/growth-team", label: "Growth Portal", icon: <ActivityLogIcon className="w-5 h-5" /> },
-      operationsTeam: { href: "/dashboard/operations-team", label: "Operations Portal", icon: <GearIcon className="w-5 h-5" /> },
+      operationsTeam: { href: "/dashboard/operations-team", label: "Operations Team", icon: <LifeBuoy className="w-5 h-5 text-indigo-600" /> },
       techTeam: { href: "/dashboard/tech-team", label: "Tech Portal", icon: <LaptopIcon className="w-5 h-5" /> },
       hrTeam: { href: "/dashboard/hr-team", label: "HR Portal", icon: <AvatarIcon className="w-5 h-5" /> },
       finance: { href: "/dashboard/finance", label: "Finance Hub", icon: <CardStackIcon className="w-5 h-5" /> },
-      activity: { href: "/dashboard/activity", label: "Activity Overview", icon: <span className="text-[17px] leading-none">🧩</span> },
-      activityAllowed: { href: "/dashboard/activity/allowed-domains", label: "Chosen Domains Only", icon: <span className="text-[15px] leading-none">🎯</span> },
-      activityLive: { href: "/dashboard/activity/live", label: "Live Stream", icon: <span className="text-[15px] leading-none">🔴</span> },
+      activity: { href: "/dashboard/activity", label: "Activity Overview", icon: <ActivityLogIcon className="w-5 h-5" /> },
+      tickets: { href: "/dashboard/tickets", label: "Helpdesk & Tickets", icon: <LifeBuoy className="w-5 h-5" /> },
 
       leave: { href: "/dashboard/leave", label: "Leave Requests", icon: <ClipboardIcon className="w-5 h-5" /> }
     };
@@ -157,8 +158,6 @@ export default function Dashboard() {
       return [
         map.dashboard,
         map.activity,
-        map.activityAllowed,
-        map.activityLive,
         map.salesDashboard,
         map.salesMail,
         map.salesCompleted,
@@ -171,7 +170,6 @@ export default function Dashboard() {
         map.techTeam,
         map.hrTeam,
         map.finance,
-
         map.leave
       ];
     }
@@ -211,14 +209,17 @@ export default function Dashboard() {
     
     if (roles.includes('operations')) {
       result.push(map.operationsTeam);
+    } else {
+      // Allow all team staff to access the single Operations Helpdesk system
+      result.push(map.operationsTeam);
     }
     
     if (roles.includes('tech')) {
       result.push(map.techTeam);
     }
     
-
     result.push(map.leave);
+
     
     // deduplicate
     const unique = [];
@@ -323,7 +324,7 @@ export default function Dashboard() {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1">
+      <main className="flex-1 min-w-0 w-full overflow-x-hidden">
         <div className="lg:hidden px-4 pt-4">
           <button
             onClick={() => setMobileOpen(true)}
@@ -333,12 +334,13 @@ export default function Dashboard() {
             <span>Menu</span>
           </button>
         </div>
-        <div className="px-4 pb-12 pt-4 lg:px-10 lg:pt-10">
-          <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-xl shadow-slate-200/60 backdrop-blur">
+        <div className="p-3 sm:p-6 lg:p-8 w-full max-w-full min-w-0">
+          <div className="rounded-3xl border border-white/60 bg-white/80 p-4 sm:p-6 shadow-xl shadow-slate-200/60 backdrop-blur w-full max-w-full min-w-0 overflow-x-auto">
             <Outlet />
           </div>
         </div>
-      </div>
+      </main>
     </div>
+
   )
 }

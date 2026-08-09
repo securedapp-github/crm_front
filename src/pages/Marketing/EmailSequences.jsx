@@ -94,38 +94,59 @@ export default function EmailSequences() {
         });
 
     return (
-        <div className="p-8 max-w-[1600px] mx-auto h-full overflow-y-auto bg-white" onClick={() => setOpenMenuId(null)}>
+        <div className="p-2 sm:p-4 w-full max-w-full min-w-0 bg-white rounded-2xl" onClick={() => setOpenMenuId(null)}>
             {/* Header */}
+
             <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     <button
                         onClick={() => navigate('/dashboard/marketing-team')}
-                        className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-slate-800"
+                        className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-500 hover:text-slate-800"
                         title="Go Back"
                     >
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
                     </button>
-                    <h1 className="text-4xl font-extrabold text-slate-900 font-serif tracking-tight">Sequences</h1>
+                    <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Sequences</h1>
                 </div>
             </div>
 
             {/* Navigation Cards */}
-            <div className="flex gap-4 mb-8">
+            <div className="flex flex-wrap gap-4 mb-6">
                 <button
                     onClick={() => setTab('sequences')}
-                    className={`flex-1 min-w-[200px] max-w-sm rounded-xl border p-4 text-left transition-all ${tab === 'sequences' ? 'border-indigo-500 bg-white shadow-md ring-1 ring-indigo-500' : 'border-slate-200 bg-white hover:border-indigo-300'}`}
+                    className={`flex-1 min-w-[220px] max-w-sm rounded-xl p-4 text-left transition-all ${
+                      tab === 'sequences'
+                        ? 'border-2 border-indigo-600 bg-indigo-50/40 text-indigo-900 shadow-sm'
+                        : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/80'
+                    }`}
                 >
-                    <div className="font-semibold text-slate-900">All Sequences</div>
-                    <div className="mt-1 text-sm text-slate-500">Manage your email automation workflows</div>
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold text-slate-900">All Sequences</div>
+                      {tab === 'sequences' && (
+                        <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">Manage your email automation workflows</div>
                 </button>
+
                 <button
                     onClick={() => setTab('leads')}
-                    className={`flex-1 min-w-[200px] max-w-sm rounded-xl border p-4 text-left transition-all ${tab === 'leads' ? 'border-indigo-500 bg-white shadow-md ring-1 ring-indigo-500' : 'border-slate-200 bg-white hover:border-indigo-300'}`}
+                    className={`flex-1 min-w-[220px] max-w-sm rounded-xl p-4 text-left transition-all ${
+                      tab === 'leads'
+                        ? 'border-2 border-indigo-600 bg-indigo-50/40 text-indigo-900 shadow-sm'
+                        : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/80'
+                    }`}
                 >
-                    <div className="font-semibold text-slate-900">Sequences Lead</div>
-                    <div className="mt-1 text-sm text-slate-500">Marketing Campaigns & Auto-Enrollment</div>
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold text-slate-900">Sequences Lead</div>
+                      {tab === 'leads' && (
+                        <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">Marketing Campaigns & Auto-Enrollment</div>
                 </button>
             </div>
+
 
             {tab === 'leads' ? (
                 <div className="bg-white rounded-xl border border-slate-200 p-1">

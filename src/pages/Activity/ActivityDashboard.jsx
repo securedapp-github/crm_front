@@ -4,8 +4,10 @@ import ActivityNav from '../../components/activity/ActivityNav'
 import UserActivityModal from '../../components/activity/UserActivityModal'
 import {
   fetchDashboardStats,
+  fetchPolicies,
   exportActivityCSV
 } from '../../api/activity'
+import { isAllowlistedDomain, sanitizeDomainPrivacy } from '../../utils/privacyGuard'
 import ProductivityGauge from '../../components/activity/ProductivityGauge'
 import CategoryBadge from '../../components/activity/CategoryBadge'
 import DomainIcon from '../../components/activity/DomainIcon'
@@ -18,10 +20,12 @@ import {
   ResponsiveContainer,
   CartesianGrid
 } from 'recharts'
-import { Download, Clock, Target, CheckCircle2, AlertTriangle, ArrowUpRight, Filter } from 'lucide-react'
+import { Download, Clock, Target, CheckCircle2, AlertTriangle, ArrowUpRight, Filter, Shield, Eye, EyeOff } from 'lucide-react'
 
 export default function ActivityDashboard() {
   const [stats, setStats] = useState(null)
+  const [allowlistRules, setAllowlistRules] = useState([])
+  const [privacyGuard, setPrivacyGuard] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [department, setDepartment] = useState('')
@@ -43,12 +47,18 @@ export default function ActivityDashboard() {
         startDate.setHours(0, 0, 0, 0)
       }
 
-      const res = await fetchDashboardStats({
-        startDate: startDate.toISOString(),
-        endDate: new Date().toISOString(),
-        department: department || undefined
-      })
+      const [res, policyRes] = await Promise.all([
+        fetchDashboardStats({
+          startDate: startDate.toISOString(),
+          endDate: new Date().toISOString(),
+          department: department || undefined
+        }),
+        fetchPolicies().catch(() => ({ data: [] }))
+      ])
+
       setStats(res.data)
+      const allowlistOnly = (policyRes.data || []).filter(p => p.type === 'allowlist')
+      setAllowlistRules(allowlistOnly)
     } catch (err) {
       console.error('Failed to load activity stats:', err)
       setError('Failed to fetch activity metrics. Please ensure backend services are running.')
@@ -97,6 +107,19 @@ export default function ActivityDashboard() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setPrivacyGuard(!privacyGuard)}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+              privacyGuard
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+            }`}
+            title={privacyGuard ? 'Privacy Guard is ON: Personal non-work websites are anonymized.' : 'Privacy Guard is OFF: Raw domain names visible.'}
+          >
+            <Shield className="h-3.5 w-3.5 text-emerald-600" />
+            <span>{privacyGuard ? 'Privacy Guard: Active' : 'Privacy Guard: Off'}</span>
+          </button>
+
           <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-3 py-1.5 shadow-2xs">
             <Filter className="h-3.5 w-3.5 text-slate-400" />
             <select
@@ -142,7 +165,7 @@ export default function ActivityDashboard() {
 
           <button
             onClick={handleExport}
-            className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-bold text-indigo-700 shadow-2xs transition-all hover:bg-indigo-100 active:scale-95"
+            className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-bold text-indigo-700 shadow-2xs transition-all hover:bg-indigo-100 active:scale-95 cursor-pointer"
           >
             <Download className="h-4 w-4 text-indigo-600" /> Export CSV
           </button>
@@ -269,7 +292,14 @@ export default function ActivityDashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Top Domains */}
         <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xs">
-          <h2 className="text-base font-bold text-slate-900 mb-1">Top Visited Domains</h2>
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-base font-bold text-slate-900">Top Visited Domains</h2>
+            {privacyGuard && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                <Shield className="h-3 w-3 text-emerald-600" /> Personal Sites Masked
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-500 mb-4">Most frequented websites across all employees</p>
 
           <div className="overflow-x-auto">
@@ -284,25 +314,30 @@ export default function ActivityDashboard() {
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
                 {stats?.topDomains && stats.topDomains.length > 0 ? (
-                  stats.topDomains.map((d) => (
-                    <tr key={d.domain} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-2.5">
-                          <DomainIcon domain={d.domain} size={18} />
-                          <span className="font-semibold text-slate-800">{d.domain}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-3">
-                        <CategoryBadge category={d.category} size="small" />
-                      </td>
-                      <td className="py-3 px-3 text-slate-600 font-mono">
-                        {Math.round(d.duration / 60)} mins
-                      </td>
-                      <td className="py-3 px-3 text-slate-600">
-                        {d.userCount} users
-                      </td>
-                    </tr>
-                  ))
+                  stats.topDomains.map((d) => {
+                    const safeDomain = sanitizeDomainPrivacy(d.domain, allowlistRules, privacyGuard)
+                    return (
+                      <tr key={d.domain} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-2.5">
+                            <DomainIcon domain={safeDomain} size={18} />
+                            <span className={`font-semibold ${safeDomain.includes('Private') ? 'text-slate-500 italic' : 'text-slate-800'}`}>
+                              {safeDomain}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <CategoryBadge category={safeDomain.includes('Private') ? 'neutral' : d.category} size="small" />
+                        </td>
+                        <td className="py-3 px-3 text-slate-600 font-mono">
+                          {Math.round(d.duration / 60)} mins
+                        </td>
+                        <td className="py-3 px-3 text-slate-600">
+                          {d.userCount} {d.userCount === 1 ? 'user' : 'users'}
+                        </td>
+                      </tr>
+                    )
+                  })
                 ) : (
                   <tr>
                     <td colSpan="4" className="py-6 text-center text-slate-400">
