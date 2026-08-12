@@ -33,7 +33,7 @@ export default function PayslipPDFContent({ data, user, business }) {
           )}
         </div>
         <div className="text-center w-full pt-2">
-          <h1 className="text-4xl mb-2 text-black font-normal">{data.companyName || business?.company_name || 'Company Demo'}</h1>
+          <h1 className="text-4xl mb-2 text-black font-normal">{data.companyName || business?.company_name || 'Company Name'}</h1>
           <p className="text-sm text-black">{data.addressLine1 || business?.address_line1 || 'Bhulbhulaiya,Double trouble'}</p>
           <p className="text-sm text-black">{data.city || business?.city || 'Bengaluru'}, {data.state || business?.state || 'Karnataka'}, IN - {data.pincode || business?.pincode || '560048'}</p>
           {(data.cin_number || business?.cin_number) && <p className="text-sm text-black">CIN: {data.cin_number || business?.cin_number}</p>}
