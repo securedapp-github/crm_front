@@ -1,10 +1,7 @@
-import { useState } from 'react'
-
 import { Link } from 'react-router-dom'
+import { ArrowUpRight } from 'lucide-react'
 
 export default function MarketingTeam() {
-  const [view, setView] = useState('menu') // 'menu' or 'assets'
-
   return (
     <main className="min-h-[calc(100vh-112px)] bg-slate-50">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-12 pt-10 md:px-8">
@@ -22,13 +19,21 @@ export default function MarketingTeam() {
           </Link>
         </div>
 
-        <div className="space-y-3">
-          <h1 className="text-3xl font-semibold text-slate-900 md:text-4xl">
-            Marketing Team
-          </h1>
-          <p className="max-w-3xl text-sm text-slate-600 md:text-base">
-            Collaborate on marketing initiatives, manage assets, and track team performance.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-3">
+            <h1 className="text-3xl font-semibold text-slate-900 md:text-4xl">
+              Marketing Team
+            </h1>
+            <p className="max-w-3xl text-sm text-slate-600 md:text-base">
+              Collaborate on marketing initiatives, manage assets, and track team performance.
+            </p>
+          </div>
+          <Link
+            to="/dashboard/tickets"
+            className="inline-flex items-center gap-1.5 self-start sm:self-auto px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
+          >
+            View Tickets <ArrowUpRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
 
         {/* Menu Grid View */}

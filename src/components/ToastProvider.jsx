@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 const ToastCtx = createContext({ show: () => {} })
 
@@ -18,17 +19,20 @@ export function ToastProvider({ children }) {
   return (
     <ToastCtx.Provider value={value}>
       {children}
-      <div className="fixed top-16 right-4 z-[1000] space-y-2">
-        {toasts.map((t) => (
-          <div key={t.id} className={`rounded-md border px-4 py-2 shadow-sm text-sm ${
-            t.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
-            t.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
-            'bg-slate-50 border-slate-200 text-slate-800'
-          }`}>
-            {t.message}
-          </div>
-        ))}
-      </div>
+      {createPortal(
+        <div className="fixed top-16 right-4 z-[100000] space-y-2 pointer-events-none">
+          {toasts.map((t) => (
+            <div key={t.id} className={`pointer-events-auto rounded-xl border px-4 py-2.5 shadow-lg text-xs font-semibold animate-fade-in ${
+              t.type === 'success' ? 'bg-emerald-600 border-emerald-700 text-white' :
+              t.type === 'error' ? 'bg-rose-600 border-rose-700 text-white' :
+              'bg-slate-900 border-slate-800 text-white'
+            }`}>
+              {t.message}
+            </div>
+          ))}
+        </div>,
+        document.body
+      )}
     </ToastCtx.Provider>
   )
 }

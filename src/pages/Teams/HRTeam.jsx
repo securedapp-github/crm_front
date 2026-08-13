@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { getMe } from '../../api/auth'
 import { createLeaveRequest, getMyLeaves, getAllLeaves, approveLeave, rejectLeave, assignLeave } from '../../api/leave'
 import { getEmployees, getEmployeeById, createEmployee, updateEmployee, toggleEmployeeStatus } from '../../api/employee'
-import { Search, Plus, Edit2, User as UserIcon, Calendar, CreditCard, X, Eye, Phone, MapPin, Briefcase, Heart, Shield, DollarSign, Key, FileText, Home, Globe, Download, FileSpreadsheet } from 'lucide-react'
+import { Search, Plus, Edit2, User as UserIcon, Calendar, CreditCard, X, Eye, Phone, MapPin, Briefcase, Heart, Shield, DollarSign, Key, FileText, Home, Globe, Download, FileSpreadsheet, ArrowUpRight } from 'lucide-react'
 import { toast } from 'sonner'
 import PayslipGenerator from '../Finance/PayslipGenerator'
 import { invoiceApi } from '../../invoice/api/invoiceClient'
+import { Link } from 'react-router-dom'
 
 export default function HRTeam() {
   const [user, setUser] = useState(null)
@@ -34,12 +35,22 @@ export default function HRTeam() {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">HR Team Portal</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {hasManagerAccess 
-            ? 'Manage employee records, leave requests, and payroll parameters.' 
-            : 'Access your profile details, bank settings, and leaves dashboard.'}
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">HR Team Portal</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {hasManagerAccess 
+                ? 'Manage employee records, leave requests, and payroll parameters.' 
+                : 'Access your profile details, bank settings, and leaves dashboard.'}
+            </p>
+          </div>
+          <Link
+            to="/dashboard/tickets"
+            className="inline-flex items-center gap-1.5 self-start sm:self-auto px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
+          >
+            View Tickets <ArrowUpRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       </div>
 
       {/* Main Tabs */}
@@ -744,6 +755,8 @@ function EmployeeFormModal({ employee, onClose, onSave }) {
                     { val: 'sales', label: 'Sales Teammate' },
                     { val: 'marketing', label: 'Marketing Teammate' },
                     { val: 'growth', label: 'Growth Teammate' },
+                    { val: 'operations', label: 'Operations Teammate' },
+                    { val: 'tech', label: 'Tech Teammate' },
                     { val: 'hr', label: 'HR Manager' },
                     { val: 'finance', label: 'Finance Officer' },
                     { val: 'user', label: 'General Employee' }
@@ -1075,7 +1088,10 @@ function EmployeeProfileView({ employeeId }) {
           <div className="bg-slate-50 p-4 rounded-xl border space-y-3">
             <h4 className="font-semibold text-slate-700 border-b pb-1 flex items-center gap-1.5"><Key className="w-4 h-4 text-indigo-500" /> System & Metadata</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2 text-slate-600">
-              <span className="font-medium">Portal Role:</span> <span className="capitalize">{employee.role === 'admin' ? 'Admin' : employee.role === 'sales' ? 'Intern' : 'Employee'}</span>
+              <span className="font-medium">Portal Role:</span> <span className="capitalize">{(employee.role || 'user').split(',').map(r => {
+                const map = { admin: 'Admin', sales: 'Sales', marketing: 'Marketing', growth: 'Growth', operations: 'Operations', tech: 'Tech', hr: 'HR', finance: 'Finance', user: 'Employee' }
+                return map[r.trim().toLowerCase()] || r.trim()
+              }).join(', ')}</span>
               <span className="font-medium">Account Status:</span> <span>{employee.isActive ? 'Active' : 'Inactive'}</span>
               <span className="font-medium">Consent Log ID:</span> <span>{employee.consentLogId || '—'}</span>
             </div>

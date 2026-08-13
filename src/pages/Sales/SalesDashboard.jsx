@@ -425,7 +425,7 @@ export default function SalesDashboard() {
                     <div><div className="text-slate-500">Channel</div><div className="text-slate-900">{camp.channel || '—'}</div></div>
                     <div><div className="text-slate-500">Campaign stage</div><div className="text-slate-900">{camp.status || '—'}</div></div>
                     <div><div className="text-slate-500">Priority</div><div className="text-slate-900">{camp.priority || '—'}</div></div>
-                    <div><div className="text-slate-500">Entity name</div><div className="text-slate-900">{camp.accountCompany || '—'}</div></div>
+                    <div><div className="text-slate-500">Company</div><div className="text-slate-900">{camp.accountCompany || '—'}</div></div>
                     <div><div className="text-slate-500">Company domain</div><div className="text-slate-900">{camp.accountDomain || '—'}</div></div>
                     <div><div className="text-slate-500">Mobile</div><div className="text-slate-900">{camp.mobile || '—'}</div></div>
                     <div><div className="text-slate-500">Email</div><div className="text-slate-900">{camp.email || '—'}</div></div>

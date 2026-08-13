@@ -17,7 +17,11 @@ export const downloadSalespersonReportCSV = (salespersonId) =>
 export const permanentDeleteUser = (userId) => api.delete(`/users/${userId}/permanent-delete`)
 
 // Get all active users/staff for dropdowns
-export const getStaffUsers = () => api.get('/users/staff')
+export const getStaffUsers = ({ signal } = {}) => api.get('/users/staff', { signal })
+
+// Get active employees filtered by department (ops/admin)
+export const getEmployeesByDepartment = (department) =>
+  api.get('/users/staff', { params: { department } })
 
 // Update user (admin only)
 export const updateUser = (userId, data) => api.put(`/users/${userId}`, data)

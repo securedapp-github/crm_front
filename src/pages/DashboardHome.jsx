@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/auth'
 import { getCampaigns } from '../api/campaign'
 import { getDeals } from '../api/deal'
+import { useCurrentUser } from '../hooks/useCurrentUser'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Cell } from 'recharts'
 
 export default function DashboardHome() {
   const [user, setUser] = useState(null)
-  
+  const { user: currentUser, isOps, hasRole } = useCurrentUser()
+
   useEffect(() => {
     try {
       setUser(JSON.parse(localStorage.getItem('user') || '{}'))
@@ -84,14 +86,23 @@ export default function DashboardHome() {
       const queryString = params.toString()
       const summaryUrl = queryString ? `/analytics/summary?${queryString}` : '/analytics/summary'
 
-      const [summaryRes, campaignsRes, dealsRes] = await Promise.all([
+      const [summaryRes, campaignsRes] = await Promise.all([
         api.get(summaryUrl),
         getCampaigns(),
-        getDeals(),
       ])
       setSummary(summaryRes.data?.data || null)
       setCampaigns(campaignsRes.data?.data || [])
-      setDeals(dealsRes.data?.data || [])
+
+      // Only fetch deals for roles that have permission (admin, sales, ops)
+      if (isOps || hasRole('sales')) {
+        const dealsRes = await getDeals()
+        setDeals(dealsRes.data?.data || [])
+      } else {
+        setDeals([])
+      }
+    } catch (err) {
+      // Silently handle errors — don't let a single API failure block the dashboard
+      if (import.meta.env.DEV) console.debug('Dashboard fetch error:', err?.response?.status, err?.message)
     } finally { setLoading(false) }
   }
 

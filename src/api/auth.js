@@ -1,11 +1,42 @@
 import axios from 'axios'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const getBaseApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    const raw = import.meta.env.VITE_API_URL.trim()
+    return raw.endsWith('/api') ? raw : `${raw.replace(/\/$/, '')}/api`
+  }
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return `${window.location.origin}/api`
+  }
+  return 'http://localhost:5000/api'
+}
+
+const API = getBaseApiUrl()
 
 export const api = axios.create({
   baseURL: API,
   withCredentials: true,
+  timeout: 60000
 })
+
+// Request interceptor to attach X-Panel-Type header for session isolation
+api.interceptors.request.use((config) => {
+  const localUser = JSON.parse(localStorage.getItem('user') || 'null');
+  if (localUser && localUser.role) {
+    const roles = localUser.role.split(',').map(r => r.trim().toLowerCase());
+    if (roles.includes('admin')) {
+      config.headers['X-Panel-Type'] = 'admin';
+    } else {
+      config.headers['X-Panel-Type'] = 'team';
+    }
+  } else if (typeof window !== 'undefined' && window.location.pathname.includes('/admin')) {
+    config.headers['X-Panel-Type'] = 'admin';
+  } else if (typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard/')) {
+    config.headers['X-Panel-Type'] = 'team';
+  }
+  return config;
+}, (error) => Promise.reject(error));
+
 
 // Centralized safe GET request retry interceptor
 api.interceptors.response.use(

@@ -1,9 +1,15 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { getTickets, getTicketById, createTicket, updateTicket, addTicketComment, deleteTicket } from '../../api/ticket'
+import { getTickets, getTicketById, createTicket, updateTicket, addTicketComment, deleteTicket, routeTicket as apiRouteTicket, rerouteTicket as apiRerouteTicket, markTicketDone as apiMarkDone, sendResolutionReply as apiSendReply } from '../../api/ticket'
 import { getStaffUsers } from '../../api/user'
 import Modal from '../../components/Modal'
+import RouteDrawer from '../../components/RouteDrawer'
+import DeptGroupedTable from '../../components/DeptGroupedTable'
+import MyAssignedCard from '../../components/MyAssignedCard'
+import TeamQueuesSidebar from '../../components/TeamQueuesSidebar'
 import { useToast } from '../../components/ToastProvider'
 import { liquidGlass } from '../../utils/liquid-glass'
+import { useCurrentUser } from '../../hooks/useCurrentUser'
+import NormalUserTickets from './NormalUserTickets'
 import {
   LifeBuoy,
   Plus,
@@ -37,12 +43,15 @@ import {
   SlidersHorizontal,
   Layers,
   Activity,
-  ArrowUpRight
+  ArrowUpRight,
+  CornerUpRight,
+  Mail,
+  Eye
 } from 'lucide-react'
 
 const CATEGORIES = ['All', 'Bug', 'UI Issue', 'Access / Role', 'Feature Request', 'Other']
 const PRIORITIES = ['All', 'Low', 'Medium', 'High', 'Urgent']
-const STATUSES = ['All', 'Open', 'In Progress', 'Resolved', 'Closed']
+const STATUSES = ['All', 'Open', 'In Progress', 'Pending Ops Review', 'Resolved', 'Closed']
 
 const CANNED_RESPONSES = [
   '-- Select Quick Reply Macro --',
@@ -100,6 +109,102 @@ const formatTimeAgo = (dateString) => {
   const days = Math.floor(hours / 24)
   if (days < 30) return `${days}d ago`
   return date.toLocaleDateString()
+}
+
+const matchesDateMonthTime = (ticket, query) => {
+  if (!query || !query.trim()) return false
+  const q = query.trim().toLowerCase()
+
+  const datesToTest = [ticket.createdAt, ticket.updatedAt].filter(Boolean)
+  const now = new Date()
+  const todayStr = now.toISOString().slice(0, 10)
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayStr = yesterday.toISOString().slice(0, 10)
+
+  for (const dateStr of datesToTest) {
+    if (typeof dateStr !== 'string') continue
+    const lowerRaw = dateStr.toLowerCase()
+    if (lowerRaw.includes(q)) return true
+
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) continue
+
+    const year = d.getFullYear().toString()
+    const monthIndex = d.getMonth()
+    const monthNum = (monthIndex + 1).toString()
+    const padMonth = monthNum.padStart(2, '0')
+    const dayNum = d.getDate().toString()
+    const padDay = dayNum.padStart(2, '0')
+
+    const monthNames = [
+      'january', 'february', 'march', 'april', 'may', 'june',
+      'july', 'august', 'september', 'october', 'november', 'december'
+    ]
+    const monthShorts = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+
+    const fullMonthName = monthNames[monthIndex]
+    const shortMonthName = monthShorts[monthIndex]
+
+    const ticketIsoDate = d.toISOString().slice(0, 10)
+    if (q === 'today' && ticketIsoDate === todayStr) return true
+    if (q === 'yesterday' && ticketIsoDate === yesterdayStr) return true
+
+    const relativeTime = formatTimeAgo(dateStr).toLowerCase()
+    if (relativeTime.includes(q)) return true
+
+    const locDate = d.toLocaleDateString().toLowerCase()
+    const locTime = d.toLocaleTimeString().toLowerCase()
+    const locDateTime = d.toLocaleString().toLowerCase()
+    if (locDate.includes(q) || locTime.includes(q) || locDateTime.includes(q)) return true
+
+    const hours24 = d.getHours().toString().padStart(2, '0')
+    const mins = d.getMinutes().toString().padStart(2, '0')
+    const time24 = `${hours24}:${mins}`
+
+    const candidates = [
+      `${year}-${padMonth}-${padDay}`,
+      `${padDay}/${padMonth}/${year}`,
+      `${padMonth}/${padDay}/${year}`,
+      `${padDay}-${padMonth}-${year}`,
+      `${dayNum}/${monthNum}/${year}`,
+      `${monthNum}/${dayNum}/${year}`,
+      `${shortMonthName} ${dayNum}`,
+      `${dayNum} ${shortMonthName}`,
+      `${fullMonthName} ${dayNum}`,
+      `${dayNum} ${fullMonthName}`,
+      `${shortMonthName} ${year}`,
+      `${fullMonthName} ${year}`,
+      shortMonthName,
+      fullMonthName,
+      time24
+    ]
+
+    if (candidates.some((cand) => cand.toLowerCase().includes(q))) return true
+  }
+
+  return false
+}
+
+const matchesSearch = (t, query) => {
+  if (!query || !query.trim()) return true
+  const q = query.trim().toLowerCase()
+
+  if ((t.title || '').toLowerCase().includes(q)) return true
+  if ((t.description || '').toLowerCase().includes(q)) return true
+  if ((t.ticketNumber || '').toLowerCase().includes(q)) return true
+  if ((t.category || '').toLowerCase().includes(q)) return true
+  if ((t.priority || '').toLowerCase().includes(q)) return true
+  if ((t.status || '').toLowerCase().includes(q)) return true
+  if ((t.externalUserName || '').toLowerCase().includes(q)) return true
+  if ((t.externalUserEmail || '').toLowerCase().includes(q)) return true
+  if ((t.externalUserPhone || '').toLowerCase().includes(q)) return true
+  if ((t.createdBy?.name || '').toLowerCase().includes(q)) return true
+  if ((t.createdBy?.email || '').toLowerCase().includes(q)) return true
+  if ((t.assignee?.name || '').toLowerCase().includes(q)) return true
+  if ((t.assignedDepartment || '').toLowerCase().includes(q)) return true
+
+  return matchesDateMonthTime(t, q)
 }
 
 const getCleanDescriptionSnippet = (desc = '') => {
@@ -170,30 +275,28 @@ export default function Tickets() {
   const { show } = useToast()
   const searchInputRef = useRef(null)
 
-  const currentUser = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('user') || '{}')
-    } catch {
-      return {}
-    }
-  }, [])
+  const { user: currentUser, isStaff, isOps, isDeptMember } = useCurrentUser()
 
-  const isStaff = useMemo(() => {
-    const roleStr = currentUser.role || ''
-    const roles = roleStr.split(',').map((r) => r.trim().toLowerCase())
-    return roles.some((r) => ['admin', 'tech', 'operations', 'support', 'hr'].includes(r))
-  }, [currentUser])
+  // RBAC: normal users (not admin, not operations) get a simplified view
+  if (!isOps) {
+    return <NormalUserTickets />
+  }
 
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('ticket_view_mode') || 'grid')
   const [tickets, setTickets] = useState([])
   const [metrics, setMetrics] = useState({ total: 0, open: 0, inProgress: 0, resolved: 0, closed: 0, urgent: 0 })
   const [loading, setLoading] = useState(true)
   const [staffUsers, setStaffUsers] = useState([])
+  const [roleLoading, setRoleLoading] = useState(true)
   const [scope, setScope] = useState(isStaff ? 'all' : 'my')
+  const [queueTab, setQueueTab] = useState('all') // ops/admin: 'all' | 'pending' | 'unrouted' | 'my'
+  const [mainTab, setMainTab] = useState('unfinished') // 'unfinished' | 'history'
   const [search, setSearch] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('All')
   const [selectedPriority, setSelectedPriority] = useState('All')
   const [selectedCategory, setSelectedCategory] = useState('All')
+  const [selectedDateRange, setSelectedDateRange] = useState('All')
+  const [customDate, setCustomDate] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [createSubmitting, setCreateSubmitting] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
@@ -211,6 +314,136 @@ export default function Tickets() {
   const [closingTicket, setClosingTicket] = useState(null)
   const [closeForm, setCloseForm] = useState({ category: 'Resolved / Fixed', note: '' })
   const [closeSubmitting, setCloseSubmitting] = useState(false)
+
+  // Query Routing Drawer (Ops/Admin)
+  const [routeTicket, setRouteTicket] = useState(null)
+  const [routeSubmitting, setRouteSubmitting] = useState(false)
+
+  // Ops final reply (email visitor)
+  const [opsReply, setOpsReply] = useState({ subject: '', message: '' })
+  const [opsReplySubmitting, setOpsReplySubmitting] = useState(false)
+
+  // Dept-Grouped Table / row actions
+  const [resolutionTicket, setResolutionTicket] = useState(null) // Send Resolution Reply modal
+  const [resolutionMessage, setResolutionMessage] = useState('')
+  const [resolutionSubmitting, setResolutionSubmitting] = useState(false)
+  const [rerouteSubmitting, setRerouteSubmitting] = useState(false)
+
+  // Team Queues sidebar
+  const [deptFilter, setDeptFilter] = useState(null) // client-side dept filter (sidebar)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
+
+  // Live polling
+  const [lastPollAt, setLastPollAt] = useState(null)
+  const [nowTick, setNowTick] = useState(Date.now())
+
+  const openRouteDrawer = (ticket, e) => {
+    if (e && e.stopPropagation) e.stopPropagation()
+    setRouteTicket(ticket)
+  }
+
+  const handleRouteSubmit = async (department, assigneeId) => {
+    if (!routeTicket) return
+    if (!department.trim()) {
+      show('Select a department to route this query to', 'error')
+      return
+    }
+    setRouteSubmitting(true)
+    try {
+      const res = await apiRouteTicket(routeTicket.id, {
+        assignedDepartment: department.trim().toLowerCase(),
+        assignedToId: assigneeId || null
+      })
+      if (res.data?.success) {
+        show('Query routed successfully!', 'success')
+        setRouteTicket(null)
+        fetchTicketsData()
+      }
+    } catch (err) {
+      show(err.response?.data?.message || 'Failed to route query', 'error')
+    } finally {
+      setRouteSubmitting(false)
+    }
+  }
+
+  const handleDeptReroute = async (ticket, department) => {
+    if (!ticket || !department) return
+    setRerouteSubmitting(true)
+    try {
+      const res = await apiRerouteTicket(ticket.id, department)
+      if (res.data?.success) {
+        show(`Routed to ${department} team`, 'success')
+        fetchTicketsData()
+      }
+    } catch (err) {
+      show(err.response?.data?.message || 'Failed to re-route query', 'error')
+    } finally {
+      setRerouteSubmitting(false)
+    }
+  }
+
+  const openResolutionModal = (ticket) => {
+    setResolutionTicket(ticket)
+    setResolutionMessage('')
+  }
+
+  const handleResolutionSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault()
+    if (!resolutionTicket || !resolutionMessage.trim()) return
+    setResolutionSubmitting(true)
+    try {
+      const res = await apiSendReply(resolutionTicket.id, {
+        replyMessage: resolutionMessage.trim(),
+        replySubject: `Response to your query [${resolutionTicket.ticketNumber || `#TCK-${resolutionTicket.id}`}]`
+      })
+      if (res.data?.success) {
+        show('Response emailed to visitor & ticket marked resolved', 'success')
+        setResolutionTicket(null)
+        setResolutionMessage('')
+        fetchTicketsData()
+      }
+    } catch (err) {
+      show(err.response?.data?.message || 'Failed to send response', 'error')
+    } finally {
+      setResolutionSubmitting(false)
+    }
+  }
+
+  const handleMarkDone = async (ticketId, e) => {
+    if (e && e.stopPropagation) e.stopPropagation()
+    try {
+      const res = await apiMarkDone(ticketId)
+      if (res.data?.success) {
+        show('Marked as done — sent to Ops for review', 'success')
+        fetchTicketsData()
+        if (selectedTicket && selectedTicket.id === ticketId) setSelectedTicket(res.data.data)
+      }
+    } catch (err) {
+      show(err.response?.data?.message || 'Failed to mark done', 'error')
+    }
+  }
+
+  const handleOpsReplySubmit = async (e) => {
+    e.preventDefault()
+    if (!selectedTicket || !opsReply.message.trim()) return
+    setOpsReplySubmitting(true)
+    try {
+      const res = await apiSendReply(selectedTicket.id, {
+        replyMessage: opsReply.message.trim(),
+        replySubject: opsReply.subject.trim() || `Response to your query [${selectedTicket.ticketNumber || `#TCK-${selectedTicket.id}`}]`
+      })
+      if (res.data?.success) {
+        show('Response emailed to visitor & query marked resolved!', 'success')
+        setOpsReply({ subject: '', message: '' })
+        openTicketDetail(selectedTicket.id)
+        fetchTicketsData()
+      }
+    } catch (err) {
+      show(err.response?.data?.message || 'Failed to send response', 'error')
+    } finally {
+      setOpsReplySubmitting(false)
+    }
+  }
 
   const openCloseModal = (ticket, e) => {
     if (e && e.stopPropagation) e.stopPropagation()
@@ -277,30 +510,173 @@ export default function Tickets() {
     localStorage.setItem('ticket_view_mode', mode)
   }
 
-  const fetchTicketsData = async () => {
-    setLoading(true)
+  const fetchTicketsData = async (silent = false, signal) => {
+    if (!silent) setLoading(true)
     try {
-      const res = await getTickets({ scope, search, status: selectedStatus, priority: selectedPriority, category: selectedCategory })
+      const effectiveScope = isOps ? (queueTab === 'my' ? 'my' : 'all') : 'my'
+      const statusParam = isOps && queueTab === 'pending' ? 'Pending Ops Review' : selectedStatus
+      const res = await getTickets({ scope: effectiveScope, search, status: statusParam, priority: selectedPriority, category: selectedCategory }, { signal })
       if (res.data?.success) {
         setTickets(res.data.data || [])
         if (res.data.metrics) setMetrics(res.data.metrics)
+        setLastPollAt(Date.now())
       }
     } catch (err) {
-      show(err.response?.data?.message || 'Failed to load tickets', 'error')
+      if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return
+      if (!silent) show(err.response?.data?.message || 'Failed to load tickets', 'error')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
-  const fetchStaff = async () => {
+  const fetchStaff = async (signal) => {
     try {
-      const res = await getStaffUsers()
+      const res = await getStaffUsers({ signal })
       if (res.data?.success) setStaffUsers(res.data.data || [])
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return
+      console.error(err)
+    } finally {
+      setRoleLoading(false)
+    }
   }
 
-  useEffect(() => { fetchTicketsData() }, [scope, selectedStatus, selectedPriority, selectedCategory])
-  useEffect(() => { if (isStaff) fetchStaff() }, [isStaff])
+  useEffect(() => {
+    if (roleLoading) return
+    const c = new AbortController()
+    fetchTicketsData(false, c.signal)
+    return () => c.abort()
+  }, [roleLoading, scope, selectedStatus, selectedPriority, selectedCategory])
+  useEffect(() => {
+    if (roleLoading || !isOps) return
+    const c = new AbortController()
+    fetchTicketsData(false, c.signal)
+    return () => c.abort()
+  }, [roleLoading, queueTab, isOps])
+  useEffect(() => {
+    if (!isStaff) return
+    const c = new AbortController()
+    fetchStaff(c.signal)
+    return () => c.abort()
+  }, [isStaff])
+
+  // Seconds ticker for the "Live · updated {n}s ago" indicator
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Poll every 12s while tab is visible; pause when hidden (Page Visibility API)
+  useEffect(() => {
+    if (roleLoading) return
+    const c = new AbortController()
+    const poll = () => {
+      if (document.visibilityState === 'visible') fetchTicketsData(true, c.signal)
+    }
+    const id = setInterval(poll, 12000)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') fetchTicketsData(true, c.signal)
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisibility)
+      c.abort()
+    }
+  }, [roleLoading, scope, selectedStatus, selectedPriority, selectedCategory, queueTab, isOps])
+
+  const secondsSincePoll = lastPollAt ? Math.max(0, Math.floor((nowTick - lastPollAt) / 1000)) : null
+
+  const unfinishedCount = useMemo(() => {
+    return tickets.filter((t) => ['Open', 'In Progress'].includes(t.status)).length
+  }, [tickets])
+
+  const pendingOpsCount = useMemo(() => {
+    return tickets.filter((t) => t.status === 'Pending Ops Review').length
+  }, [tickets])
+
+  const unroutedCount = useMemo(() => {
+    return tickets.filter((t) => !t.assignedDepartment && !t.assignedToId && t.status !== 'Closed').length
+  }, [tickets])
+
+  const historyCount = useMemo(() => {
+    return tickets.filter((t) => ['Pending Ops Review', 'Resolved', 'Closed'].includes(t.status)).length
+  }, [tickets])
+
+  const myCount = useMemo(() => {
+    return tickets.filter((t) => Number(t.assignedToId) === Number(currentUser.id)).length
+  }, [tickets])
+
+  const handleTabChange = (tabKey) => {
+    setMainTab(tabKey)
+    setSelectedStatus('All')
+    setSelectedPriority('All')
+    setSelectedCategory('All')
+    setSearch('')
+    setSelectedDateRange('All')
+    setCustomDate('')
+    setDeptFilter(null)
+  }
+
+  const visibleTickets = useMemo(() => {
+    let list = tickets
+
+    if (mainTab === 'unfinished') {
+      list = list.filter((t) => ['Open', 'In Progress'].includes(t.status))
+    } else if (mainTab === 'pending') {
+      list = list.filter((t) => t.status === 'Pending Ops Review')
+    } else if (mainTab === 'unrouted') {
+      list = list.filter((t) => !t.assignedDepartment && !t.assignedToId && t.status !== 'Closed')
+    } else if (mainTab === 'history') {
+      list = list.filter((t) => ['Pending Ops Review', 'Resolved', 'Closed'].includes(t.status))
+    } else if (mainTab === 'my') {
+      list = list.filter((t) => Number(t.assignedToId) === Number(currentUser.id))
+    }
+
+    if (deptFilter) {
+      list = list.filter((t) => (t.assignedDepartment || '').trim().toLowerCase() === deptFilter)
+    }
+
+    if (search && search.trim()) {
+      list = list.filter((t) => matchesSearch(t, search))
+    }
+
+    if (selectedStatus !== 'All') {
+      list = list.filter((t) => t.status === selectedStatus)
+    }
+
+    if (selectedPriority !== 'All') {
+      list = list.filter((t) => t.priority === selectedPriority)
+    }
+
+    if (selectedCategory !== 'All') {
+      list = list.filter((t) => t.category === selectedCategory)
+    }
+
+    if (selectedDateRange !== 'All') {
+      const now = new Date()
+      const todayStr = now.toISOString().slice(0, 10)
+      const yesterday = new Date(now)
+      yesterday.setDate(yesterday.getDate() - 1)
+      const yesterdayStr = yesterday.toISOString().slice(0, 10)
+
+      list = list.filter((t) => {
+        const dStr = t.createdAt || t.updatedAt
+        if (!dStr) return false
+        const d = new Date(dStr)
+        if (isNaN(d.getTime())) return false
+        const ticketIso = d.toISOString().slice(0, 10)
+
+        if (selectedDateRange === 'Today') return ticketIso === todayStr
+        if (selectedDateRange === 'Yesterday') return ticketIso === yesterdayStr
+        if (selectedDateRange === 'ThisMonth') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+        if (selectedDateRange === 'Custom' && customDate) return ticketIso === customDate
+        return true
+      })
+    }
+
+    return list
+  }, [tickets, mainTab, deptFilter, search, selectedStatus, selectedPriority, selectedCategory, selectedDateRange, customDate, currentUser.id])
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -311,8 +687,8 @@ export default function Tickets() {
   }, [])
 
   const handleSearchSubmit = (e) => { e.preventDefault(); fetchTicketsData() }
-  const handleResetFilters = () => { setSearch(''); setSelectedStatus('All'); setSelectedPriority('All'); setSelectedCategory('All') }
-  const hasActiveFilters = search || selectedStatus !== 'All' || selectedPriority !== 'All' || selectedCategory !== 'All'
+  const handleResetFilters = () => { setSearch(''); setSelectedStatus('All'); setSelectedPriority('All'); setSelectedCategory('All'); setSelectedDateRange('All'); setCustomDate(''); setDeptFilter(null); }
+  const hasActiveFilters = search || selectedStatus !== 'All' || selectedPriority !== 'All' || selectedCategory !== 'All' || selectedDateRange !== 'All' || deptFilter
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault()
@@ -331,6 +707,7 @@ export default function Tickets() {
       const res = await createTicket(formData)
       if (res.data?.success) {
         show('Ticket submitted!', 'success')
+        setCreateForm({ title: '', category: 'Bug', priority: 'Medium', description: '', attachment: null })
         setIsCreateOpen(false)
         fetchTicketsData()
       }
@@ -380,325 +757,365 @@ export default function Tickets() {
   }
 
   const renderPriorityBadge = (p) => {
-    const configs = {
-      Urgent: 'bg-rose-50/90 text-rose-700 border-rose-200/80 ring-1 ring-rose-500/20 shadow-2xs animate-pulse',
-      High: 'bg-amber-50/90 text-amber-700 border-amber-200/80 ring-1 ring-amber-500/20 shadow-2xs',
-      Medium: 'bg-indigo-50/90 text-indigo-700 border-indigo-200/80 ring-1 ring-indigo-500/20 shadow-2xs',
-      Low: 'bg-slate-100/90 text-slate-700 border-slate-200 shadow-2xs'
+    const textColors = {
+      Urgent: 'text-rose-600',
+      High: 'text-amber-600',
+      Medium: 'text-indigo-600',
+      Low: 'text-slate-500'
+    }
+    const dotColors = {
+      Urgent: 'bg-rose-500',
+      High: 'bg-amber-500',
+      Medium: 'bg-indigo-500',
+      Low: 'bg-slate-400'
     }
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${configs[p] || configs.Low}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${p === 'Urgent' ? 'bg-rose-600' : p === 'High' ? 'bg-amber-500' : p === 'Medium' ? 'bg-indigo-600' : 'bg-slate-400'}`}></span>
-        {p}
+      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${textColors[p] || textColors.Low}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${dotColors[p] || 'bg-slate-400'}`} />
+        <span>{p}</span>
       </span>
     )
   }
 
   const renderStatusBadge = (s) => {
-    const configs = {
-      Open: 'bg-amber-50/90 text-amber-700 border-amber-300/80 shadow-2xs',
-      'In Progress': 'bg-indigo-50/90 text-indigo-700 border-indigo-300/80 shadow-2xs',
-      Resolved: 'bg-emerald-50/90 text-emerald-700 border-emerald-300/80 shadow-2xs',
-      Closed: 'bg-slate-100/90 text-slate-600 border-slate-300/80 shadow-2xs'
+    const textColors = {
+      Open: 'text-amber-600',
+      'In Progress': 'text-indigo-600',
+      'Pending Ops Review': 'text-purple-600',
+      Resolved: 'text-emerald-600',
+      Closed: 'text-slate-500'
+    }
+    const dotColors = {
+      Open: 'bg-amber-500',
+      'In Progress': 'bg-indigo-500',
+      'Pending Ops Review': 'bg-purple-500',
+      Resolved: 'bg-emerald-500',
+      Closed: 'bg-slate-400'
     }
     return (
-      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${configs[s] || configs.Open}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${s === 'Open' ? 'bg-amber-500' : s === 'In Progress' ? 'bg-indigo-500' : s === 'Resolved' ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-        {s}
+      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${textColors[s] || textColors.Open}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${dotColors[s] || 'bg-slate-400'}`} />
+        <span>{s}</span>
       </span>
     )
   }
 
   return (
-    <div className="w-full max-w-full space-y-6 px-4 sm:px-6 lg:px-8 py-6 bg-slate-100/60 min-h-screen">
-      <div className="liquid-glass-hero relative overflow-hidden p-6 sm:p-8 rounded-3xl text-white shadow-2xl">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-1/3 -mb-10 w-60 h-60 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none"></div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-indigo-200 text-xs font-bold tracking-wide backdrop-blur-md">
-              <LifeBuoy className="w-3.5 h-3.5 text-indigo-300" />
-              <span>Operations Helpdesk</span>
+    <div className="w-full max-w-full space-y-4 px-4 sm:px-6 lg:px-8 py-5 min-h-screen">
+      {/* Compact Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">Support & Helpdesk Tickets</h1>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-xs text-slate-400">Manage, track, assign, and resolve support requests.</p>
+            <div className="hidden sm:flex items-center gap-2.5 text-[11px] font-semibold">
+              <span className="text-slate-500">·</span>
+              <button onClick={() => { setSelectedStatus('All'); setSelectedPriority('All'); setSelectedCategory('All'); }} className={`cursor-pointer transition-colors ${selectedStatus === 'All' && selectedPriority === 'All' ? 'text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-700'}`}>{metrics.total || 0} total</button>
+              <button onClick={() => { setSelectedStatus('Open'); setSelectedPriority('All'); }} className={`cursor-pointer transition-colors ${selectedStatus === 'Open' ? 'text-amber-700 font-bold' : 'text-amber-500 hover:text-amber-700'}`}>{metrics.open || 0} open</button>
+              <button onClick={() => { setSelectedStatus('In Progress'); setSelectedPriority('All'); }} className={`cursor-pointer transition-colors ${selectedStatus === 'In Progress' ? 'text-indigo-700 font-bold' : 'text-indigo-500 hover:text-indigo-700'}`}>{metrics.inProgress || 0} in progress</button>
+              <button onClick={() => { setSelectedStatus('Resolved'); setSelectedPriority('All'); }} className={`cursor-pointer transition-colors ${selectedStatus === 'Resolved' ? 'text-emerald-700 font-bold' : 'text-emerald-500 hover:text-emerald-700'}`}>{metrics.resolved || 0} resolved</button>
+              {(metrics.urgent || 0) > 0 && (
+                <button onClick={() => { setSelectedPriority('Urgent'); setSelectedStatus('All'); }} className={`cursor-pointer inline-flex items-center gap-1 transition-colors ${selectedPriority === 'Urgent' ? 'text-rose-700 font-bold' : 'text-rose-500 hover:text-rose-700'}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  {metrics.urgent} urgent
+                </button>
+              )}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-3">
-              Support & Helpdesk Tickets
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Manage, track, assign, and resolve internal and customer support requests efficiently.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setIsCreateOpen(true)}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs sm:text-sm transition-all shadow-lg shadow-indigo-600/40 active:scale-95 border border-indigo-400/40 backdrop-blur-md cursor-pointer"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Raise New Ticket</span>
-            </button>
           </div>
         </div>
+
+        <button
+          onClick={() => setIsCreateOpen(true)}
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Raise New Ticket</span>
+        </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        {/* TOTAL QUEUE */}
-        <div
-          onClick={() => { setSelectedStatus('All'); setSelectedPriority('All'); setSelectedCategory('All'); }}
-          className={`liquid-glass-card group cursor-pointer p-4 sm:p-5 rounded-3xl transition-all duration-300 ${selectedStatus === 'All' && selectedPriority === 'All' && selectedCategory === 'All' ? 'ring-2 ring-indigo-500 shadow-md bg-white' : 'hover:border-indigo-300'}`}
+      {/* Unified Primary Navigation Segmented Control Bar */}
+      <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3 overflow-x-auto [::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <button
+          onClick={() => handleTabChange('unfinished')}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+            mainTab === 'unfinished'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Total Queue</span>
-            <div className="p-2 rounded-xl bg-slate-100/80 text-slate-700 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-              <FileText className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <div className="text-2xl font-black text-slate-900 tracking-tight">{metrics.total || 0}</div>
-            <span className="text-xs text-slate-400 font-medium">All logged</span>
-          </div>
-        </div>
+          <Zap className="w-4 h-4" />
+          <span>Active / Unfinished</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+            mainTab === 'unfinished' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+          }`}>
+            {unfinishedCount}
+          </span>
+        </button>
 
-        {/* OPEN */}
-        <div
-          onClick={() => { setSelectedStatus('Open'); setSelectedPriority('All'); }}
-          className={`liquid-glass-card group cursor-pointer p-4 sm:p-5 rounded-3xl transition-all duration-300 ${selectedStatus === 'Open' ? 'ring-2 ring-amber-500 shadow-md bg-amber-50/20' : 'hover:border-amber-300'}`}
+        <button
+          onClick={() => handleTabChange('pending')}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+            mainTab === 'pending'
+              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-amber-600 uppercase tracking-wider">Open</span>
-            <div className="p-2 rounded-xl bg-amber-50/80 text-amber-600 group-hover:bg-amber-100 transition-colors">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <div className="text-2xl font-black text-amber-600 tracking-tight">{metrics.open || 0}</div>
-            <span className="text-xs text-amber-600 font-bold font-mono">{metrics.total ? Math.round(((metrics.open || 0) / metrics.total) * 100) : 0}%</span>
-          </div>
-        </div>
+          <Sparkles className="w-4 h-4" />
+          <span>Ops Review</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+            mainTab === 'pending' ? 'bg-white/20 text-white' : 'bg-purple-50 text-purple-700'
+          }`}>
+            {pendingOpsCount}
+          </span>
+        </button>
 
-        {/* IN PROGRESS */}
-        <div
-          onClick={() => { setSelectedStatus('In Progress'); setSelectedPriority('All'); }}
-          className={`liquid-glass-card group cursor-pointer p-4 sm:p-5 rounded-3xl transition-all duration-300 ${selectedStatus === 'In Progress' ? 'ring-2 ring-indigo-500 shadow-md bg-indigo-50/20' : 'hover:border-indigo-300'}`}
+        <button
+          onClick={() => handleTabChange('unrouted')}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+            mainTab === 'unrouted'
+              ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-indigo-600 uppercase tracking-wider">In Progress</span>
-            <div className="p-2 rounded-xl bg-indigo-50/80 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
-              <AlertCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <div className="text-2xl font-black text-indigo-600 tracking-tight">{metrics.inProgress || 0}</div>
-            <span className="text-xs text-indigo-600 font-bold font-mono">{metrics.total ? Math.round(((metrics.inProgress || 0) / metrics.total) * 100) : 0}%</span>
-          </div>
-        </div>
+          <AlertCircle className="w-4 h-4" />
+          <span>Needs Routing</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+            mainTab === 'unrouted' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-700'
+          }`}>
+            {unroutedCount}
+          </span>
+        </button>
 
-        {/* RESOLVED */}
-        <div
-          onClick={() => { setSelectedStatus('Resolved'); setSelectedPriority('All'); }}
-          className={`liquid-glass-card group cursor-pointer p-4 sm:p-5 rounded-3xl transition-all duration-300 ${selectedStatus === 'Resolved' ? 'ring-2 ring-emerald-500 shadow-md bg-emerald-50/20' : 'hover:border-emerald-300'}`}
+        <button
+          onClick={() => handleTabChange('history')}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+            mainTab === 'history'
+              ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20'
+              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-emerald-600 uppercase tracking-wider">Resolved</span>
-            <div className="p-2 rounded-xl bg-emerald-50/80 text-emerald-600 group-hover:bg-emerald-100 transition-colors">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <div className="text-2xl font-black text-emerald-600 tracking-tight">{metrics.resolved || 0}</div>
-            <span className="text-xs text-emerald-600 font-bold font-mono">{metrics.total ? Math.round(((metrics.resolved || 0) / metrics.total) * 100) : 0}%</span>
-          </div>
-        </div>
+          <Clock className="w-4 h-4" />
+          <span>Ticket History</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+            mainTab === 'history' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+          }`}>
+            {historyCount}
+          </span>
+        </button>
 
-        {/* CLOSED */}
-        <div
-          onClick={() => { setSelectedStatus('Closed'); setSelectedPriority('All'); }}
-          className={`liquid-glass-card group cursor-pointer p-4 sm:p-5 rounded-3xl transition-all duration-300 ${selectedStatus === 'Closed' ? 'ring-2 ring-slate-600 shadow-md bg-slate-100/50' : 'hover:border-slate-400'}`}
+        <button
+          onClick={() => handleTabChange('all')}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+            mainTab === 'all'
+              ? 'bg-slate-800 text-white shadow-md shadow-slate-800/20'
+              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">Closed</span>
-            <div className="p-2 rounded-xl bg-slate-100/90 text-slate-600 group-hover:bg-slate-200 transition-colors">
-              <CheckCircle2 className="w-4 h-4 text-slate-600" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <div className="text-2xl font-black text-slate-700 tracking-tight">{metrics.closed || 0}</div>
-            <span className="text-xs text-slate-500 font-bold font-mono">{metrics.total ? Math.round(((metrics.closed || 0) / metrics.total) * 100) : 0}%</span>
-          </div>
-        </div>
-
-        {/* URGENT */}
-        <div
-          onClick={() => { setSelectedPriority('Urgent'); setSelectedStatus('All'); }}
-          className={`liquid-glass-card group cursor-pointer p-4 sm:p-5 rounded-3xl transition-all duration-300 ${selectedPriority === 'Urgent' ? 'ring-2 ring-rose-500 shadow-md bg-rose-50/20' : 'hover:border-rose-300'}`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-rose-600 uppercase tracking-wider flex items-center gap-1">
-              Urgent {metrics.urgent > 0 && <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>}
-            </span>
-            <div className="p-2 rounded-xl bg-rose-50/80 text-rose-600 group-hover:bg-rose-100 transition-colors">
-              <ShieldAlert className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <div className="text-2xl font-black text-rose-600 tracking-tight">{metrics.urgent || 0}</div>
-            <span className="text-[11px] text-rose-600 font-bold">Critical</span>
-          </div>
-        </div>
+          <span>All Tickets</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+            mainTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+          }`}>
+            {tickets.length}
+          </span>
+        </button>
       </div>
 
-      <div className="liquid-glass-card p-5 rounded-3xl space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          {isStaff ? (
-            <div className="inline-flex p-1 bg-slate-200/50 rounded-2xl text-xs font-extrabold text-slate-600 backdrop-blur-md">
-              <button onClick={() => setScope('all')} className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${scope === 'all' ? 'bg-white text-indigo-600 shadow-sm font-black' : 'hover:text-slate-900'}`}>
-                <Layers className="w-3.5 h-3.5" /> <span>All Queue Tickets</span>
-              </button>
-              <button onClick={() => setScope('my')} className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${scope === 'my' ? 'bg-white text-indigo-600 shadow-sm font-black' : 'hover:text-slate-900'}`}>
-                <User className="w-3.5 h-3.5" /> <span>My Tickets</span>
-              </button>
-            </div>
-          ) : (
-            <div className="text-sm font-black text-slate-800 flex items-center gap-2">
-              <div className="p-1.5 rounded-xl bg-indigo-50 text-indigo-600"><Tag className="w-4 h-4" /></div>
-              <span>Support Ticket Queue</span>
-            </div>
-          )}
-          <div className="flex items-center gap-3">
-            <form onSubmit={handleSearchSubmit} className="relative w-full lg:w-80">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input ref={searchInputRef} type="text" placeholder="Search ticket #, title... (Ctrl+K)" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-10 pr-9 py-2 border border-slate-200/80 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white/60 backdrop-blur-md" />
-              {search && <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>}
-            </form>
-            <div className="inline-flex p-1 bg-slate-200/50 rounded-2xl text-slate-500 backdrop-blur-md">
-              <button onClick={() => toggleViewMode('grid')} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-2xs' : 'hover:text-slate-800'}`}><LayoutGrid className="w-4 h-4" /></button>
-              <button onClick={() => toggleViewMode('table')} className={`p-2 rounded-xl transition-all ${viewMode === 'table' ? 'bg-white text-indigo-600 shadow-2xs' : 'hover:text-slate-800'}`}><List className="w-4 h-4" /></button>
+      {roleLoading ? (
+        <div className="flex flex-col lg:flex-row gap-5 items-start">
+          <div className="flex-1 min-w-0 space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4 shadow-xs">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="h-9 w-64 rounded-lg bg-slate-100 animate-pulse" />
+                <div className="h-9 w-80 rounded-lg bg-slate-100 animate-pulse" />
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200/60">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-extrabold text-slate-400 uppercase mr-1">Category:</span>
-            {CATEGORIES.map((cat) => (
-              <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-3 py-1 rounded-full text-xs font-extrabold transition-all ${selectedCategory === cat ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white/80 hover:bg-slate-200/80 text-slate-600 border border-slate-200/60'}`}>{cat}</button>
-            ))}
+      ) : (
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
+      <div className="flex-1 min-w-0 space-y-4">
+      <div className="rounded-xl border border-slate-200 bg-white shadow-xs">
+        {/* Filter Toolbar */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 px-4 py-3">
+          <div className="text-xs font-extrabold text-slate-800 flex items-center gap-2 flex-wrap">
+            <span className="w-2 h-2 rounded-full bg-indigo-500" />
+            <span>Filter & Search</span>
+            {deptFilter && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-[11px] font-bold text-indigo-700">
+                Team: {deptFilter.toUpperCase()}
+                <button onClick={() => setDeptFilter(null)} className="hover:text-indigo-900 cursor-pointer"><X className="w-3 h-3" /></button>
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
-            <select value={selectedPriority} onChange={(e) => setSelectedPriority(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-2xl text-xs font-bold bg-white/80 text-slate-700 focus:outline-none">
+            <form onSubmit={handleSearchSubmit} className="relative w-full lg:w-64">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input ref={searchInputRef} type="text" placeholder="Search title, date (e.g. Aug 12), time..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-8 pr-7 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 bg-slate-50/50" />
+              {search && <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-3 h-3" /></button>}
+            </form>
+            <select value={selectedPriority} onChange={(e) => setSelectedPriority(e.target.value)} className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-medium bg-slate-50/50 text-slate-700 focus:outline-none cursor-pointer">
               <option value="All">Priority: All</option>
               {PRIORITIES.filter((p) => p !== 'All').map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
-            <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-2xl text-xs font-bold bg-white/80 text-slate-700 focus:outline-none">
+            <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-medium bg-slate-50/50 text-slate-700 focus:outline-none cursor-pointer">
               <option value="All">Status: All</option>
               {STATUSES.filter((s) => s !== 'All').map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
             {hasActiveFilters && (
-              <button onClick={handleResetFilters} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-2xl text-xs font-extrabold text-rose-600 bg-rose-50/80 hover:bg-rose-100 transition-colors"><RotateCcw className="w-3 h-3" /> <span>Reset</span></button>
+              <button onClick={handleResetFilters} className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer" title="Reset all filters"><RotateCcw className="w-3.5 h-3.5" /></button>
             )}
           </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-slate-400 liquid-glass-card rounded-3xl">
-          <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <span className="text-xs font-bold text-slate-600">Loading support tickets...</span>
+        <div className="py-16 text-center text-slate-400 rounded-xl border border-slate-200 bg-white shadow-xs">
+          <div className="w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-2.5"></div>
+          <span className="text-xs font-medium text-slate-600">Loading support tickets...</span>
         </div>
-      ) : tickets.length === 0 ? (
-        <div className="py-16 px-4 text-center liquid-glass-card rounded-3xl space-y-3">
-          <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner"><LifeBuoy className="w-7 h-7" /></div>
-          <h3 className="text-lg font-black text-slate-800">No support tickets match your filters</h3>
+      ) : visibleTickets.length === 0 ? (
+        <div className="py-16 px-4 text-center rounded-xl border border-slate-200 bg-white shadow-xs space-y-3">
+          <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mx-auto border border-indigo-100"><LifeBuoy className="w-6 h-6" /></div>
+          <h3 className="text-sm font-bold text-slate-900">No support tickets match your filters</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">Try resetting your search query or category filters, or click below to submit a new ticket.</p>
-          <button onClick={() => setIsCreateOpen(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-indigo-600 text-white font-extrabold text-xs hover:bg-indigo-700 transition-all shadow-sm"><Plus className="w-4 h-4" /> <span>Raise New Ticket</span></button>
+          <button onClick={() => setIsCreateOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-900 text-white font-semibold text-xs hover:bg-slate-800 transition-all shadow-xs cursor-pointer"><Plus className="w-3.5 h-3.5" /> <span>Raise New Ticket</span></button>
         </div>
-      ) : viewMode === 'grid' ? (
+      ) : isOps ? (
+        <DeptGroupedTable
+          tickets={visibleTickets}
+          statusBadge={renderStatusBadge}
+          priorityBadge={renderPriorityBadge}
+          formatTimeAgo={formatTimeAgo}
+          onRoute={handleDeptReroute}
+          onSendReply={openResolutionModal}
+          onView={openTicketDetail}
+          hideSendReply={queueTab === 'unrouted'}
+          routeSubmitting={rerouteSubmitting}
+        />
+      ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {tickets.map((t) => (
-            <GlassCard key={t.id} onClick={() => openTicketDetail(t.id)} className="group relative flex flex-col justify-between space-y-4 hover:border-indigo-400/60">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[11px] font-extrabold text-indigo-700 font-mono bg-indigo-50/90 px-2.5 py-1 rounded-xl border border-indigo-200/60 shadow-2xs">{t.ticketNumber || `#TCK-${t.id}`}</span>
-                  {t.category && <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100/80 text-slate-600 border border-slate-200/60">{t.category}</span>}
-                </div>
-                <div className="flex items-center gap-2">
-                  {renderPriorityBadge(t.priority || 'Medium')}
-                  <div className="p-1 rounded-full text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-colors"><ArrowUpRight className="w-4 h-4" /></div>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <h3 className="text-base font-bold text-slate-900 group-hover:text-indigo-600 transition-colors leading-snug line-clamp-2">{getCleanTitle(t.title, t.description, t.createdBy?.name || t.externalUserName)}</h3>
-                <p className="text-xs text-slate-500 font-normal leading-relaxed line-clamp-2">{getCleanDescriptionSnippet(t.description)}</p>
-              </div>
-              <div className="pt-3 border-t border-slate-200/60 space-y-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 shadow-2xs ${getAvatarColor(t.createdBy?.name || t.externalUserName || 'User')}`}>{getInitials(t.createdBy?.name || t.externalUserName || 'User')}</div>
-                    <span className="text-xs font-bold text-slate-800 truncate">{t.createdBy?.name || t.externalUserName || 'User'}</span>
-                  </div>
-                  {renderStatusBadge(t.status)}
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium pt-0.5">
-                  <span className="inline-flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5 text-indigo-500" /> {t.comments?.length || 0} replies</span>
-                  {t.status !== 'Closed' ? (
-                    <button onClick={(e) => openCloseModal(t, e)} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Close Ticket
-                    </button>
-                  ) : (
-                    <button onClick={(e) => handleReopenTicket(t.id, e)} className="text-xs font-bold text-amber-600 hover:text-amber-700 hover:underline transition-colors flex items-center gap-1">
-                      <RotateCcw className="w-3.5 h-3.5 text-amber-600" /> Reopen Ticket
-                    </button>
-                  )}
-                </div>
-              </div>
-            </GlassCard>
+          {visibleTickets.map((t) => (
+            <MyAssignedCard
+              key={t.id}
+              ticket={t}
+              statusBadge={renderStatusBadge}
+              priorityBadge={renderPriorityBadge}
+              formatTimeAgo={formatTimeAgo}
+              onMarkDone={handleMarkDone}
+              onView={openTicketDetail}
+              onNotePosted={() => fetchTicketsData()}
+            />
           ))}
         </div>
-      ) : (
-        <div className="liquid-glass-card rounded-3xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50/90 border-b border-slate-200/80 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-                <tr><th className="px-5 py-4">Ticket # & Subject</th><th className="px-4 py-4">Category</th><th className="px-4 py-4">Priority</th><th className="px-4 py-4">Status</th><th className="px-4 py-4">Requester</th><th className="px-4 py-4">Assignee</th><th className="px-4 py-4 text-right">Actions</th></tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100/80">
-                {tickets.map((t) => (
-                  <tr key={t.id} className="hover:bg-white/90 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2"><span className="text-xs font-bold text-indigo-600 font-mono">{t.ticketNumber || `#TCK-${t.id}`}</span></div>
-                        <button onClick={() => openTicketDetail(t.id)} className="text-slate-900 font-bold hover:text-indigo-600 text-left line-clamp-1 transition-colors text-sm">{getCleanTitle(t.title, t.description, t.createdBy?.name || t.externalUserName)}</button>
-                        <span className="text-[11px] text-slate-400">{formatTimeAgo(t.createdAt)}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-xs font-medium text-slate-600"><span className="px-2.5 py-1 bg-slate-100 rounded-xl border border-slate-200/60">{t.category || 'Bug'}</span></td>
-                    <td className="px-4 py-4">{renderPriorityBadge(t.priority || 'Medium')}</td>
-                    <td className="px-4 py-4">{isStaff ? <select value={t.status} onChange={(e) => handleQuickUpdate(t.id, { status: e.target.value })} className="px-2.5 py-1 border border-slate-200 rounded-xl text-xs font-bold bg-white focus:outline-none">{STATUSES.filter((s) => s !== 'All').map((s) => <option key={s} value={s}>{s}</option>)}</select> : renderStatusBadge(t.status)}</td>
-                    <td className="px-4 py-4"><div className="flex items-center gap-2 text-xs font-semibold text-slate-800">{t.createdBy?.name || t.externalUserName || 'Internal User'}</div></td>
-                    <td className="px-4 py-4">{isStaff ? <select value={t.assignedToId || ''} onChange={(e) => handleQuickUpdate(t.id, { assignedToId: e.target.value })} className="px-2 py-1 border border-slate-200 rounded-xl text-xs bg-white text-slate-700 focus:outline-none"><option value="">-- Unassigned --</option>{staffUsers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select> : <span className="text-xs">{t.assignee?.name || 'Unassigned'}</span>}</td>
-                    <td className="px-4 py-4 text-right space-x-2">
-                      <button onClick={() => openTicketDetail(t.id)} className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors">View</button>
-                      {t.status !== 'Closed' ? (
-                        <button onClick={(e) => openCloseModal(t, e)} className="px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition-colors">Close</button>
-                      ) : (
-                        <button onClick={(e) => handleReopenTicket(t.id, e)} className="px-3 py-1.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-xs font-bold hover:bg-amber-100 transition-colors">Reopen</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      )}
+      </div>
+
+      {isOps && (
+        <TeamQueuesSidebar
+          tickets={tickets}
+          activeDepartment={deptFilter}
+          onSelect={setDeptFilter}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((c) => !c)}
+        />
+      )}
+      </div>
       )}
 
       <Modal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Raise Support Ticket / Report Issue" actions={
         <div className="flex items-center justify-end gap-3">
-          <button onClick={() => setIsCreateOpen(false)} className="px-4 py-2 text-xs font-bold border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50">Cancel</button>
-          <button onClick={handleCreateSubmit} disabled={createSubmitting} className="px-5 py-2 text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all shadow-sm">Submit Ticket</button>
+          <button onClick={() => setIsCreateOpen(false)} className="px-4 py-2 text-xs font-bold border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer">Cancel</button>
+          <button onClick={handleCreateSubmit} disabled={createSubmitting} className="px-5 py-2 text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50">
+            {createSubmitting ? 'Submitting...' : 'Submit Ticket'}
+          </button>
         </div>
       }>
         <form onSubmit={handleCreateSubmit} className="space-y-4">
-          <div><label className="block text-xs font-bold text-slate-700 mb-1">Title</label><input type="text" value={createForm.title} onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))} className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm" required /></div>
-          <div><label className="block text-xs font-bold text-slate-700 mb-1">Description</label><textarea rows={4} value={createForm.description} onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))} className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm" required /></div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Ticket Title *</label>
+            <input 
+              type="text" 
+              placeholder="Brief summary of the issue or request..." 
+              value={createForm.title} 
+              onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))} 
+              className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+              required 
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Category *</label>
+              <select
+                value={createForm.category}
+                onChange={(e) => setCreateForm((f) => ({ ...f, category: e.target.value }))}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              >
+                <option value="Bug">Bug / Defect</option>
+                <option value="UI Issue">UI / UX Issue</option>
+                <option value="Access / Role">Access / Permissions</option>
+                <option value="Feature Request">Feature Request</option>
+                <option value="Other">Other Query</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Priority *</label>
+              <select
+                value={createForm.priority}
+                onChange={(e) => setCreateForm((f) => ({ ...f, priority: e.target.value }))}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              >
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Urgent">Urgent</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Detailed Description *</label>
+            <textarea 
+              rows={4} 
+              placeholder="Provide complete details, steps to reproduce, or context for the issue..." 
+              value={createForm.description} 
+              onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))} 
+              className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm font-normal text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+              required 
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">File Attachment <span className="text-slate-400 font-medium">(optional — screenshots, logs, or documents)</span></label>
+            <div className="flex items-center gap-3">
+              <input 
+                type="file" 
+                id="create-ticket-attachment"
+                onChange={(e) => setCreateForm((f) => ({ ...f, attachment: e.target.files[0] || null }))}
+                className="hidden"
+              />
+              <label 
+                htmlFor="create-ticket-attachment" 
+                className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 cursor-pointer transition-colors"
+              >
+                <Paperclip className="w-4 h-4 text-slate-500" />
+                {createForm.attachment ? 'Change File' : 'Attach File'}
+              </label>
+              {createForm.attachment && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700">
+                  <span className="truncate max-w-[200px]">{createForm.attachment.name}</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setCreateForm((f) => ({ ...f, attachment: null }))}
+                    className="text-slate-400 hover:text-rose-600 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </form>
       </Modal>
 
@@ -715,21 +1132,31 @@ export default function Tickets() {
                 <h2 className="text-lg font-black text-slate-900 mt-1">{getCleanTitle(selectedTicket.title, selectedTicket.description, selectedTicket.createdBy?.name || selectedTicket.externalUserName)}</h2>
               </div>
 
-              <div>
-                {selectedTicket.status !== 'Closed' ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                {isOps && selectedTicket.status !== 'Closed' && (
                   <button
-                    onClick={(e) => openCloseModal(selectedTicket, e)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-2xs transition-all active:scale-95 cursor-pointer"
+                    onClick={(e) => openRouteDrawer(selectedTicket, e)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-2xs transition-all active:scale-95 cursor-pointer"
                   >
-                    <CheckCircle2 className="w-4 h-4" /> Close Ticket
+                    <CornerUpRight className="w-4 h-4" /> Route to Team
                   </button>
-                ) : (
-                  <button
-                    onClick={(e) => handleReopenTicket(selectedTicket.id, e)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-2xs transition-all active:scale-95 cursor-pointer"
-                  >
-                    <RotateCcw className="w-4 h-4" /> Reopen Ticket
-                  </button>
+                )}
+                {isOps && (
+                  selectedTicket.status !== 'Closed' ? (
+                    <button
+                      onClick={(e) => openCloseModal(selectedTicket, e)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-2xs transition-all active:scale-95 cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-4 h-4" /> Close Ticket
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(e) => handleReopenTicket(selectedTicket.id, e)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-2xs transition-all active:scale-95 cursor-pointer"
+                    >
+                      <RotateCcw className="w-4 h-4" /> Reopen Ticket
+                    </button>
+                  )
                 )}
               </div>
             </div>
@@ -745,6 +1172,33 @@ export default function Tickets() {
             )}
 
             <p className="text-sm text-slate-600 whitespace-pre-wrap">{parseDescriptionDetails(selectedTicket.description).message}</p>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-3.5 text-xs text-slate-600 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-slate-400">Routed To:</span>
+                  <span className={'px-2 py-0.5 rounded-full text-[11px] font-bold border capitalize ' + (selectedTicket.assignedDepartment ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-500 border-slate-200')}>{selectedTicket.assignedDepartment || 'Not routed'}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-slate-400">Assignee:</span>
+                  <span className="font-semibold text-slate-700">{selectedTicket.assignee?.name || 'Unassigned'}</span>
+                </div>
+                {isStaff && !isOps && ['Open', 'In Progress'].includes(selectedTicket.status) && (
+                  <button onClick={() => handleMarkDone(selectedTicket.id)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-[11px] transition-all active:scale-95 cursor-pointer">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Mark as Done
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {selectedTicket.externalUserEmail && (
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-3.5 text-xs text-slate-700 space-y-1">
+                <p className="font-bold text-indigo-700">Visitor Contact Details (Website Query)</p>
+                <p><strong>Name:</strong> {selectedTicket.externalUserName || '—'}</p>
+                <p><strong>Email:</strong> {selectedTicket.externalUserEmail}</p>
+                <p><strong>Phone:</strong> {selectedTicket.externalUserPhone || '—'}</p>
+              </div>
+            )}
 
             {selectedTicket.comments && selectedTicket.comments.length > 0 && (
               <div className="space-y-3 pt-3 border-t border-slate-100">
@@ -763,11 +1217,89 @@ export default function Tickets() {
               </div>
             )}
 
+            {isOps && selectedTicket.status !== 'Closed' && (
+              <form onSubmit={handleOpsReplySubmit} className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-black text-emerald-800">
+                  <Mail className="w-4 h-4 text-emerald-600" />
+                  Send Final Response to Visitor & Mark Resolved
+                </div>
+                <input
+                  type="text"
+                  placeholder={"Subject — e.g. Response to your query [" + (selectedTicket.ticketNumber || ('#TCK-' + selectedTicket.id)) + "]"}
+                  value={opsReply.subject}
+                  onChange={(e) => setOpsReply((o) => ({ ...o, subject: e.target.value }))}
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="Write the resolution reply that will be emailed to the visitor..."
+                  value={opsReply.message}
+                  onChange={(e) => setOpsReply((o) => ({ ...o, message: e.target.value }))}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+                <button type="submit" disabled={opsReplySubmitting || !opsReply.message.trim()} className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition-all disabled:opacity-50 cursor-pointer">
+                  <Send className="w-3.5 h-3.5" /> {opsReplySubmitting ? 'Sending...' : 'Send Response & Mark Resolved'}
+                </button>
+              </form>
+            )}
+
             <div className="pt-4 border-t border-slate-100 space-y-3">
               <textarea rows={3} placeholder="Add reply or progress note..." value={replyText} onChange={(e) => setReplyText(e.target.value)} className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm" />
               <button onClick={handleReplySubmit} disabled={replySubmitting} className="px-5 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-colors">Post Response</button>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* Send Resolution Reply Modal */}
+      <Modal
+        open={!!resolutionTicket}
+        onClose={() => setResolutionTicket(null)}
+        title={resolutionTicket ? `Send Resolution [${resolutionTicket.ticketNumber || `#TCK-${resolutionTicket.id}`}]` : 'Send Resolution'}
+        actions={
+          <div className="flex items-center justify-end gap-3">
+            <button
+              onClick={() => setResolutionTicket(null)}
+              className="px-4 py-2 text-xs font-bold border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleResolutionSubmit}
+              disabled={resolutionSubmitting || !resolutionMessage.trim()}
+              className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50"
+            >
+              <Mail className="w-3.5 h-3.5" /> {resolutionSubmitting ? 'Sending...' : 'Send'}
+            </button>
+          </div>
+        }
+      >
+        {resolutionTicket && (
+          <form onSubmit={handleResolutionSubmit} className="space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+              <h4 className="text-sm font-bold text-slate-900 leading-snug">{getCleanTitle(resolutionTicket.title, resolutionTicket.description, resolutionTicket.createdBy?.name || resolutionTicket.externalUserName)}</h4>
+              {resolutionTicket.externalUserEmail && (
+                <p className="mt-1.5 text-[11px] text-slate-500 font-medium"><strong>Visitor:</strong> {resolutionTicket.externalUserName || '—'} · {resolutionTicket.externalUserEmail}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Resolution Reply (emailed to visitor) *</label>
+              <textarea
+                rows={4}
+                autoFocus
+                required
+                placeholder="Write the resolution reply that will be emailed to the visitor..."
+                value={resolutionMessage}
+                onChange={(e) => setResolutionMessage(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+              />
+            </div>
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 text-[11px] text-emerald-800 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <span>On send, the reply is emailed to the visitor and this ticket is marked <strong>Resolved</strong>.</span>
+            </div>
+          </form>
         )}
       </Modal>
 
@@ -830,6 +1362,14 @@ export default function Tickets() {
           </div>
         </form>
       </Modal>
+
+      <RouteDrawer
+        ticket={routeTicket}
+        allStaff={staffUsers}
+        onClose={() => setRouteTicket(null)}
+        onRoute={handleRouteSubmit}
+        submitting={routeSubmitting}
+      />
     </div>
   )
 }

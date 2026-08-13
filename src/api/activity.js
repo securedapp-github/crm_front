@@ -4,7 +4,7 @@ export const fetchDashboardStats = (params) => api.get('/activity/dashboard', { 
 export const fetchUserActivity = (userId, params) => api.get(`/activity/user/${userId}`, { params })
 export const fetchLiveActivity = () => api.get('/activity/live')
 export const exportActivityCSV = (params) => api.get('/activity/export', { params, responseType: 'blob' })
-export const fetchAllowedDomains = () => api.get('/activity/allowed-domains')
+export const fetchAllowedDomains = (userId) => api.get('/activity/allowed-domains', { params: userId ? { userId } : {} })
 
 export const fetchPolicies = () => api.get('/activity/policies')
 export const createPolicy = (data) => api.post('/activity/policies', data)
