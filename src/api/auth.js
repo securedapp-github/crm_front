@@ -23,16 +23,7 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const localUser = JSON.parse(localStorage.getItem('user') || 'null');
   if (localUser && localUser.role) {
-    const roles = localUser.role.split(',').map(r => r.trim().toLowerCase());
-    if (roles.includes('admin')) {
-      config.headers['X-Panel-Type'] = 'admin';
-    } else {
-      config.headers['X-Panel-Type'] = 'team';
-    }
-  } else if (typeof window !== 'undefined' && window.location.pathname.includes('/admin')) {
-    config.headers['X-Panel-Type'] = 'admin';
-  } else if (typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard/')) {
-    config.headers['X-Panel-Type'] = 'team';
+    config.headers['X-Panel-Type'] = localUser.role.toLowerCase().includes('admin') ? 'admin' : 'team';
   }
   return config;
 }, (error) => Promise.reject(error));
@@ -65,12 +56,12 @@ export const loginUser = (data) => api.post('/auth/login', data)
 export const getMe = () => api.get('/auth/me')
 export const logout = () => api.post('/auth/logout')
 export const signupSales = (data) => api.post('/auth/signup-sales', data)
-export const loginSales = (data) => api.post('/auth/login-sales', data)
+export const loginSales = (data) => api.post('/auth/login-sales', data, { headers: { 'X-Panel-Type': 'team' } })
 // Admin OTP signup flow
 export const signupAdminStart = (data) => api.post('/auth/signup-admin-start', data)
 export const verifyAdminOtp = (data) => api.post('/auth/verify-admin-otp', data)
 export const resendAdminOtp = (data) => api.post('/auth/resend-admin-otp', data)
-export const loginAdmin = (data) => api.post('/auth/login-admin', data)
+export const loginAdmin = (data) => api.post('/auth/login-admin', data, { headers: { 'X-Panel-Type': 'admin' } })
 // Sales OTP signup flow
 export const signupSalesStart = (data) => api.post('/auth/signup-sales-start', data)
 export const verifySalesOtp = (data) => api.post('/auth/verify-sales-otp', data)
