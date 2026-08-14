@@ -6,10 +6,14 @@ import logo from '../assets/securedapp-logo.png'
 export default function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [checking, setChecking] = useState(true)
-  const [authed, setAuthed] = useState(false)
-  const [role, setRole] = useState('')
-  const [name, setName] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [authed, setAuthed] = useState(() => !!localStorage.getItem('user'))
+  const [role, setRole] = useState(() => {
+    try { return (JSON.parse(localStorage.getItem('user') || '{}').role || '') } catch { return '' }
+  })
+  const [name, setName] = useState(() => {
+    try { return (JSON.parse(localStorage.getItem('user') || '{}').name || '') } catch { return '' }
+  })
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const onDashboard = location.pathname.startsWith('/dashboard')
   const formatRoles = (roleStr) => {

@@ -12,15 +12,10 @@ export default function ActivityCreateFromCalendar({ date, onClose, onCreated })
         campaign: '',
         scheduledAt: date ? new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : '',
         status: 'scheduled',
-        assignedTo: '',
-        recurrence: null
+        assignedTo: ''
     });
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [conflictWarning, setConflictWarning] = useState(null);
-
-    // Recurrence State Helper
-    const [recurrenceType, setRecurrenceType] = useState('none'); // none, daily, weekly, monthly
 
     const { show } = useToast();
 
@@ -39,27 +34,17 @@ export default function ActivityCreateFromCalendar({ date, onClose, onCreated })
         api.get('/auth/users?role=sales').then(res => setUsers(res.data.data)).catch(err => console.error(err));
     }, []);
 
-    const handleSubmit = async (e, force = false) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
 
-        // Format recurrence
-        let recurrence = null;
-        if (recurrenceType !== 'none') {
-            recurrence = { freq: recurrenceType, interval: 1 };
-        }
-
         try {
-            await createPost({ ...formData, recurrence }, force);
+            await createPost(formData);
             show('Post created successfully', 'success');
             onCreated();
             onClose();
         } catch (err) {
-            if (err.response?.status === 409) {
-                setConflictWarning('Warning: A post is already scheduled for this time/platform.');
-            } else {
-                show('Failed to create post', 'error');
-            }
+            show('Failed to create post', 'error');
         } finally {
             setLoading(false);
         }
@@ -73,31 +58,17 @@ export default function ActivityCreateFromCalendar({ date, onClose, onCreated })
             actions={
                 <div className="flex gap-2">
                     <button onClick={onClose} className="px-3 py-2 border rounded-md text-sm">Cancel</button>
-                    {conflictWarning ? (
-                        <button
-                            onClick={(e) => handleSubmit(e, true)}
-                            className="px-4 py-2 bg-amber-600 text-white rounded-md text-sm hover:bg-amber-700"
-                        >
-                            Ignore Conflict & Save
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleSubmit}
-                            disabled={loading || !formData.title}
-                            className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50"
-                        >
-                            {loading ? 'Creating...' : 'Create Post'}
-                        </button>
-                    )}
+                    <button
+                        onClick={handleSubmit}
+                        disabled={loading || !formData.title}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                        {loading ? 'Creating...' : 'Create Post'}
+                    </button>
                 </div>
             }
         >
             <div className="space-y-4">
-                {conflictWarning && (
-                    <div className="bg-amber-50 text-amber-800 p-3 rounded text-sm border border-amber-200">
-                        {conflictWarning}
-                    </div>
-                )}
 
                 <div>
                     <label className="block text-sm font-medium text-slate-700">Title</label>
@@ -189,19 +160,7 @@ export default function ActivityCreateFromCalendar({ date, onClose, onCreated })
                     </div>
                 )}
 
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">Recurrence</label>
-                    <select
-                        className="w-full border rounded-md px-3 py-2 mt-1"
-                        value={recurrenceType}
-                        onChange={e => setRecurrenceType(e.target.value)}
-                    >
-                        <option value="none">None</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                    </select>
-                </div>
+
             </div>
         </Modal>
     );

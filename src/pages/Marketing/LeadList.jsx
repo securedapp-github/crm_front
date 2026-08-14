@@ -8,7 +8,7 @@ import { useToast } from '../../components/ToastProvider'
 import Modal from '../../components/Modal'
 import { resolveAccount } from '../../api/account'
 import { getSequences, enrollLead as apiEnrollLead, stopSequence } from '../../api/sequence'
-import * as XLSX from 'xlsx'
+import { generateLeadTemplate, parseLeadExcelSheet, exportDuplicateLeadsReport } from '../../utils/leadSheetImport'
 
 const STATUS_COLORS = {
   New: 'bg-slate-100 text-slate-700',
@@ -61,6 +61,8 @@ export default function LeadList({ initialFilter = 'all' }) {
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false)
   const [uploadedFile, setUploadedFile] = useState(null)
   const [bulkUploading, setBulkUploading] = useState(false)
+  const [summaryModalOpen, setSummaryModalOpen] = useState(false)
+  const [importSummary, setImportSummary] = useState(null)
 
   const applyPreset = (preset) => {
     const now = new Date()
@@ -258,14 +260,8 @@ export default function LeadList({ initialFilter = 'all' }) {
 
   // Bulk Upload Logic
   const downloadTemplate = () => {
-    const template = [
-      { 'Name': '', 'Entity name': '', 'Company domain': '', 'Mobile number': '', 'Email': '', 'Description': '' }
-    ]
-    const ws = XLSX.utils.json_to_sheet(template)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Template')
-    XLSX.writeFile(wb, 'lead_upload_template.xlsx')
-    show('Template downloaded successfully', 'success')
+    generateLeadTemplate()
+    show('Sample upload template downloaded successfully', 'success')
   }
 
   const handleBulkUpload = async () => {
@@ -273,117 +269,183 @@ export default function LeadList({ initialFilter = 'all' }) {
 
     setBulkUploading(true)
     try {
-      const reader = new FileReader()
-      reader.onload = async (e) => {
-        try {
-          const data = new Uint8Array(e.target.result)
-          const workbook = XLSX.read(data, { type: 'array' })
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-          const rows = XLSX.utils.sheet_to_json(firstSheet)
+      const { leadsToCreate, totalRowsParsed, sheetNames, sheetBreakdown } = await parseLeadExcelSheet(
+        uploadedFile,
+        initialFilter === 'marketing'
+      )
 
-          if (!rows || rows.length === 0) {
-            show('Excel file is empty', 'error')
-            setBulkUploading(false)
-            return
-          }
-
-          // Map rows to Lead objects
-          const leadsToCreate = rows.map(row => ({
-            name: row['Name'] || '',
-            company: row['Entity name'] || '',
-            accountDomain: row['Company domain'] || '',
-            phone: row['Mobile number'] || '',
-            email: row['Email'] || '',
-            description: row['Description'] || '',
-            status: 'New',
-            // If in Marketing View, mark as marketing lead
-            isMarketingLead: initialFilter === 'marketing'
-          }))
-
-          await importLeads({ leads: leadsToCreate, isMarketingLead: initialFilter === 'marketing' })
-          show(`Successfully imported ${leadsToCreate.length} leads`, 'success')
-          setBulkUploadOpen(false)
-          setUploadedFile(null)
-          fetchData()
-        } catch (err) {
-          console.error(err)
-          show('Failed to parse Excel file, please check format', 'error')
-        } finally {
-          setBulkUploading(false)
-        }
+      if (!leadsToCreate || leadsToCreate.length === 0) {
+        show('No rows found in Excel workbook.', 'error')
+        setBulkUploading(false)
+        return
       }
-      reader.readAsArrayBuffer(uploadedFile)
+
+      const res = await importLeads({ leads: leadsToCreate, isMarketingLead: initialFilter === 'marketing' })
+      const resData = res.data?.data || {}
+      const createdCount = resData.created ?? leadsToCreate.length
+      const dupsCount = resData.skippedDuplicates ?? 0
+
+      setImportSummary({
+        totalRowsParsed,
+        created: createdCount,
+        skippedDuplicates: dupsCount,
+        errors: resData.errors ?? 0,
+        sheetBreakdown: resData.sheetBreakdown || sheetBreakdown || {},
+        duplicateList: resData.duplicateList || []
+      })
+
+      let msg = `Successfully imported ${createdCount} leads across ${sheetNames.length} sheet(s)`
+      if (dupsCount > 0) msg += ` (${dupsCount} duplicates skipped)`
+      show(msg, 'success')
+
+      setBulkUploadOpen(false)
+      setUploadedFile(null)
+      setSummaryModalOpen(true)
+      fetchData()
     } catch (err) {
-      show('Upload failed', 'error')
+      console.error(err)
+      show(err.message || err.response?.data?.message || 'Failed to parse Excel file, please check format', 'error')
+    } finally {
       setBulkUploading(false)
     }
   }
 
   return (
-    <div className="space-y-4 w-full max-w-full overflow-hidden p-1">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h2 className="text-xl font-bold text-slate-900">Leads</h2>
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <input className="px-3 py-2 border border-slate-200 rounded-lg text-sm flex-1 sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" placeholder="Search leads..." value={query} onChange={e => setQuery(e.target.value)} />
-          <button onClick={() => setBulkUploadOpen(true)} className="px-3 py-2 rounded-lg border border-slate-200 text-slate-700 bg-white text-xs font-semibold hover:bg-slate-50 shrink-0">Bulk Import</button>
-          <button onClick={() => setOpen(true)} className="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shrink-0 shadow-sm">+ Add Lead</button>
+    <div className="space-y-5 w-full max-w-full overflow-hidden p-1">
+      {/* Top Header & Quick Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white/80 backdrop-blur-md rounded-xl border border-slate-200/80 p-4 shadow-sm relative overflow-hidden group hover:border-indigo-300 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Leads</span>
+            <span className="h-8 w-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">📊</span>
+          </div>
+          <p className="text-2xl font-bold text-slate-900 mt-2">{leads.length}</p>
+          <span className="text-[11px] text-slate-500 font-medium">All active database records</span>
+        </div>
+
+        <div className="bg-white/80 backdrop-blur-md rounded-xl border border-slate-200/80 p-4 shadow-sm relative overflow-hidden group hover:border-emerald-300 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sales Pipeline</span>
+            <span className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">💼</span>
+          </div>
+          <p className="text-2xl font-bold text-slate-900 mt-2">{leads.filter(l => !l.isMarketingLead).length}</p>
+          <span className="text-[11px] text-emerald-600 font-medium">Auto-assigned to sales reps</span>
+        </div>
+
+        <div className="bg-white/80 backdrop-blur-md rounded-xl border border-slate-200/80 p-4 shadow-sm relative overflow-hidden group hover:border-purple-300 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Marketing Leads</span>
+            <span className="h-8 w-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-sm">📣</span>
+          </div>
+          <p className="text-2xl font-bold text-slate-900 mt-2">{leads.filter(l => l.isMarketingLead).length}</p>
+          <span className="text-[11px] text-purple-600 font-medium">Campaign & sequence targets</span>
+        </div>
+
+        <div className="bg-white/80 backdrop-blur-md rounded-xl border border-slate-200/80 p-4 shadow-sm relative overflow-hidden group hover:border-amber-300 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filtered View</span>
+            <span className="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-sm">🎯</span>
+          </div>
+          <p className="text-2xl font-bold text-slate-900 mt-2">{filtered.length}</p>
+          <span className="text-[11px] text-amber-600 font-medium">Matching search & date range</span>
         </div>
       </div>
 
-      {/* Date Filters */}
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
-        <div className="w-full sm:w-auto sm:flex-1 min-w-[150px]">
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">From Date</label>
+      {/* Main Controls Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <span>Leads Directory</span>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium border border-slate-200">{filtered.length} shown</span>
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">Manage, filter, auto-assign and bulk import contacts into CRM</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <input
+              className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              placeholder="Search by name, email, company..."
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+            />
+            <svg className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <button
+            onClick={() => setBulkUploadOpen(true)}
+            className="px-3.5 py-2 rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold shrink-0 shadow-xs flex items-center gap-1.5 transition-all hover:border-slate-300"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+            Bulk Import (.xlsx)
+          </button>
+          <button
+            onClick={() => setOpen(true)}
+            className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-semibold shrink-0 shadow-sm transition-all flex items-center gap-1.5"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            + Add Lead
+          </button>
+        </div>
+      </div>
+
+      {/* Date Filters & Range Bar */}
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5 shadow-xs">
+        <div className="w-full sm:w-auto sm:flex-1 min-w-[140px]">
+          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">From Date</label>
           <input
             type="date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 shadow-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
         </div>
-        <div className="w-full sm:w-auto sm:flex-1 min-w-[150px]">
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">To Date</label>
+        <div className="w-full sm:w-auto sm:flex-1 min-w-[140px]">
+          <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">To Date</label>
           <input
             type="date"
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 shadow-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
         </div>
-        <div className="flex flex-wrap items-center gap-2 pt-1 sm:pt-0">
-          <button onClick={() => applyPreset('today')} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 shrink-0">Today</button>
-          <button onClick={() => applyPreset('yesterday')} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 shrink-0">Yesterday</button>
-          <button onClick={() => applyPreset('7d')} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 shrink-0">Last 7 Days</button>
+        <div className="flex flex-wrap items-center gap-1.5 pt-1 sm:pt-0">
+          <button onClick={() => applyPreset('today')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 shrink-0 transition-all">Today</button>
+          <button onClick={() => applyPreset('yesterday')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 shrink-0 transition-all">Yesterday</button>
+          <button onClick={() => applyPreset('7d')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 shrink-0 transition-all">Last 7 Days</button>
           {(fromDate || toDate) && (
-            <button onClick={() => { setFromDate(''); setToDate('') }} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 shrink-0">Clear</button>
+            <button onClick={() => { setFromDate(''); setToDate('') }} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 shrink-0 transition-all">Clear Filters</button>
           )}
         </div>
       </div>
 
-
-      {/* Lead Type Tabs - Hide in Marketing Mode */
-        initialFilter !== 'marketing' && (
-          <div className="flex gap-2 border-b border-slate-200 pb-2">
-            <button
-              onClick={() => setLeadTypeFilter('all')}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${leadTypeFilter === 'all' ? 'bg-white border border-b-0 border-slate-200 text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              All Leads ({leads.length})
-            </button>
-            <button
-              onClick={() => setLeadTypeFilter('sales')}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${leadTypeFilter === 'sales' ? 'bg-white border border-b-0 border-slate-200 text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Sales ({leads.filter(l => !l.isMarketingLead).length})
-            </button>
-            <button
-              onClick={() => setLeadTypeFilter('marketing')}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${leadTypeFilter === 'marketing' ? 'bg-white border border-b-0 border-slate-200 text-purple-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Marketing Leads ({leads.filter(l => l.isMarketingLead).length})
-            </button>
-          </div>
-        )}
+      {/* Lead Type Tabs */}
+      {initialFilter !== 'marketing' && (
+        <div className="flex items-center gap-2 border-b border-slate-200/80 px-1 pt-1">
+          <button
+            onClick={() => setLeadTypeFilter('all')}
+            className={`px-4 py-2 text-xs font-semibold rounded-t-lg transition-all flex items-center gap-2 ${leadTypeFilter === 'all' ? 'bg-white border-t-2 border-x border-slate-200 border-t-indigo-600 text-indigo-700 shadow-xs' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+          >
+            <span>All Leads</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-bold">{leads.length}</span>
+          </button>
+          <button
+            onClick={() => setLeadTypeFilter('sales')}
+            className={`px-4 py-2 text-xs font-semibold rounded-t-lg transition-all flex items-center gap-2 ${leadTypeFilter === 'sales' ? 'bg-white border-t-2 border-x border-slate-200 border-t-emerald-600 text-emerald-700 shadow-xs' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+          >
+            <span>💼 Sales</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 text-emerald-700 font-bold">{leads.filter(l => !l.isMarketingLead).length}</span>
+          </button>
+          <button
+            onClick={() => setLeadTypeFilter('marketing')}
+            className={`px-4 py-2 text-xs font-semibold rounded-t-lg transition-all flex items-center gap-2 ${leadTypeFilter === 'marketing' ? 'bg-white border-t-2 border-x border-slate-200 border-t-purple-600 text-purple-700 shadow-xs' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+          >
+            <span>📣 Marketing</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-50 text-purple-700 font-bold">{leads.filter(l => l.isMarketingLead).length}</span>
+          </button>
+        </div>
+      )}
 
       <div className="rounded-lg border bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
@@ -395,7 +457,7 @@ export default function LeadList({ initialFilter = 'all' }) {
                   <th className="text-left px-4 py-2">Name</th>
                   <th className="text-left px-4 py-2">Status</th>
                   {initialFilter !== 'marketing' && <th className="text-left px-4 py-2">Type</th>}
-                  <th className="text-left px-4 py-2">Entity name</th>
+                  <th className="text-left px-4 py-2">Company</th>
                   <th className="text-left px-4 py-2">Company domain</th>
                   <th className="text-left px-4 py-2">Mobile number</th>
                   <th className="text-left px-4 py-2">Email</th>
@@ -436,7 +498,7 @@ export default function LeadList({ initialFilter = 'all' }) {
                       <td className="px-4 py-3 text-slate-700">
                         <div className="flex items-center gap-2">
                           <span>{l.email || '-'}</span>
-                          {(() => { const id = workIdFor(l.email || l.company || l.name); return id ? (<span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 border border-slate-200" title={id}>{id}</span>) : null })()}
+                          {l.email ? (() => { const id = workIdFor(l.email); return id ? (<span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 border border-slate-200" title={id}>{id}</span>) : null })() : null}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-slate-700">
@@ -499,6 +561,32 @@ export default function LeadList({ initialFilter = 'all' }) {
                                 }
                               })()}
                             </div>
+
+                            {/* Excel Data & Custom Fields Card */}
+                            {(l.sheetSource || (l.customFields && Object.keys(l.customFields).length > 0)) && (
+                              <div className="col-span-full rounded-lg border border-indigo-100 bg-indigo-50/40 p-4 shadow-sm">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Excel Data & Custom Fields</p>
+                                  {l.sheetSource && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                      Sheet: {l.sheetSource}
+                                    </span>
+                                  )}
+                                </div>
+                                {l.customFields && Object.keys(l.customFields).length > 0 ? (
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+                                    {Object.entries(l.customFields).map(([key, val]) => (
+                                      <div key={key} className="bg-white p-2 rounded border border-slate-200 text-xs">
+                                        <span className="text-slate-500 font-medium block truncate" title={key}>{key}</span>
+                                        <span className="text-slate-900 font-semibold block truncate" title={String(val)}>{String(val)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-slate-500 italic">No extra custom fields</p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -522,7 +610,6 @@ export default function LeadList({ initialFilter = 'all' }) {
               onClick={async () => {
                 if (!form.name.trim()) { show('Name is required', 'error'); return }
                 if (initialFilter === 'marketing' && !form.isMarketingLead) { show('Please mark as Marketing Lead to save in this view', 'error'); return }
-                // Pre-auth check: ensure session is valid before proceeding
                 try {
                   await getMe()
                 } catch (e) {
@@ -538,38 +625,15 @@ export default function LeadList({ initialFilter = 'all' }) {
                     email: form.email?.trim() || undefined,
                     phone: form.phone?.trim() || undefined,
                     company: form.company?.trim() || undefined,
-                    autoAssign: !form.isMarketingLead, // Only auto-assign for sales leads
+                    autoAssign: !form.isMarketingLead,
                     isMarketingLead: form.isMarketingLead
                   }
                   Object.keys(payload).forEach(k => { if (payload[k] === '' || payload[k] === undefined || payload[k] === null) delete payload[k] })
                   const res = await createLead(payload)
-                  const created = res?.data?.data
-                  // Log initial context as activity if provided
-                  if (created && (form.description?.trim() || form.accountDomain?.trim())) {
-                    try {
-                      await addLeadActivity(created.id, { type: 'Submission', note: form.description?.trim() || null, meta: { domain: form.accountDomain?.trim() || null } })
-                    } catch { }
-                  }
-                  // Ensure salesperson assignment if backend didn't auto-assign (skip for marketing leads)
-                  if (!form.isMarketingLead) {
-                    try {
-                      if (created && !created.assignedTo) {
-                        await assignLead({ leadId: created.id })
-                      }
-                    } catch (e) {
-                      const status = e?.response?.status
-                      const msg = e?.response?.data?.message || (status === 404 ? 'No salespeople available for assignment' : 'Failed to assign salesperson')
-                      show(msg, 'error')
-                    }
-                  }
                   show(form.isMarketingLead ? 'Marketing lead created' : 'Lead created', 'success')
                   setForm(defaultForm())
                   setOpen(false)
                   await fetchData()
-                  if (created?.id) setExpanded(created.id)
-                  if (initialFilter !== 'marketing') {
-                    navigate(form.isMarketingLead ? '/dashboard/marketing-team/sequences' : '/dashboard/sales')
-                  }
                 } catch (e) {
                   const status = e?.response?.status
                   const msg = e?.response?.data?.message || (status === 403 || status === 401 ? 'Not authorized. Please login.' : 'Failed to create lead')
@@ -590,7 +654,7 @@ export default function LeadList({ initialFilter = 'all' }) {
             <input className="w-full px-3 py-2 border rounded-md" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-sm text-slate-700">Entity name</label>
+            <label className="block text-sm text-slate-700">Company</label>
             <input className="w-full px-3 py-2 border rounded-md" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} />
           </div>
           <div>
@@ -681,7 +745,7 @@ export default function LeadList({ initialFilter = 'all' }) {
             <input className="w-full px-3 py-2 border rounded-md" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-sm text-slate-700">Entity name</label>
+            <label className="block text-sm text-slate-700">Company</label>
             <input className="w-full px-3 py-2 border rounded-md" value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} />
           </div>
           <div>
@@ -777,7 +841,7 @@ export default function LeadList({ initialFilter = 'all' }) {
         <div className="space-y-4">
           <div>
             <p className="text-sm text-slate-600 mb-3">
-              Upload an Excel file (.xlsx) with columns: <strong>Name</strong>, <strong>Entity name</strong>, <strong>Company domain</strong>, <strong>Mobile number</strong>, <strong>Email</strong>, <strong>Description</strong>.
+              Upload an Excel file (.xlsx) with columns: <strong>Name</strong>, <strong>Company</strong>, <strong>Company domain</strong>, <strong>Mobile number</strong>, <strong>Email</strong>, <strong>Description</strong>.
             </p>
             <div className="bg-blue-50 border border-blue-100 rounded-md p-3 mb-4">
               <p className="text-xs text-blue-700 mb-2 font-semibold">
@@ -809,6 +873,81 @@ export default function LeadList({ initialFilter = 'all' }) {
             )}
           </div>
         </div>
+      </Modal>
+
+      {/* Detailed Post-Import Summary Modal */}
+      <Modal
+        open={summaryModalOpen}
+        onClose={() => setSummaryModalOpen(false)}
+        title="Excel Import Summary Report"
+        actions={
+          <div className="flex items-center gap-2">
+            {importSummary?.duplicateList && importSummary.duplicateList.length > 0 && (
+              <button
+                onClick={() => exportDuplicateLeadsReport(importSummary.duplicateList)}
+                className="px-3 py-2 rounded-md bg-amber-100 text-amber-800 hover:bg-amber-200 font-semibold text-xs border border-amber-300 flex items-center gap-1.5"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                Download Duplicates (.xlsx)
+              </button>
+            )}
+            <button
+              onClick={() => setSummaryModalOpen(false)}
+              className="px-4 py-2 rounded-md bg-indigo-600 text-white font-medium hover:bg-indigo-700 text-xs"
+            >
+              Close Report
+            </button>
+          </div>
+        }
+      >
+        {importSummary && (
+          <div className="space-y-4 text-sm">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                <p className="text-xs font-semibold text-emerald-600 uppercase">Leads Created</p>
+                <p className="text-xl font-bold text-emerald-700">{importSummary.created}</p>
+              </div>
+              <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
+                <p className="text-xs font-semibold text-amber-600 uppercase">Duplicates Skipped</p>
+                <p className="text-xl font-bold text-amber-700">{importSummary.skippedDuplicates}</p>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <p className="text-xs font-semibold text-slate-600 uppercase">Total Rows</p>
+                <p className="text-xl font-bold text-slate-800">{importSummary.totalRowsParsed}</p>
+              </div>
+            </div>
+
+            {/* Sheet Breakdown */}
+            {importSummary.sheetBreakdown && Object.keys(importSummary.sheetBreakdown).length > 0 && (
+              <div className="border border-slate-200 rounded-lg p-3 bg-white">
+                <p className="text-xs font-semibold text-slate-700 mb-2 uppercase">Worksheet Breakdown</p>
+                <div className="space-y-1">
+                  {Object.entries(importSummary.sheetBreakdown).map(([sheet, count]) => (
+                    <div key={sheet} className="flex justify-between items-center text-xs py-1 border-b border-slate-100 last:border-0">
+                      <span className="font-medium text-slate-700">📄 {sheet}</span>
+                      <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-semibold">{count} leads</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Duplicate details */}
+            {importSummary.duplicateList && importSummary.duplicateList.length > 0 && (
+              <div className="border border-amber-200 rounded-lg p-3 bg-amber-50/50 max-h-40 overflow-y-auto">
+                <p className="text-xs font-semibold text-amber-800 mb-2 uppercase">Skipped Duplicates (Matched by Email/Phone)</p>
+                <div className="space-y-1">
+                  {importSummary.duplicateList.map((dup, idx) => (
+                    <div key={idx} className="text-xs text-amber-900 flex justify-between gap-2 border-b border-amber-100 py-1 last:border-0">
+                      <span className="truncate font-medium">{dup.name || 'Lead'}</span>
+                      <span className="text-amber-700 shrink-0">{dup.email || dup.phone || 'Duplicate'} ({dup.sheetSource})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
 
     </div>

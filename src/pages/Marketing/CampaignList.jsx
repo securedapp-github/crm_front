@@ -3,7 +3,7 @@ import { getCampaigns, createCampaign, deleteCampaign, getCampaignScoring, updat
 import { getDeals } from '../../api/deal'
 import Modal from '../../components/Modal'
 import { useToast } from '../../components/ToastProvider'
-import { api } from '../../api/auth'
+import { api, getMe } from '../../api/auth'
 import { resolveAccount } from '../../api/account'
 import LeadScoring from './LeadScoring'
 import * as XLSX from 'xlsx'
@@ -319,12 +319,49 @@ export default function CampaignList({ autoOpenKey = 0 }) {
   // Download Excel template
   const downloadTemplate = () => {
     const template = [
-      { 'Entity Name': '', Name: '', 'Mobile number': '', Service: '', Email: '', Description: '' }
+      {
+        'Company': 'Acme Corporation',
+        'Name': 'John Doe',
+        'Mobile number': '+1 555-0192',
+        'Email': 'john.doe@acme.com',
+        'Company domain': 'acme.com',
+        'Service': 'Smart Contract Audit',
+        'Status': 'Planned',
+        'Priority': 'High',
+        'Description': 'Interested in enterprise security audit'
+      },
+      {
+        'Company': 'Starlight Media',
+        'Name': 'Sarah Connor',
+        'Mobile number': '+1 555-0148',
+        'Email': 'sarah@starlight.io',
+        'Company domain': 'starlight.io',
+        'Service': 'Dapp Development',
+        'Status': 'Active',
+        'Priority': 'Medium',
+        'Description': 'Requested full product demo'
+      },
+      {
+        'Company': 'Apex Logistics',
+        'Name': 'Michael Johnson',
+        'Mobile number': '+1 555-0173',
+        'Email': 'm.johnson@apexlogistics.com',
+        'Company domain': 'apexlogistics.com',
+        'Service': 'Crypto Compliance & AMI',
+        'Status': 'Completed',
+        'Priority': 'Low',
+        'Description': 'Follow-up regarding Q3 compliance audit'
+      }
     ]
     const ws = XLSX.utils.json_to_sheet(template)
+    ws['!cols'] = [
+      { wch: 20 }, { wch: 18 }, { wch: 16 }, { wch: 26 },
+      { wch: 20 }, { wch: 24 }, { wch: 14 },
+      { wch: 12 }, { wch: 40 }
+    ]
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Template')
-    XLSX.writeFile(wb, 'campaign_upload_template.xlsx')
+    XLSX.utils.book_append_sheet(wb, ws, 'Campaign_Upload_Template')
+    XLSX.writeFile(wb, 'Campaign_Upload_Template.xlsx')
     show('Template downloaded successfully', 'success')
   }
 
@@ -335,38 +372,110 @@ export default function CampaignList({ autoOpenKey = 0 }) {
       return
     }
 
+    // Pre-flight session check
+    try {
+      await getMe()
+    } catch (e) {
+      const status = e?.response?.status
+      const msg = e?.response?.data?.message || (status === 401 ? 'Session expired or not authorized. Please log in again.' : 'Not authorized to perform bulk import')
+      show(msg, 'error')
+      return
+    }
+
     setBulkUploading(true)
     try {
       const reader = new FileReader()
       reader.onload = async (e) => {
         try {
           const data = new Uint8Array(e.target.result)
-          const workbook = XLSX.read(data, { type: 'array' })
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-          const rows = XLSX.utils.sheet_to_json(firstSheet)
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true })
 
-          if (!rows || rows.length === 0) {
-            show('Excel file is empty', 'error')
+          if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+            show('Invalid Excel file structure', 'error')
             setBulkUploading(false)
             return
           }
 
-          // Map Excel columns to API payload
-          const campaigns = rows.map(row => ({
-            accountCompany: row['Entity Name'] || row.entityName || row['Entity name'] || '',
-            name: row.Name || row.name || '',
-            mobile: row['Mobile number'] || row.mobile || row.Mobile || '',
-            serviceOffering: row.Service || row.service || row.serviceOffering || '',
-            email: row.Email || row.email || '',
-            description: row.Description || row.description || '',
-            channel: 'Web',
-            status: 'Planned',
-            priority: 'Medium',
-            isMarketingCampaign: bulkIsMarketing
-          })).filter(c => c.name || c.accountCompany) // Filter out rows without name or entity name
+          const campaigns = []
+
+          workbook.SheetNames.forEach((sheetName) => {
+            const worksheet = workbook.Sheets[sheetName]
+            if (!worksheet) return
+
+            // Handle merged cells
+            if (worksheet['!merges']) {
+              worksheet['!merges'].forEach((range) => {
+                const startCellRef = XLSX.utils.encode_cell(range.s)
+                const startCell = worksheet[startCellRef]
+                if (startCell) {
+                  for (let R = range.s.r; R <= range.e.r; ++R) {
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                      const cellRef = XLSX.utils.encode_cell({ r: R, c: C })
+                      if (!worksheet[cellRef] || worksheet[cellRef].v === undefined) {
+                        worksheet[cellRef] = { ...startCell }
+                      }
+                    }
+                  }
+                }
+              })
+            }
+
+            const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' })
+            if (!rows || rows.length === 0) return
+
+            rows.forEach((row, idx) => {
+              const getRowVal = (...keys) => {
+                const rowKeys = Object.keys(row)
+                for (const key of keys) {
+                  const match = rowKeys.find(k => k.trim().toLowerCase() === key.trim().toLowerCase())
+                  if (match && row[match] !== undefined && row[match] !== null && String(row[match]).trim() !== '') {
+                    let val = row[match]
+                    if (val instanceof Date) {
+                      return val.toISOString().split('T')[0]
+                    }
+                    return String(val).trim()
+                  }
+                }
+                return ''
+              }
+
+              const name = getRowVal('Name', 'Campaign Name', 'Title', 'Full Name', 'Lead Name')
+              const accountCompany = getRowVal('Company', 'Company Name', 'Entity Name', 'Entity name', 'Entity', 'Organization', 'Business Name')
+              let email = getRowVal('Email', 'Email Address', 'Email ID', 'EmailId', 'Mail', 'Mail ID', 'MailId', 'E-Mail', 'E-mail Address', 'Contact Email', 'Work Email', 'Primary Email')
+              if (email && (!email.includes('@') || !email.includes('.'))) email = ''
+              const mobile = getRowVal('Mobile number', 'Mobile', 'Phone', 'Phone Number', 'Contact Number', 'Tel')
+              const serviceOffering = getRowVal('Service', 'Service Offering', 'Offering', 'Product', 'Industry')
+              const description = getRowVal('Description', 'Notes', 'Details', 'Comment', 'Remarks')
+              const rawDomain = getRowVal('Company domain', 'Company Domain', 'CompanyDomain', 'Company_Domain', 'Domain', 'Website', 'Company Website', 'CompanyWebsite', 'Account Domain', 'Account domain', 'URL', 'Web Address', 'Domain Name', 'DomainName', 'Site', 'Web Site', 'Host', 'Hostname')
+              let accountDomain = rawDomain ? String(rawDomain).trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].split('?')[0].trim() : ''
+              if (!accountDomain && email && email.includes('@')) {
+                const parts = email.split('@')
+                const ext = parts[1] ? parts[1].trim().toLowerCase() : ''
+                const genericMails = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'mail.com', 'protonmail.com', 'aol.com', 'gmx.com', 'zoho.com']
+                if (ext && ext.includes('.') && !genericMails.includes(ext)) {
+                  accountDomain = ext
+                }
+              }
+              const nameVal = name || accountCompany || (email ? email.split('@')[0] : '') || mobile || `${sheetName} Row #${idx + 1}`
+
+              campaigns.push({
+                name: nameVal,
+                accountCompany,
+                accountDomain: accountDomain || null,
+                mobile,
+                serviceOffering,
+                email: email || null,
+                description,
+                channel: 'Manual',
+                status: getRowVal('Status') || 'Planned',
+                priority: getRowVal('Priority') || 'Medium',
+                isMarketingCampaign: bulkIsMarketing
+              })
+            })
+          })
 
           if (campaigns.length === 0) {
-            show('No valid campaigns found in file', 'error')
+            show('No valid records found in Excel file', 'error')
             setBulkUploading(false)
             return
           }
@@ -388,7 +497,9 @@ export default function CampaignList({ autoOpenKey = 0 }) {
           setBulkIsMarketing(false)
           await fetchData()
         } catch (parseError) {
-          show('Failed to parse Excel file', 'error')
+          const status = parseError?.response?.status
+          const msg = parseError?.response?.data?.message || (status === 401 ? 'Session expired or not authorized. Please log in again.' : 'Failed to parse/import Excel file')
+          show(msg, 'error')
           console.error(parseError)
         } finally {
           setBulkUploading(false)
@@ -489,13 +600,11 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                   <th className="text-left px-4 py-2 w-12"></th>
                   <th className="text-left px-4 py-2">Name</th>
                   <th className="text-left px-4 py-2">Channel</th>
-                  <th className="text-left px-4 py-2">Dates</th>
-                  <th className="text-left px-4 py-2">Budget</th>
                   <th className="text-left px-4 py-2">Campaign stage</th>
                   <th className="text-left px-4 py-2">Leads</th>
                   <th className="text-left px-4 py-2">Owner</th>
                   <th className="text-left px-4 py-2">Priority</th>
-                  <th className="text-left px-4 py-2">Entity name</th>
+                  <th className="text-left px-4 py-2">Company</th>
                   <th className="text-left px-4 py-2">Company domain</th>
                   <th className="text-left px-4 py-2">Service</th>
                   <th className="text-left px-4 py-2">Mobile</th>
@@ -507,9 +616,9 @@ export default function CampaignList({ autoOpenKey = 0 }) {
               </thead>
               <tbody className="divide-y">{
                 loading ? (
-                  <tr><td className="px-4 py-3" colSpan={15}>Loading...</td></tr>
+                  <tr><td className="px-4 py-3" colSpan={13}>Loading...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td className="px-4 py-3 text-slate-500" colSpan={15}>No campaigns</td></tr>
+                  <tr><td className="px-4 py-3 text-slate-500" colSpan={13}>No campaigns</td></tr>
                 ) : paginatedCampaigns.map(c => (
                   <Fragment key={c.id}>
                     <tr className="hover:bg-slate-50">
@@ -523,8 +632,6 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                       </td>
                       <td className="px-4 py-3 text-slate-900">{c.name}</td>
                       <td className="px-4 py-3 text-slate-700">{c.channel || '-'}</td>
-                      <td className="px-4 py-3 text-slate-700">{[c.startDate, c.endDate].filter(Boolean).join(' → ') || '-'}</td>
-                      <td className="px-4 py-3 text-slate-900">{c.budget != null ? `${c.currency || 'USD'} ${Number(c.budget).toLocaleString()}` : '-'}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${stagePills[c.status] || 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
                           {c.status || '—'}
@@ -540,7 +647,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                       <td className="px-4 py-3 text-slate-700">
                         <div className="flex items-center gap-2">
                           <span>{c.email || '-'}</span>
-                          {(() => { const id = workIdFor(c.email || c.accountCompany || c.name); return id ? (<span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 border border-slate-200" title={id}>{id}</span>) : null })()}
+                          {c.email ? (() => { const id = workIdFor(c.email); return id ? (<span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 border border-slate-200" title={id}>{id}</span>) : null })() : null}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -834,7 +941,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
           <div className="md:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <div>
-                <label className="block text-sm text-slate-700">Entity name</label>
+                <label className="block text-sm text-slate-700">Company Name</label>
                 <input className="w-full px-3 py-2 border rounded-md" value={form.accountCompany} onChange={e => setForm(f => ({ ...f, accountCompany: e.target.value }))} />
               </div>
               <div>
@@ -1088,7 +1195,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
           <div className="md:col-span-2 xl:col-span-3 mt-2 border-t pt-3">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <div>
-                <label className="block text-sm text-slate-700">Entity name</label>
+                <label className="block text-sm text-slate-700">Company Name</label>
                 <input className="w-full px-3 py-2 border rounded-md" value={editForm.accountCompany} onChange={e => setEditForm(f => ({ ...f, accountCompany: e.target.value }))} />
               </div>
               <div>

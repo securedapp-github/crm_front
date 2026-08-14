@@ -714,7 +714,7 @@ export default function Landing() {
             
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Entity name</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Company Name</label>
                 <input
                   className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 transition"
                   value={form.accountCompany}
