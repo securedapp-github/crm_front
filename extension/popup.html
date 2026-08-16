@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SecuredApp Activity Tracker</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="brand">
+        <img src="icons/icon32.png" alt="SecuredApp Logo" class="brand-logo" id="brandLogo">
+        <div class="brand-text">
+          <h1 class="brand-title">SecuredApp</h1>
+          <span class="brand-subtitle">Activity Watcher</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <label class="toggle-switch" title="Toggle Monitoring On/Off">
+          <input type="checkbox" id="trackingToggle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+        <button id="openOptionsBtn" class="icon-btn" title="Open Settings">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Status Banner -->
+    <div id="statusBanner" class="status-banner active">
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span id="statusLabel" class="status-text">Tracker Active</span>
+      </div>
+      <span id="serverBadge" class="server-badge" title="CRM Endpoint">Production</span>
+    </div>
+
+    <!-- Active Tab Session Card -->
+    <section class="card session-card">
+      <div class="card-header">
+        <span class="card-title">CURRENT SESSION</span>
+        <span id="categoryBadge" class="category-badge neutral">Neutral</span>
+      </div>
+      <div class="session-body">
+        <div class="domain-row">
+          <div class="domain-icon-wrapper">
+            <img id="domainFavicon" src="icons/icon16.png" class="domain-favicon" alt="">
+          </div>
+          <div class="domain-details">
+            <span id="currentDomain" class="domain-name">Loading...</span>
+            <span id="currentPageTitle" class="page-title">Detecting active page</span>
+          </div>
+        </div>
+        <div class="session-metrics">
+          <div class="metric">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span id="sessionDurationTimer" class="metric-val">00:00</span>
+          </div>
+          <div class="metric" id="idleIndicator">
+            <span class="idle-dot"></span>
+            <span id="idleLabel" class="metric-val">Active</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Shield / Policy Status -->
+    <div id="allowlistNotice" class="allowlist-notice">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span id="allowlistText">Strict allowlist policy inactive (Tracking all work domains)</span>
+    </div>
+
+    <!-- User Identity & Sync Control -->
+    <section class="card user-sync-card">
+      <div class="user-info-row">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div class="user-meta">
+          <span id="userNameDisplay" class="user-name">Employee User</span>
+          <span id="userEmailDisplay" class="user-sub">user@securedapp.io</span>
+        </div>
+        <button id="userActionBtn" class="link-btn" title="Edit user or logout">Change</button>
+      </div>
+
+      <!-- Quick User Setup Drawer (collapsible) -->
+      <div id="userDrawer" class="user-drawer hidden">
+        <div class="drawer-tabs">
+          <button id="tabIdentifierBtn" class="tab-btn active">Quick ID</button>
+          <button id="tabLoginBtn" class="tab-btn">CRM Login</button>
+        </div>
+
+        <!-- Tab 1: Simple identifier / Email -->
+        <div id="tabIdentifierContent" class="tab-content active">
+          <label class="input-label">Employee Name or Email</label>
+          <div class="input-group">
+            <input type="text" id="userInputField" placeholder="e.g. nikil@securedapp.io" autocomplete="off">
+            <button id="saveUserBtn" class="btn btn-primary">Save</button>
+          </div>
+        </div>
+
+        <!-- Tab 2: JWT Login -->
+        <div id="tabLoginContent" class="tab-content">
+          <label class="input-label">Email Address</label>
+          <input type="email" id="loginEmailField" class="text-input mb-1" placeholder="name@securedapp.io">
+          <label class="input-label">Password</label>
+          <input type="password" id="loginPasswordField" class="text-input mb-2" placeholder="••••••••">
+          <button id="doLoginBtn" class="btn btn-primary btn-block">Authenticate via CRM</button>
+          <div id="loginMsg" class="auth-msg"></div>
+        </div>
+      </div>
+
+      <!-- Sync Status & Action -->
+      <div class="sync-row">
+        <div class="sync-info">
+          <span id="syncStatusText" class="sync-time">Last synced: Just now</span>
+          <span id="pendingQueueText" class="queue-badge">0 queued</span>
+        </div>
+        <button id="syncNowBtn" class="btn btn-outline" title="Trigger instant sync">
+          <svg id="syncIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <span>Sync</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="popup-footer">
+      <span class="version-tag">v1.0.0</span>
+      <a href="#" id="openDashboardLink" class="footer-link">Open CRM Live Stream &rarr;</a>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
