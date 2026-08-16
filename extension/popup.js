@@ -123,9 +123,9 @@ function renderUI() {
     // Favicon
     if (session.domain && !session.domain.startsWith('chrome')) {
       domainFavicon.src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(session.domain)}&sz=32`;
-      domainFavicon.onerror = () => { domainFavicon.src = 'icons/icon16.png'; };
+      domainFavicon.onerror = () => { domainFavicon.src = 'icon.png'; };
     } else {
-      domainFavicon.src = 'icons/icon16.png';
+      domainFavicon.src = 'icon.png';
     }
   } else {
     currentDomainEl.textContent = state.enabled ? 'Browser Active' : 'Extension Paused';
@@ -133,7 +133,7 @@ function renderUI() {
     categoryBadge.className = 'category-badge neutral';
     categoryBadge.textContent = 'Neutral';
     sessionDurationTimer.textContent = '00:00';
-    domainFavicon.src = 'icons/icon16.png';
+    domainFavicon.src = 'icon.png';
   }
 
   // Allowlist Banner
