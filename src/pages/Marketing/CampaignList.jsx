@@ -458,6 +458,19 @@ export default function CampaignList({ autoOpenKey = 0 }) {
               }
               const nameVal = name || accountCompany || (email ? email.split('@')[0] : '') || mobile || `${sheetName} Row #${idx + 1}`
 
+              const rawStatus = getRowVal('Status', 'Stage', 'Campaign Stage', 'Lead Status') || ''
+              let cleanStatus = 'Planned'
+              const sLower = rawStatus.toLowerCase()
+              if (['active', 'in progress', 'running', 'live'].includes(sLower)) cleanStatus = 'Active'
+              else if (['on hold', 'onhold', 'hold', 'paused', 'pending'].includes(sLower)) cleanStatus = 'On Hold'
+              else if (['completed', 'done', 'closed', 'finished'].includes(sLower)) cleanStatus = 'Completed'
+
+              const rawPriority = getRowVal('Priority', 'Urgency') || ''
+              let cleanPriority = 'Medium'
+              const pLower = rawPriority.toLowerCase()
+              if (['high', 'urgent', 'critical', 'p1'].includes(pLower)) cleanPriority = 'High'
+              else if (['low', 'minor', 'p3'].includes(pLower)) cleanPriority = 'Low'
+
               campaigns.push({
                 name: nameVal,
                 accountCompany,
@@ -467,8 +480,8 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                 email: email || null,
                 description,
                 channel: 'Manual',
-                status: getRowVal('Status') || 'Planned',
-                priority: getRowVal('Priority') || 'Medium',
+                status: cleanStatus,
+                priority: cleanPriority,
                 isMarketingCampaign: bulkIsMarketing
               })
             })
