@@ -612,8 +612,8 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                 <tr>
                   <th className="text-left px-4 py-2 w-12"></th>
                   <th className="text-left px-4 py-2">Name</th>
+                  <th className="text-left px-4 py-2">Uploaded By</th>
                   <th className="text-left px-4 py-2">Channel</th>
-                  <th className="text-left px-4 py-2">Campaign stage</th>
                   <th className="text-left px-4 py-2">Leads</th>
                   <th className="text-left px-4 py-2">Owner</th>
                   <th className="text-left px-4 py-2">Priority</th>
@@ -629,9 +629,9 @@ export default function CampaignList({ autoOpenKey = 0 }) {
               </thead>
               <tbody className="divide-y">{
                 loading ? (
-                  <tr><td className="px-4 py-3" colSpan={13}>Loading...</td></tr>
+                  <tr><td className="px-4 py-3" colSpan={15}>Loading...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td className="px-4 py-3 text-slate-500" colSpan={13}>No campaigns</td></tr>
+                  <tr><td className="px-4 py-3 text-slate-500" colSpan={15}>No campaigns</td></tr>
                 ) : paginatedCampaigns.map(c => (
                   <Fragment key={c.id}>
                     <tr className="hover:bg-slate-50">
@@ -643,13 +643,13 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                           {expanded === c.id ? '−' : '+'}
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-slate-900">{c.name}</td>
-                      <td className="px-4 py-3 text-slate-700">{c.channel || '-'}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${stagePills[c.status] || 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
-                          {c.status || '—'}
+                      <td className="px-4 py-3 text-slate-900 font-medium">{c.name}</td>
+                      <td className="px-4 py-3 text-slate-700">
+                        <span className="inline-flex items-center gap-1 font-medium text-xs text-slate-700 bg-slate-100/80 px-2 py-0.5 rounded border border-slate-200" title={c.uploadedBy?.email || c.uploadedByName}>
+                          👤 {c.uploadedBy?.name || c.uploadedByName || 'Admin'}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-slate-700">{c.channel || '-'}</td>
                       <td className="px-4 py-3">{c.leadsGenerated ?? 0}</td>
                       <td className="px-4 py-3 text-slate-700">{c.owner?.name || '-'}</td>
                       <td className="px-4 py-3 text-slate-700">{c.priority || '-'}</td>
@@ -719,6 +719,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                       <tr className="bg-slate-50/60">
                         <td colSpan={15} className="px-6 py-5">
                           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <DetailBlock label="Uploaded By" value={c.uploadedBy?.name || c.uploadedByName || 'Admin'} />
                             <DetailBlock label="Objective" value={c.objective} />
                             <DetailBlock label="Audience segment" value={c.audienceSegment} />
                             <DetailBlock label="Product line" value={c.productLine} />
@@ -892,14 +893,6 @@ export default function CampaignList({ autoOpenKey = 0 }) {
           <div>
             <label className="block text-sm text-slate-700">End date</label>
             <input className="w-full px-3 py-2 border rounded-md" type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} />
-          </div>
-          <div>
-            <label className="flex items-center gap-2 text-sm text-slate-700">Campaign stage
-              <span className={`h-2.5 w-2.5 rounded-full ${stageDots[form.status] || 'bg-slate-400'}`} aria-hidden="true" />
-            </label>
-            <select className={`w-full rounded-md border bg-white px-3 py-2 transition focus:outline-none focus:ring ${selectStageBg[form.status] || 'border-slate-200 text-slate-900 focus:border-slate-300 focus:ring-slate-200'}`} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-              {['Planned', 'Active', 'Completed', 'On Hold'].map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
           </div>
           <div>
             <label className="block text-sm text-slate-700">Priority</label>
@@ -1147,14 +1140,6 @@ export default function CampaignList({ autoOpenKey = 0 }) {
           <div>
             <label className="block text-sm text-slate-700">End date</label>
             <input className="w-full px-3 py-2 border rounded-md" type="date" value={editForm.endDate} onChange={e => setEditForm(f => ({ ...f, endDate: e.target.value }))} />
-          </div>
-          <div>
-            <label className="flex items-center gap-2 text-sm text-slate-700">Campaign stage
-              <span className={`h-2.5 w-2.5 rounded-full ${stageDots[editForm.status] || 'bg-slate-400'}`} aria-hidden="true" />
-            </label>
-            <select className={`w-full rounded-md border bg-white px-3 py-2 transition focus:outline-none focus:ring ${selectStageBg[editForm.status] || 'border-slate-200 text-slate-900 focus:border-slate-300 focus:ring-slate-200'}`} value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}>
-              {['Planned', 'Active', 'Completed', 'On Hold'].map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
           </div>
           <div>
             <label className="block text-sm text-slate-700">Priority</label>
