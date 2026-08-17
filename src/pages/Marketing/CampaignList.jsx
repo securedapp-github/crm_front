@@ -1030,7 +1030,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
             >
               <option value="">Select teammate…</option>
               {users
-                .filter(u => u.role === 'sales')
+                .filter(u => (u.role || '').toLowerCase().includes('sales'))
                 .map(user => (
                   <option key={user.id} value={user.id}>{user.name || user.email || `User #${user.id}`}</option>
                 ))}

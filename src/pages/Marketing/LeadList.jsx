@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getLeads, updateLead, deleteLead, assignLead, convertLead, createLead, addLeadActivity, getLeadActivities, importLeads } from '../../api/lead'
 import { getDeals } from '../../api/deal'
-import { getMe } from '../../api/auth'
+import { getMe, api } from '../../api/auth'
 import { createTask } from '../../api/task'
 import { useToast } from '../../components/ToastProvider'
 import Modal from '../../components/Modal'
@@ -64,6 +64,13 @@ export default function LeadList({ initialFilter = 'all' }) {
   const [summaryModalOpen, setSummaryModalOpen] = useState(false)
   const [importSummary, setImportSummary] = useState(null)
 
+  // Assign Owner State
+  const [users, setUsers] = useState([])
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [assigningLead, setAssigningLead] = useState(null)
+  const [assignTarget, setAssignTarget] = useState('')
+  const [assignSaving, setAssignSaving] = useState(false)
+
   const applyPreset = (preset) => {
     const now = new Date()
     const from = new Date()
@@ -90,9 +97,10 @@ export default function LeadList({ initialFilter = 'all' }) {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [lres, dres] = await Promise.all([getLeads(), getDeals()])
+      const [lres, dres, ures] = await Promise.all([getLeads(), getDeals(), api.get('/auth/users')])
       setLeads(Array.isArray(lres.data?.data) ? lres.data.data : [])
       setDeals(Array.isArray(dres.data?.data) ? dres.data.data : [])
+      setUsers(Array.isArray(ures.data?.data) ? ures.data.data : [])
     } finally {
       setLoading(false)
     }
@@ -101,6 +109,8 @@ export default function LeadList({ initialFilter = 'all' }) {
   useEffect(() => {
     fetchData()
   }, [])
+
+  const eligibleSalesUsers = useMemo(() => (users || []).filter(u => (u.role || '').toLowerCase().includes('sales')), [users])
 
   // Verify company domain like Campaigns (.com, .io, .in)
   useEffect(() => {
@@ -455,6 +465,7 @@ export default function LeadList({ initialFilter = 'all' }) {
                 <tr>
                   <th className="text-left px-4 py-2 w-12"></th>
                   <th className="text-left px-4 py-2">Name</th>
+                  <th className="text-left px-4 py-2">Owner</th>
                   <th className="text-left px-4 py-2">Status</th>
                   {initialFilter !== 'marketing' && <th className="text-left px-4 py-2">Type</th>}
                   <th className="text-left px-4 py-2">Company</th>
@@ -467,9 +478,9 @@ export default function LeadList({ initialFilter = 'all' }) {
               </thead>
               <tbody className="divide-y">
                 {loading ? (
-                  <tr><td className="px-4 py-3" colSpan={10}>Loading...</td></tr>
+                  <tr><td className="px-4 py-3" colSpan={12}>Loading...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td className="px-4 py-3 text-slate-500" colSpan={10}>No leads</td></tr>
+                  <tr><td className="px-4 py-3 text-slate-500" colSpan={12}>No leads</td></tr>
                 ) : filtered.map(l => (
                   <Fragment key={l.id}>
                     <tr className="hover:bg-slate-50">
@@ -481,7 +492,17 @@ export default function LeadList({ initialFilter = 'all' }) {
                           {expanded === l.id ? '−' : '+'}
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-slate-900">{l.name}</td>
+                      <td className="px-4 py-3 text-slate-900 font-medium">{l.name}</td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {l.owner?.name ? (
+                          <span className="inline-flex items-center gap-1.5 font-medium text-xs text-slate-800">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                            {l.owner.name}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Unassigned</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[l.status] || 'bg-slate-100 text-slate-700'}`}>{l.status || 'New'}</span>
                       </td>
@@ -511,6 +532,16 @@ export default function LeadList({ initialFilter = 'all' }) {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
+                          <button
+                            className="text-xs px-2.5 py-1 rounded-md border border-indigo-200 text-indigo-700 bg-indigo-50/60 hover:bg-indigo-100 font-medium transition-colors"
+                            onClick={() => {
+                              setAssigningLead(l)
+                              setAssignTarget(l.assignedTo ? String(l.assignedTo) : '')
+                              setAssignOpen(true)
+                            }}
+                          >
+                            Assign
+                          </button>
                           <button className="text-xs px-2 py-1 rounded border" onClick={() => { setEditingId(l.id); setEditForm({ name: l.name || '', company: l.company || '', accountDomain: l.accountDomain || '', phone: l.phone || '', email: l.email || '', description: '' }); setEditOpen(true) }}>Edit</button>
                           <button className="text-xs px-2 py-1 rounded border border-rose-200 text-rose-600" onClick={() => setConfirmDeleteId(l.id)}>Delete</button>
                         </div>
@@ -518,7 +549,7 @@ export default function LeadList({ initialFilter = 'all' }) {
                     </tr>
                     {expanded === l.id && (
                       <tr className="bg-slate-50/60">
-                        <td colSpan={9} className="px-6 py-5">
+                        <td colSpan={12} className="px-6 py-5">
                           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Description</p>
@@ -537,8 +568,20 @@ export default function LeadList({ initialFilter = 'all' }) {
                               <p className="mt-1 text-sm text-slate-800">{l.source || '—'}</p>
                             </div>
                             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Owner</p>
-                              <p className="mt-1 text-sm text-slate-800">{l.owner?.name || '—'}</p>
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Owner</p>
+                                <button
+                                  onClick={() => {
+                                    setAssigningLead(l)
+                                    setAssignTarget(l.assignedTo ? String(l.assignedTo) : '')
+                                    setAssignOpen(true)
+                                  }}
+                                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                                >
+                                  {l.owner?.name ? 'Change Owner' : '+ Assign'}
+                                </button>
+                              </div>
+                              <p className="mt-1 text-sm text-slate-800 font-medium">{l.owner?.name || 'Unassigned'}</p>
                             </div>
 
                             {/* Sequence Card */}
@@ -948,6 +991,71 @@ export default function LeadList({ initialFilter = 'all' }) {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Assign Lead Owner Modal */}
+      <Modal
+        open={assignOpen}
+        onClose={() => !assignSaving && setAssignOpen(false)}
+        title="Assign Lead Owner"
+        actions={(
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setAssignOpen(false)}
+              disabled={assignSaving}
+              className="px-3 py-2 rounded-md border text-slate-700 hover:bg-slate-50 text-xs font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                if (!assigningLead || !assignTarget) return
+                setAssignSaving(true)
+                try {
+                  await assignLead({ leadId: assigningLead.id, userId: Number(assignTarget) })
+                  const assignedUser = eligibleSalesUsers.find(u => Number(u.id) === Number(assignTarget))
+                  show(`Lead assigned to ${assignedUser?.name || 'team member'} successfully`, 'success')
+                  setAssignOpen(false)
+                  setAssignTarget('')
+                  setAssigningLead(null)
+                  await fetchData()
+                } catch (e) {
+                  show(e.response?.data?.message || 'Failed to assign lead', 'error')
+                } finally {
+                  setAssignSaving(false)
+                }
+              }}
+              disabled={!assignTarget || assignSaving}
+              className={`px-4 py-2 rounded-md text-white text-xs font-semibold shadow-xs ${!assignTarget || assignSaving ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+            >
+              {assignSaving ? 'Assigning…' : 'Assign Owner'}
+            </button>
+          </div>
+        )}
+      >
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-slate-600">
+              Assign an owner for lead: <strong className="text-slate-900 font-semibold">{assigningLead?.name}</strong>
+            </p>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Select Owner</label>
+            <select
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              value={assignTarget}
+              onChange={(e) => setAssignTarget(e.target.value)}
+            >
+              <option value="">Choose owner…</option>
+              {eligibleSalesUsers.map(user => (
+                <option key={user.id} value={user.id}>{user.name || user.email || `User #${user.id}`}</option>
+              ))}
+            </select>
+            {eligibleSalesUsers.length === 0 && (
+              <p className="mt-1.5 text-xs text-amber-600">No active salespeople found in team directory.</p>
+            )}
+          </div>
+        </div>
       </Modal>
 
     </div>
