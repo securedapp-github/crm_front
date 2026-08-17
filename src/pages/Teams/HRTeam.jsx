@@ -19,7 +19,8 @@ export default function HRTeam() {
         const u = res.data.user
         setUser(u)
         // If not admin or hr, default to profile or leaves
-        if (u.role !== 'admin' && u.role !== 'hr') {
+        const roles = (u?.role || '').split(',').map(r => r.trim().toLowerCase())
+        if (!roles.some(r => ['admin', 'hr', 'superadmin'].includes(r))) {
           setMainTab('profile')
         }
       }
@@ -28,8 +29,8 @@ export default function HRTeam() {
 
   if (!user) return null
 
-  const userRoles = user.role.split(',').map(r => r.trim().toLowerCase())
-  const hasManagerAccess = userRoles.includes('admin') || userRoles.includes('hr')
+  const userRoles = (user?.role || '').split(',').map(r => r.trim().toLowerCase())
+  const hasManagerAccess = userRoles.some(r => ['admin', 'hr', 'superadmin'].includes(r))
 
   return (
     <div className="space-y-6">
