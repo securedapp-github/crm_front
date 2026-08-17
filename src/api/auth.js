@@ -1,14 +1,14 @@
 import axios from 'axios'
 
 const getBaseApiUrl = () => {
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return 'http://localhost:5000/api'
-  }
   if (import.meta.env.VITE_API_URL) {
     const raw = import.meta.env.VITE_API_URL.trim()
     return raw.endsWith('/api') ? raw : `${raw.replace(/\/$/, '')}/api`
   }
-  return `${window.location.origin}/api`
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return `${window.location.origin}/api`
+  }
+  return 'http://localhost:5000/api'
 }
 
 const API = getBaseApiUrl()
