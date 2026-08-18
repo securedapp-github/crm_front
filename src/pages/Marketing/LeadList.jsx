@@ -465,7 +465,7 @@ export default function LeadList({ initialFilter = 'all' }) {
                 <tr>
                   <th className="text-left px-4 py-2 w-12"></th>
                   <th className="text-left px-4 py-2">Name</th>
-                  <th className="text-left px-4 py-2">Uploaded By</th>
+                  <th className="text-left px-4 py-2">Added By</th>
                   <th className="text-left px-4 py-2">Owner</th>
                   <th className="text-left px-4 py-2">Status</th>
                   {initialFilter !== 'marketing' && <th className="text-left px-4 py-2">Type</th>}
@@ -574,7 +574,7 @@ export default function LeadList({ initialFilter = 'all' }) {
                               <p className="mt-1 text-sm text-slate-800">{l.source || '—'}</p>
                             </div>
                             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Uploaded By</p>
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Added By</p>
                               <p className="mt-1 text-sm text-slate-800 font-medium">{l.uploadedBy?.name || l.uploadedByName || (l.sheetSource ? `Sheet: ${l.sheetSource}` : 'System Admin')}</p>
                               {l.sheetSource && <p className="text-[11px] text-slate-400 mt-0.5">Sheet tab: {l.sheetSource}</p>}
                             </div>

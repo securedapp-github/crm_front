@@ -612,7 +612,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                 <tr>
                   <th className="text-left px-4 py-2 w-12"></th>
                   <th className="text-left px-4 py-2">Name</th>
-                  <th className="text-left px-4 py-2">Uploaded By</th>
+                  <th className="text-left px-4 py-2">Added By</th>
                   <th className="text-left px-4 py-2">Channel</th>
                   <th className="text-left px-4 py-2">Leads</th>
                   <th className="text-left px-4 py-2">Owner</th>
@@ -719,7 +719,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                       <tr className="bg-slate-50/60">
                         <td colSpan={15} className="px-6 py-5">
                           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            <DetailBlock label="Uploaded By" value={c.uploadedBy?.name || c.uploadedByName || 'Admin'} />
+                            <DetailBlock label="Added By" value={c.uploadedBy?.name || c.uploadedByName || 'Admin'} />
                             <DetailBlock label="Objective" value={c.objective} />
                             <DetailBlock label="Audience segment" value={c.audienceSegment} />
                             <DetailBlock label="Product line" value={c.productLine} />
