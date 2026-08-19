@@ -25,7 +25,7 @@ export default function ActivityCreateFromCalendar({ date, onClose, onCreated })
         try {
             const u = JSON.parse(localStorage.getItem('user'));
             setUser(u);
-            if (u && u.role === 'sales') {
+            if (u && (u.role || '').toLowerCase().includes('sales')) {
                 setFormData(prev => ({ ...prev, assignedTo: u.id }));
             }
         } catch (e) { console.error(e) }

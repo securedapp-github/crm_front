@@ -423,7 +423,7 @@ export default function SalesDashboard() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                     <div><div className="text-slate-500">Name</div><div className="text-slate-900 font-medium">{camp.name}</div></div>
                     <div><div className="text-slate-500">Channel</div><div className="text-slate-900">{camp.channel || '—'}</div></div>
-                    <div><div className="text-slate-500">Campaign stage</div><div className="text-slate-900">{camp.status || '—'}</div></div>
+                    <div><div className="text-slate-500">Status</div><div className="text-slate-900">{camp.status || '—'}</div></div>
                     <div><div className="text-slate-500">Priority</div><div className="text-slate-900">{camp.priority || '—'}</div></div>
                     <div><div className="text-slate-500">Company</div><div className="text-slate-900">{camp.accountCompany || '—'}</div></div>
                     <div><div className="text-slate-500">Company domain</div><div className="text-slate-900">{camp.accountDomain || '—'}</div></div>
