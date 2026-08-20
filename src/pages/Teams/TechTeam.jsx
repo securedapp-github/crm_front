@@ -1,37 +1,20 @@
-import { Link } from 'react-router-dom'
-import { ArrowUpRight } from 'lucide-react'
+import React from 'react'
+import NormalUserTickets from '../Service/NormalUserTickets'
 
 export default function TechTeam() {
   return (
-    <main className="min-h-[calc(100vh-112px)] bg-slate-50">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 pb-12 pt-10 md:px-8">
-        <div className="flex items-center gap-2">
-          <Link
-            to="/dashboard/teams"
-            className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 transition-colors self-start mb-2"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-            <span>Back</span>
-          </Link>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-3">
-            <h1 className="text-3xl font-semibold text-slate-900 md:text-4xl">Tech Team</h1>
-            <p className="max-w-3xl text-sm text-slate-600 md:text-base">
-              Handle website technical queries, bugs, and performance issues routed by Operations.
-            </p>
-          </div>
-          <Link
-            to="/dashboard/tickets"
-            className="inline-flex items-center gap-1.5 self-start sm:self-auto px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
-          >
-            View Tickets <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Tech Team Workspace</h1>
+        <p className="mt-1 text-xs sm:text-sm text-slate-500">
+          Review, investigate, and resolve technical bugs and infrastructure queries routed by Operations.
+        </p>
       </div>
-    </main>
+
+      {/* Embedded Routed Tickets Queue */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-xs">
+        <NormalUserTickets />
+      </div>
+    </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import Modal from '../components/Modal'
 import { useToast } from '../components/ToastProvider'
 import { createCampaign } from '../api/campaign'
@@ -401,6 +401,31 @@ export default function Landing() {
             </div>
           </div>
         </section>
+
+        {/* Footer */}
+        <footer className="border-t border-slate-200/80 bg-white/60 py-10 mt-16 text-xs text-slate-500">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 font-bold text-slate-800">
+              <span>SecureDApp CRM</span>
+              <span>•</span>
+              <span className="font-normal text-slate-500">Vettedcode Technologies India Private Limited</span>
+            </div>
+            <div className="flex items-center gap-6 font-medium">
+              <a href="https://securedapp.in" target="_blank" rel="noreferrer" className="hover:text-slate-900 transition-colors">
+                Main Website
+              </a>
+              <a href="https://securedapp.gitbook.io/securedapp-launchpad" target="_blank" rel="noreferrer" className="hover:text-slate-900 transition-colors">
+                Documentation
+              </a>
+              <Link to="/privacy-policy" className="hover:text-indigo-600 font-semibold transition-colors">
+                Privacy Policy
+              </Link>
+              <Link to="/login" className="hover:text-slate-900 transition-colors">
+                Employee Login
+              </Link>
+            </div>
+          </div>
+        </footer>
       </main>
 
       {/* Campaign Creation Modal */}

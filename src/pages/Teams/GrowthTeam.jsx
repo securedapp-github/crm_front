@@ -21,15 +21,9 @@ export default function GrowthTeam() {
           <div className="space-y-3">
             <h1 className="text-3xl font-semibold text-slate-900 md:text-4xl">Growth Team</h1>
             <p className="max-w-3xl text-sm text-slate-600 md:text-base">
-              Drive growth initiatives, partnerships, and strategic website inquiries routed by Operations.
+              Drive growth initiatives, partnerships, and market expansion.
             </p>
           </div>
-          <Link
-            to="/dashboard/tickets"
-            className="inline-flex items-center gap-1.5 self-start sm:self-auto px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
-          >
-            View Tickets <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
         </div>
       </div>
     </main>
