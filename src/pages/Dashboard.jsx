@@ -144,12 +144,12 @@ export default function Dashboard() {
       marketingDashboard: { href: "/dashboard/marketing", label: "Lead Management", icon: <SpeakerLoudIcon className="w-5 h-5" /> },
       marketingTeam: { href: "/dashboard/marketing-team", label: "Marketing Portal", icon: <SpeakerLoudIcon className="w-5 h-5" /> },
       growthTeam: { href: "/dashboard/growth-team", label: "Growth Portal", icon: <ActivityLogIcon className="w-5 h-5" /> },
-      operationsTeam: { href: "/dashboard/operations-team", label: "Operations Team", icon: <LifeBuoy className="w-5 h-5 text-indigo-600" /> },
+      operationsTeam: { href: "/dashboard/operations-team", label: "Operations Team", icon: <LifeBuoy className="w-5 h-5" /> },
       techTeam: { href: "/dashboard/tech-team", label: "Tech Portal", icon: <LaptopIcon className="w-5 h-5" /> },
       hrTeam: { href: "/dashboard/hr-team", label: "HR Portal", icon: <AvatarIcon className="w-5 h-5" /> },
       finance: { href: "/dashboard/finance", label: "Finance Hub", icon: <CardStackIcon className="w-5 h-5" /> },
       activity: { href: "/dashboard/activity", label: "Activity Overview", icon: <ActivityLogIcon className="w-5 h-5" /> },
-      tickets: { href: "/dashboard/tickets", label: "Helpdesk & Tickets", icon: <LifeBuoy className="w-5 h-5" /> },
+      tickets: { href: "/dashboard/tickets", label: "My Assigned Tickets", icon: <LifeBuoy className="w-5 h-5" /> },
 
       leave: { href: "/dashboard/leave", label: "Leave Requests", icon: <ClipboardIcon className="w-5 h-5" /> }
     };
@@ -210,8 +210,8 @@ export default function Dashboard() {
     if (roles.includes('operations')) {
       result.push(map.operationsTeam);
     } else {
-      // Allow all team staff to access the single Operations Helpdesk system
-      result.push(map.operationsTeam);
+      // For non-operations staff and regular employees: show "My Assigned Tickets"
+      result.push(map.tickets);
     }
     
     if (roles.includes('tech')) {
@@ -256,16 +256,18 @@ export default function Dashboard() {
           onClick={() => {
             if (onNavigate) onNavigate()
           }}
-          className={`group flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-all ${active
-            ? "border-indigo-400 bg-gradient-to-r from-indigo-500/15 via-white to-white text-indigo-600 shadow-sm"
-            : "border-transparent text-slate-600 hover:border-indigo-200/80 hover:bg-white hover:text-indigo-600"
+          className={`group flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-xs transition-all ${active
+            ? "border-slate-200 bg-slate-100/80 text-slate-900 font-bold shadow-2xs"
+            : "border-transparent text-slate-600 font-semibold hover:border-slate-200/60 hover:bg-slate-50 hover:text-slate-900"
             }`}
         >
           <span className="flex items-center gap-3 text-left">
-            <span className="flex items-center justify-center w-6 h-6">{item.icon}</span>
+            <span className={`flex items-center justify-center w-5 h-5 transition-colors ${active ? "text-slate-900" : "text-slate-400 group-hover:text-slate-600"}`}>
+              {item.icon}
+            </span>
             <span>{item.label}</span>
           </span>
-          <span className={`text-xs transition ${active ? "text-indigo-500" : "text-slate-300 group-hover:text-indigo-400"}`}>
+          <span className={`text-[11px] transition-colors ${active ? "text-slate-500" : "text-slate-300 group-hover:text-slate-400"}`}>
             →
           </span>
         </Link>

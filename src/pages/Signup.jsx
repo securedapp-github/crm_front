@@ -330,7 +330,7 @@ export default function Signup() {
                     onChange={(e) => setAgree(e.target.checked)} 
                   />
                   <label htmlFor="tos" className="text-xs text-slate-500 leading-tight">
-                    I agree to the <a className={`${mode === 'admin' ? 'text-blue-600' : 'text-emerald-600'} font-semibold hover:underline`} href="#" onClick={(e) => e.preventDefault()}>Terms of Service</a> and <a className={`${mode === 'admin' ? 'text-blue-600' : 'text-emerald-600'} font-semibold hover:underline`} href="#" onClick={(e) => e.preventDefault()}>Privacy Policy</a>.
+                    I agree to the <Link to="/privacy-policy" target="_blank" className={`${mode === 'admin' ? 'text-blue-600' : 'text-emerald-600'} font-semibold hover:underline`}>Terms of Service</Link> and <Link to="/privacy-policy" target="_blank" className={`${mode === 'admin' ? 'text-blue-600' : 'text-emerald-600'} font-semibold hover:underline`}>Privacy Policy</Link>.
                   </label>
                 </div>
 

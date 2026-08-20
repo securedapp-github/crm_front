@@ -8,19 +8,11 @@ export default function SalesTeam() {
 
         {/* Navigation / Header Area */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-semibold text-slate-900">Sales Team</h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Choose where you want to work: manage incoming leads or focus on your deals pipeline.
-              </p>
-            </div>
-            <Link
-              to="/dashboard/tickets"
-              className="inline-flex items-center gap-1.5 self-start sm:self-auto px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
-            >
-              View Tickets <ArrowUpRight className="w-3.5 h-3.5" />
-            </Link>
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">Sales Team</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Choose where you want to work: manage incoming leads or focus on your deals pipeline.
+            </p>
           </div>
         </section>
 

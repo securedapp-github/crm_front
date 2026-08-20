@@ -1191,12 +1191,96 @@ export default function Tickets() {
               </div>
             </div>
 
-            {selectedTicket.externalUserEmail && (
-              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-3.5 text-xs text-slate-700 space-y-1">
-                <p className="font-bold text-indigo-700">Visitor Contact Details (Website Query)</p>
-                <p><strong>Name:</strong> {selectedTicket.externalUserName || '—'}</p>
-                <p><strong>Email:</strong> {selectedTicket.externalUserEmail}</p>
-                <p><strong>Phone:</strong> {selectedTicket.externalUserPhone || '—'}</p>
+            {/* External / Visitor Identity Details */}
+            {(selectedTicket.externalUserEmail || selectedTicket.externalUserName || selectedTicket.source === 'External API') && (
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs text-slate-700 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="font-extrabold text-indigo-800 text-xs flex items-center gap-1.5">
+                    <span>🌐 Website Visitor Submission</span>
+                    <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-[10px] font-mono">
+                      {selectedTicket.source || 'External API'}
+                    </span>
+                  </p>
+                  {selectedTicket.externalUserId && (
+                    <span className="text-[11px] font-mono text-slate-500">ID: {selectedTicket.externalUserId}</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-slate-800 font-medium">
+                  <div><strong>Name:</strong> {selectedTicket.externalUserName || '—'}</div>
+                  <div><strong>Email:</strong> <a href={`mailto:${selectedTicket.externalUserEmail}`} className="text-indigo-600 hover:underline">{selectedTicket.externalUserEmail || '—'}</a></div>
+                  <div><strong>Phone:</strong> {selectedTicket.externalUserPhone || '—'}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Attachment Section */}
+            {selectedTicket.attachmentUrl && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs space-y-2 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Paperclip className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Uploaded Attachment</span>
+                  </span>
+                  <a 
+                    href={getAttachmentUrl(selectedTicket.attachmentUrl)} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="inline-flex items-center gap-1 text-indigo-600 font-bold hover:text-indigo-800 text-[11px]"
+                  >
+                    View / Download <ArrowUpRight className="w-3 h-3" />
+                  </a>
+                </div>
+                {isImageFile(selectedTicket.attachmentUrl) ? (
+                  <div className="mt-2 rounded-xl overflow-hidden border border-slate-200 max-h-56 bg-slate-50 flex items-center justify-center">
+                    <img 
+                      src={getAttachmentUrl(selectedTicket.attachmentUrl)} 
+                      alt="Ticket Attachment" 
+                      className="max-h-56 w-auto object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between font-mono text-[11px] text-slate-700">
+                    <span className="truncate max-w-[280px]">{selectedTicket.attachmentUrl.split('/').pop()}</span>
+                    <a 
+                      href={getAttachmentUrl(selectedTicket.attachmentUrl)} 
+                      download 
+                      className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
+                    >
+                      Download
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Custom Metadata (Web3 / Custom Payload details) */}
+            {selectedTicket.metadata && (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-xs space-y-2">
+                <span className="font-extrabold text-slate-600 uppercase tracking-wider text-[10px] block">
+                  Additional Metadata / Web3 Context
+                </span>
+                {(() => {
+                  try {
+                    const parsed = typeof selectedTicket.metadata === 'string' 
+                      ? JSON.parse(selectedTicket.metadata) 
+                      : selectedTicket.metadata;
+                    if (typeof parsed === 'object' && parsed !== null) {
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {Object.entries(parsed).map(([key, val]) => (
+                            <div key={key} className="bg-white p-2.5 rounded-xl border border-slate-200/60 font-mono text-[11px]">
+                              <span className="text-slate-400 font-bold block uppercase text-[9px]">{key}</span>
+                              <span className="text-slate-800 font-semibold break-all">{String(val)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                  } catch (e) {
+                    // Fallback to plain text
+                  }
+                  return <pre className="font-mono text-[11px] text-slate-700 whitespace-pre-wrap">{String(selectedTicket.metadata)}</pre>;
+                })()}
               </div>
             )}
 

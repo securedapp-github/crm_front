@@ -45,12 +45,6 @@ export default function HRTeam() {
                 : 'Access your profile details, bank settings, and leaves dashboard.'}
             </p>
           </div>
-          <Link
-            to="/dashboard/tickets"
-            className="inline-flex items-center gap-1.5 self-start sm:self-auto px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
-          >
-            View Tickets <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
         </div>
       </div>
 
