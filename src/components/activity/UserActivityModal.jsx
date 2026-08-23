@@ -4,7 +4,7 @@ import CategoryBadge from './CategoryBadge'
 import DomainIcon from './DomainIcon'
 import ActivityTimeline from './ActivityTimeline'
 import { fetchUserActivity, exportActivityCSV, fetchAllowedDomains } from '../../api/activity'
-import { sanitizeDomainPrivacy } from '../../utils/privacyGuard'
+import { sanitizeDomainPrivacy, groupActivitiesByDomainOrUrl, formatAccurateDuration } from '../../utils/privacyGuard'
 
 export default function UserActivityModal({ isOpen, onClose, user }) {
   const [data, setData] = useState(null)
@@ -84,13 +84,6 @@ export default function UserActivityModal({ isOpen, onClose, user }) {
   const activities = Array.isArray(data?.activities) ? data.activities : []
   const topDomains = Array.isArray(data?.topDomains) ? data.topDomains : []
 
-  const formatMins = (seconds) => {
-    const sec = Number(seconds) || 0
-    if (sec <= 0) return '0 min'
-    if (sec < 60) return `${sec}s`
-    return `${Math.round(sec / 60)} min`
-  }
-
   const formatTime = (ts) => {
     if (!ts) return 'Just now'
     const date = new Date(ts)
@@ -98,7 +91,9 @@ export default function UserActivityModal({ isOpen, onClose, user }) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
-  const filteredActivities = activities.filter(a => {
+  const groupedDestinations = groupActivitiesByDomainOrUrl(activities)
+
+  const filteredActivities = groupedDestinations.filter(a => {
     const searchMatch = (a.domain || '').toLowerCase().includes(search.toLowerCase()) ||
       (a.pageTitle || '').toLowerCase().includes(search.toLowerCase()) ||
       (a.url || '').toLowerCase().includes(search.toLowerCase())
@@ -114,34 +109,32 @@ export default function UserActivityModal({ isOpen, onClose, user }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-8 animate-in fade-in duration-150">
       {/* Backdrop */}
-      <div 
+      <div
         onClick={onClose}
         className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs transition-opacity cursor-pointer"
       />
 
       {/* Modal Container */}
       <div className="relative w-full max-w-3xl max-h-[85vh] flex flex-col rounded-2xl bg-white shadow-xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150">
-        
+
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-5 py-3.5 gap-3">
           <div className="flex items-center gap-3">
             <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 border border-slate-200 text-slate-700 font-bold text-sm">
               {user?.name ? user.name[0].toUpperCase() : <User className="h-4 w-4" />}
-              <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${
-                isOnline ? 'bg-emerald-500' : isIdle ? 'bg-amber-400' : 'bg-slate-300'
-              }`} />
+              <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${isOnline ? 'bg-emerald-500' : isIdle ? 'bg-amber-400' : 'bg-slate-300'
+                }`} />
             </div>
 
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-bold text-slate-900">{user?.name || 'Employee Profile'}</h2>
-                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border ${
-                  isOnline
+                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border ${isOnline
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     : isIdle
-                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-slate-100 text-slate-500 border-slate-200'
-                }`}>
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : 'bg-slate-100 text-slate-500 border-slate-200'
+                  }`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : isIdle ? 'bg-amber-400' : 'bg-slate-400'}`} />
                   {userStatus}
                 </span>
@@ -179,11 +172,10 @@ export default function UserActivityModal({ isOpen, onClose, user }) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-2 text-xs transition-all relative border-b-2 cursor-pointer ${
-                activeTab === tab.id
+              className={`px-3 py-2 text-xs transition-all relative border-b-2 cursor-pointer ${activeTab === tab.id
                   ? 'border-slate-900 font-semibold text-slate-900'
                   : 'border-transparent text-slate-500 hover:text-slate-800 font-medium'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -366,11 +358,11 @@ export default function UserActivityModal({ isOpen, onClose, user }) {
                                   <td className="py-2.5 px-4">
                                     <CategoryBadge category={isPrivate ? 'neutral' : act.category} size="small" />
                                   </td>
-                                  <td className="py-2.5 px-4 font-mono text-slate-600 text-[11px]">
-                                    {formatMins(act.durationSeconds)}
+                                  <td className="py-2.5 px-4 font-mono text-slate-700 text-[11px] font-semibold">
+                                    {formatAccurateDuration(act.totalDurationSeconds || act.durationSeconds)}
                                   </td>
                                   <td className="py-2.5 px-4 text-slate-400 font-mono text-[10px]">
-                                    {formatTime(act.startTime || act.createdAt || act.updatedAt)}
+                                    {formatTime(act.latestRecordedAt || act.startTime || act.createdAt || act.updatedAt)}
                                   </td>
                                 </tr>
                               )
@@ -450,9 +442,8 @@ export default function UserActivityModal({ isOpen, onClose, user }) {
                                 <CategoryBadge category={d.category || 'productive'} size="small" />
                               </td>
                               <td className="py-2.5 px-4">
-                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border ${
-                                  d.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'
-                                }`}>
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border ${d.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'
+                                  }`}>
                                   <span className={`h-1.5 w-1.5 rounded-full ${d.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                                   {d.isActive ? 'Active' : 'Disabled'}
                                 </span>
