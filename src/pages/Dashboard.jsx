@@ -18,6 +18,8 @@ import {
   LaptopIcon 
 } from "@radix-ui/react-icons"
 import { LifeBuoy } from "lucide-react"
+import BirthdayModal from "../components/BirthdayModal"
+import { getTodayBirthdays } from "../api/user"
 
 const getLandingPath = (user) => {
   if (!user || !user.role) return '/login';
@@ -40,6 +42,8 @@ export default function Dashboard() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [user, setUser] = useState(null)
   const [checking, setChecking] = useState(true)
+  const [birthdayData, setBirthdayData] = useState(null)
+  const [birthdayModalOpen, setBirthdayModalOpen] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -62,6 +66,40 @@ export default function Dashboard() {
       })
     return () => { mounted = false }
   }, [])
+
+  useEffect(() => {
+    if (!user || checking) return
+    let mounted = true
+
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const dismissedKey = `crm_bday_dismiss_${user.id}_${todayStr}`
+    const isDismissed = localStorage.getItem(dismissedKey) === 'true'
+
+    if (!isDismissed) {
+      getTodayBirthdays()
+        .then((res) => {
+          if (!mounted) return
+          if (res.data?.success && res.data.data?.totalBirthdaysToday > 0) {
+            setBirthdayData(res.data.data)
+            setBirthdayModalOpen(true)
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load birthdays:', err)
+        })
+    }
+
+    return () => { mounted = false }
+  }, [user, checking])
+
+  const handleCloseBirthdayModal = () => {
+    if (user) {
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const dismissedKey = `crm_bday_dismiss_${user.id}_${todayStr}`
+      localStorage.setItem(dismissedKey, 'true')
+    }
+    setBirthdayModalOpen(false)
+  }
 
   useEffect(() => {
     if (checking || !user) return;
@@ -342,7 +380,15 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      <BirthdayModal
+        isOpen={birthdayModalOpen}
+        onClose={handleCloseBirthdayModal}
+        birthdayData={birthdayData}
+        currentUser={user}
+      />
     </div>
 
   )
 }
+

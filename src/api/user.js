@@ -26,4 +26,7 @@ export const getEmployeesByDepartment = (department) =>
 // Update user (admin only)
 export const updateUser = (userId, data) => api.put(`/users/${userId}`, data)
 
+// Get today's birthdays (user + teammates)
+export const getTodayBirthdays = ({ signal } = {}) => api.get('/users/birthdays/today', { signal })
+
 
