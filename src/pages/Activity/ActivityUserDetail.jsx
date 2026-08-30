@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { fetchUserActivity, exportActivityCSV } from '../../api/activity'
+import { groupActivitiesByDomainOrUrl, formatAccurateDuration } from '../../utils/privacyGuard'
 import CategoryBadge from '../../components/activity/CategoryBadge'
 import DomainIcon from '../../components/activity/DomainIcon'
 import ActivityTimeline from '../../components/activity/ActivityTimeline'
@@ -64,7 +65,9 @@ export default function ActivityUserDetail() {
 
   const { user, stats, topDomains, activities } = data
 
-  const filteredActivities = (activities || []).filter(a => {
+  const groupedDestinations = groupActivitiesByDomainOrUrl(activities)
+
+  const filteredActivities = groupedDestinations.filter(a => {
     const searchMatch = (a.domain || '').toLowerCase().includes(search.toLowerCase()) ||
       (a.pageTitle || '').toLowerCase().includes(search.toLowerCase()) ||
       (a.url || '').toLowerCase().includes(search.toLowerCase())
@@ -201,11 +204,11 @@ export default function ActivityUserDetail() {
                       <td className="py-2.5 px-3">
                         <CategoryBadge category={act.category} size="small" />
                       </td>
-                      <td className="py-2.5 px-3 text-slate-600">
-                        {Math.round((act.durationSeconds || 0) / 60)} mins
+                      <td className="py-2.5 px-3 font-semibold text-slate-800 font-mono text-[11px]">
+                        {formatAccurateDuration(act.totalDurationSeconds || act.durationSeconds)}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-400 text-[11px]">
-                        {new Date(act.startTime).toLocaleString()}
+                      <td className="py-2.5 px-3 text-slate-400 text-[11px] font-mono">
+                        {new Date(act.latestRecordedAt || act.startTime).toLocaleString()}
                       </td>
                     </tr>
                   ))

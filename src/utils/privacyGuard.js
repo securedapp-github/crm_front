@@ -65,3 +65,70 @@ export function sanitizeDomainPrivacy(domainName, allowlistRules = [], privacyEn
 
   return 'Unlisted Domain (Private)'
 }
+
+/**
+ * Groups multiple discrete periodic heartbeat chunks (e.g. 30s + 30s + 19s)
+ * into a single unified row per destination/URL with accurate total summed duration.
+ */
+export function groupActivitiesByDomainOrUrl(rawActivities = []) {
+  if (!Array.isArray(rawActivities) || rawActivities.length === 0) return []
+
+  const groupMap = new Map()
+
+  rawActivities.forEach((act) => {
+    const rawDomain = (act.domain || '').trim()
+    const cleanKey = (rawDomain || act.url || 'other').toLowerCase()
+    const dur = Number(act.durationSeconds) || 0
+    const timeMs = new Date(act.startTime || act.endTime || act.createdAt || act.updatedAt || Date.now()).getTime()
+
+    if (!groupMap.has(cleanKey)) {
+      groupMap.set(cleanKey, {
+        id: act.id || cleanKey,
+        domain: rawDomain || cleanKey,
+        url: act.url || '',
+        pageTitle: act.pageTitle && act.pageTitle !== 'Untitled' ? act.pageTitle : (rawDomain || cleanKey),
+        category: act.category || 'productive',
+        totalDurationSeconds: dur,
+        sessionCount: 1,
+        latestRecordedAt: isNaN(timeMs) ? Date.now() : timeMs,
+        earliestStartTime: isNaN(timeMs) ? Date.now() : timeMs,
+        isIdle: Boolean(act.isIdle)
+      })
+    } else {
+      const existing = groupMap.get(cleanKey)
+      existing.totalDurationSeconds += dur
+      existing.sessionCount += 1
+      if (!isNaN(timeMs) && timeMs > existing.latestRecordedAt) {
+        existing.latestRecordedAt = timeMs
+        if (act.pageTitle && act.pageTitle !== 'Untitled') existing.pageTitle = act.pageTitle
+        if (act.url) existing.url = act.url
+        existing.isIdle = Boolean(act.isIdle)
+      }
+      if (!isNaN(timeMs) && timeMs < existing.earliestStartTime) {
+        existing.earliestStartTime = timeMs
+      }
+    }
+  })
+
+  return Array.from(groupMap.values()).sort((a, b) => b.latestRecordedAt - a.latestRecordedAt)
+}
+
+/**
+ * Formats seconds into human-readable duration (e.g. '1m 24s', '45s', '1h 12m')
+ */
+export function formatAccurateDuration(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0))
+  if (total === 0) return '0s'
+  const hrs = Math.floor(total / 3600)
+  const mins = Math.floor((total % 3600) / 60)
+  const secs = total % 60
+
+  if (hrs > 0) {
+    return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
+  }
+  if (mins > 0) {
+    return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`
+  }
+  return `${secs}s`
+}
+
