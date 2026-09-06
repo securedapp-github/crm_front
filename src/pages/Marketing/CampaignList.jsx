@@ -7,6 +7,19 @@ import { api, getMe } from '../../api/auth'
 import { resolveAccount } from '../../api/account'
 import LeadScoring from './LeadScoring'
 import * as XLSX from 'xlsx'
+import { 
+  Search, 
+  Globe, 
+  Calendar, 
+  Filter, 
+  X, 
+  Flame, 
+  UserCheck, 
+  ChevronDown, 
+  Check, 
+  RotateCcw, 
+  Layers 
+} from 'lucide-react'
 
 const DetailBlock = ({ label, value, full }) => (
   <div className={`rounded-lg border border-slate-200 bg-white p-4 shadow-sm ${full ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
@@ -110,6 +123,113 @@ export default function CampaignList({ autoOpenKey = 0 }) {
     'On Hold': 'bg-amber-100 text-amber-700 border-amber-200',
     Completed: 'bg-indigo-100 text-indigo-700 border-indigo-200',
   }
+
+  // Search & Filter State
+  const searchInputRef = useRef(null)
+  const filtersDropdownRef = useRef(null)
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [datePreset, setDatePreset] = useState('all')
+  const [dateMenuOpen, setDateMenuOpen] = useState(false)
+  const [channelFilter, setChannelFilter] = useState('all') // 'all', 'website', 'manual', 'email', 'linkedin', etc.
+  const [statusFilter, setStatusFilter] = useState([])
+  const [ownerFilter, setOwnerFilter] = useState('all')
+  const [priorityFilter, setPriorityFilter] = useState('all')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  const isWebsiteCampaign = (c) => {
+    if (!c) return false
+    const ch = String(c.channel || '').toLowerCase()
+    return ch === 'website' || ch.includes('web') || Boolean(c.utmSource) || Boolean(c.utmCampaign)
+  }
+
+  const applyPreset = (preset) => {
+    setDatePreset(preset)
+    const now = new Date()
+    if (preset === 'all') {
+      setFromDate('')
+      setToDate('')
+    } else if (preset === 'today') {
+      const d = now.toISOString().split('T')[0]
+      setFromDate(d)
+      setToDate(d)
+    } else if (preset === 'yesterday') {
+      const y = new Date(now)
+      y.setDate(now.getDate() - 1)
+      const d = y.toISOString().split('T')[0]
+      setFromDate(d)
+      setToDate(d)
+    } else if (preset === '7d') {
+      const past = new Date(now)
+      past.setDate(now.getDate() - 7)
+      setFromDate(past.toISOString().split('T')[0])
+      setToDate(now.toISOString().split('T')[0])
+    } else if (preset === 'thisMonth') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1)
+      setFromDate(start.toISOString().split('T')[0])
+      setToDate(now.toISOString().split('T')[0])
+    } else if (preset === '30d') {
+      const past = new Date(now)
+      past.setDate(now.getDate() - 30)
+      setFromDate(past.toISOString().split('T')[0])
+      setToDate(now.toISOString().split('T')[0])
+    }
+    setDateMenuOpen(false)
+  }
+
+  const clearAllFilters = () => {
+    setQuery('')
+    setFromDate('')
+    setToDate('')
+    setDatePreset('all')
+    setChannelFilter('all')
+    setStatusFilter([])
+    setOwnerFilter('all')
+    setPriorityFilter('all')
+  }
+
+  const activeFiltersCount = (
+    (query ? 1 : 0) +
+    (fromDate || toDate ? 1 : 0) +
+    (channelFilter !== 'all' ? 1 : 0) +
+    statusFilter.length +
+    (ownerFilter !== 'all' ? 1 : 0) +
+    (priorityFilter !== 'all' ? 1 : 0)
+  )
+
+  const websiteCount = useMemo(() => campaigns.filter(isWebsiteCampaign).length, [campaigns])
+  const todayCount = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0]
+    return campaigns.filter(c => (c.createdAt || '').startsWith(todayStr)).length
+  }, [campaigns])
+  const highPriorityCount = useMemo(() => campaigns.filter(c => c.priority === 'High').length, [campaigns])
+  const unassignedCount = useMemo(() => campaigns.filter(c => !c.owner?.name).length, [campaigns])
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      } else if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (filtersDropdownRef.current && !filtersDropdownRef.current.contains(e.target)) {
+        setFiltersOpen(false)
+      }
+    }
+    if (filtersOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [filtersOpen])
 
   const confirmDelete = async () => {
     if (!confirmDeleteId) return
@@ -525,22 +645,72 @@ export default function CampaignList({ autoOpenKey = 0 }) {
     }
   }
 
-  const filtered = campaigns.filter((c) => {
-    const haystack = [
-      c.name,
-      c.code,
-      c.channel,
-      c.objective,
-      c.audienceSegment,
-      c.productLine,
-      c.owner?.name,
-      c.accountCompany,
-      c.accountDomain,
-      c.mobile,
-      c.email
-    ].filter(Boolean).map(v => String(v).toLowerCase())
-    return haystack.some(value => value.includes(query.toLowerCase()))
-  })
+  const filtered = useMemo(() => {
+    return campaigns.filter((c) => {
+      // 1. Text Query (Omni-search across name, company, domain, email, phone, code, channel, service, utm)
+      if (query.trim()) {
+        const q = query.toLowerCase()
+        const haystack = [
+          c.name,
+          c.code,
+          c.channel,
+          c.objective,
+          c.audienceSegment,
+          c.productLine,
+          c.owner?.name,
+          c.accountCompany,
+          c.accountDomain,
+          c.mobile,
+          c.email,
+          c.description,
+          c.serviceOffering,
+          c.utmSource,
+          c.utmMedium,
+          c.utmCampaign
+        ].filter(Boolean).map(v => String(v).toLowerCase())
+        
+        const matches = haystack.some(val => val.includes(q))
+        if (!matches) return false
+      }
+
+      // 2. Date filtering
+      if (fromDate || toDate) {
+        const created = new Date(c.createdAt || c.updatedAt)
+        const start = fromDate ? new Date(fromDate) : new Date(0)
+        start.setHours(0, 0, 0, 0)
+        const end = toDate ? new Date(toDate) : new Date()
+        end.setHours(23, 59, 59, 999)
+        if (created < start || created > end) return false
+      }
+
+      // 3. Channel & Website origin
+      if (channelFilter === 'website') {
+        if (!isWebsiteCampaign(c)) return false
+      } else if (channelFilter !== 'all' && channelFilter) {
+        if (String(c.channel || '').toLowerCase() !== channelFilter.toLowerCase()) return false
+      }
+
+      // 4. Status filter
+      if (statusFilter.length > 0) {
+        const st = c.status || 'Planned'
+        if (!statusFilter.includes(st)) return false
+      }
+
+      // 5. Owner filter
+      if (ownerFilter === 'unassigned') {
+        if (c.owner?.name) return false
+      } else if (ownerFilter !== 'all' && ownerFilter) {
+        if (String(c.owner?.id) !== String(ownerFilter) && String(c.ownerId) !== String(ownerFilter)) return false
+      }
+
+      // 6. Priority filter
+      if (priorityFilter !== 'all' && priorityFilter) {
+        if (c.priority !== priorityFilter) return false
+      }
+
+      return true
+    })
+  }, [campaigns, query, fromDate, toDate, channelFilter, statusFilter, ownerFilter, priorityFilter])
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -549,7 +719,7 @@ export default function CampaignList({ autoOpenKey = 0 }) {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [query])
+  }, [query, fromDate, toDate, channelFilter, statusFilter, ownerFilter, priorityFilter])
 
   const paginatedCampaigns = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage
@@ -558,50 +728,458 @@ export default function CampaignList({ autoOpenKey = 0 }) {
 
   return (
     <div className="space-y-4 w-full max-w-full overflow-hidden p-1">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h2 className="text-xl font-bold text-slate-900">Campaigns</h2>
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Campaigns</h2>
+          <p className="text-xs text-slate-500">Lead capture records, marketing campaigns, and website inquiries</p>
+        </div>
+      </div>
 
-          <input className="px-3 py-2 border rounded-md text-sm flex-1 sm:flex-none sm:w-64" placeholder="Search" value={query} onChange={e => setQuery(e.target.value)} />
+      {/* Main Omni-Search & Filter Suite */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 space-y-3.5">
+        
+        {/* Row 1: Omni-Search Bar & Action Controls */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          
+          {/* Omni-Search Input */}
+          <div className="relative flex-1 group">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-indigo-600" />
+            <input
+              ref={searchInputRef}
+              className="w-full pl-10 pr-24 py-2.5 bg-slate-50/70 hover:bg-slate-50 border border-slate-200/90 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-2xs"
+              placeholder="Search leads, companies, domains, emails..."
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+            />
+            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-auto">
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-colors"
+                  title="Clear query"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-white border border-slate-200 rounded shadow-2xs">
+                ⌘K
+              </kbd>
+            </div>
+          </div>
 
-          {/* Dropdown Menu for + New button */}
-          <div className="relative flex-shrink-0" ref={dropdownRef}>
-            <button
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="px-3 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1"
-            >
-              <span>+ New</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+          {/* Right Controls: Date Selector, More Filters Popover, and + New */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            
+            {/* Date Preset & Range Button */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setDateMenuOpen(prev => !prev)}
+                className={`px-3 py-2 rounded-xl text-xs font-medium border flex items-center gap-1.5 transition-all active:scale-[0.98] shadow-2xs ${
+                  fromDate || toDate
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-semibold'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                <span>
+                  {datePreset === 'today' ? 'Today' :
+                   datePreset === 'yesterday' ? 'Yesterday' :
+                   datePreset === '7d' ? 'Last 7 Days' :
+                   datePreset === 'thisMonth' ? 'This Month' :
+                   datePreset === '30d' ? 'Last 30 Days' :
+                   fromDate && toDate ? `${fromDate} → ${toDate}` :
+                   fromDate ? `From ${fromDate}` :
+                   toDate ? `To ${toDate}` :
+                   'Date Range'}
+                </span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </button>
 
-            {showDropdown && (
-              <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-                <div className="py-1">
-                  <button
-                    onClick={() => { setShowDropdown(false); setOpen(true); }}
-                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
-                  >
-                    📝 Manual Entry
-                  </button>
-                  <button
-                    onClick={() => { setShowDropdown(false); setBulkUploadOpen(true); }}
-                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
-                  >
-                    📊 Bulk Upload (Excel)
-                  </button>
-                  <button
-                    onClick={() => { setShowDropdown(false); downloadTemplate(); }}
-                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
-                  >
-                    ⬇️ Download Template
-                  </button>
+              {dateMenuOpen && (
+                <div className="absolute right-0 mt-1.5 w-72 bg-white rounded-xl border border-slate-200 shadow-xl p-3 z-30 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span className="text-xs font-bold text-slate-800">Date Presets</span>
+                    {(fromDate || toDate) && (
+                      <button onClick={() => applyPreset('all')} className="text-[11px] font-semibold text-rose-600 hover:underline">Reset</button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button onClick={() => applyPreset('today')} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${datePreset === 'today' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>Today</button>
+                    <button onClick={() => applyPreset('yesterday')} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${datePreset === 'yesterday' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>Yesterday</button>
+                    <button onClick={() => applyPreset('7d')} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${datePreset === '7d' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>Last 7 Days</button>
+                    <button onClick={() => applyPreset('thisMonth')} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${datePreset === 'thisMonth' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>This Month</button>
+                    <button onClick={() => applyPreset('30d')} className={`col-span-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${datePreset === '30d' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>Last 30 Days</button>
+                  </div>
+                  <div className="border-t border-slate-100 pt-2.5 space-y-2">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Custom Range</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5">From</label>
+                        <input
+                          type="date"
+                          value={fromDate}
+                          onChange={e => { setFromDate(e.target.value); setDatePreset('custom') }}
+                          className="w-full text-xs px-2 py-1 rounded border border-slate-200 bg-slate-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5">To</label>
+                        <input
+                          type="date"
+                          value={toDate}
+                          onChange={e => { setToDate(e.target.value); setDatePreset('custom') }}
+                          className="w-full text-xs px-2 py-1 rounded border border-slate-200 bg-slate-50"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* Expandable "Filters" Popover */}
+            <div className="relative" ref={filtersDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(prev => !prev)}
+                className={`px-3 py-2 rounded-xl text-xs font-medium border flex items-center gap-1.5 transition-all active:scale-[0.98] shadow-2xs ${
+                  activeFiltersCount > 0
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-indigo-100 font-semibold'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                }`}
+              >
+                <Filter className="w-3.5 h-3.5" />
+                <span>Filters</span>
+                {activeFiltersCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-white text-indigo-700">
+                    {activeFiltersCount}
+                  </span>
+                )}
+                <ChevronDown className="w-3 h-3 opacity-70" />
+              </button>
+
+              {filtersOpen && (
+                <div className="absolute right-0 mt-1.5 w-80 sm:w-96 bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 z-40 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <Filter className="w-4 h-4 text-indigo-600" />
+                      <span className="text-sm font-bold text-slate-900">Advanced Filters</span>
+                    </div>
+                    {activeFiltersCount > 0 && (
+                      <button
+                        onClick={clearAllFilters}
+                        className="text-xs font-semibold text-rose-600 hover:underline flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-3 h-3" /> Clear All
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter 1: Status */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      Status
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Planned', 'Active', 'On Hold', 'Completed'].map(st => {
+                        const active = statusFilter.includes(st)
+                        return (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => {
+                              setStatusFilter(prev => active ? prev.filter(s => s !== st) : [...prev, st])
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all flex items-center gap-1 ${
+                              active
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold'
+                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            {active && <Check className="w-3 h-3 text-indigo-600" />}
+                            {st}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Filter 2: Channel */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      Channel / Source
+                    </label>
+                    <select
+                      value={channelFilter}
+                      onChange={e => setChannelFilter(e.target.value)}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="all">All Channels</option>
+                      <option value="website">🌐 Website</option>
+                      <option value="manual">👤 Manual Entry</option>
+                      <option value="email">✉️ Email</option>
+                      <option value="linkedin">💼 LinkedIn</option>
+                      <option value="external api">⚡ External API</option>
+                      <option value="social media">📱 Social Media</option>
+                      <option value="referral">🤝 Referral</option>
+                    </select>
+                  </div>
+
+                  {/* Filter 3: Assigned Owner */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      👤 Assigned Owner
+                    </label>
+                    <select
+                      value={ownerFilter}
+                      onChange={e => setOwnerFilter(e.target.value)}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="all">All Owners & Reps</option>
+                      <option value="unassigned">⏳ Unassigned Only</option>
+                      {users.map(u => (
+                        <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Filter 4: Priority */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      Priority
+                    </label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {['all', 'High', 'Medium', 'Low'].map(p => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setPriorityFilter(p)}
+                          className={`px-2 py-1.5 rounded-lg text-xs font-medium text-center border transition-all ${
+                            priorityFilter === p
+                              ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold'
+                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          {p === 'all' ? 'All' : p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-xs text-slate-500">{filtered.length} matching</span>
+                    <button
+                      onClick={() => setFiltersOpen(false)}
+                      className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700"
+                    >
+                      Apply Filters
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* + New Button with Dropdown */}
+            <div className="relative flex-shrink-0" ref={dropdownRef}>
+              <button
+                onClick={() => setShowDropdown(!showDropdown)}
+                className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 text-xs font-semibold shadow-xs shadow-indigo-200 active:scale-[0.98] transition-all"
+              >
+                <span>+ New</span>
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+
+              {showDropdown && (
+                <div className="absolute right-0 mt-2 w-56 rounded-xl shadow-xl bg-white border border-slate-200 z-50 overflow-hidden">
+                  <div className="py-1">
+                    <button
+                      onClick={() => { setShowDropdown(false); setOpen(true); }}
+                      className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                      <span>📝</span> Manual Entry
+                    </button>
+                    <button
+                      onClick={() => { setShowDropdown(false); setBulkUploadOpen(true); }}
+                      className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                      <span>📊</span> Bulk Upload (Excel)
+                    </button>
+                    <button
+                      onClick={() => { setShowDropdown(false); downloadTemplate(); }}
+                      className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                      <span>⬇️</span> Download Template
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
+
+        {/* Row 2: Quick-Filter Chips */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+          
+          {/* All */}
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className={`px-3.5 py-1.5 rounded-full text-xs shrink-0 transition-all border flex items-center gap-1.5 active:scale-[0.98] ${
+              activeFiltersCount === 0
+                ? 'bg-slate-900 text-white border-slate-900 shadow-xs font-semibold'
+                : 'bg-slate-100/70 hover:bg-slate-200/70 text-slate-600 border-slate-200/80 hover:border-slate-300 font-medium'
+            }`}
+          >
+            <span>All</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeFiltersCount === 0 ? 'bg-white/20 text-white font-bold' : 'bg-white text-slate-700 border border-slate-200/60 font-semibold shadow-2xs'}`}>
+              {campaigns.length}
+            </span>
+          </button>
+
+          {/* Website Inquiries */}
+          <button
+            type="button"
+            onClick={() => setChannelFilter(channelFilter === 'website' ? 'all' : 'website')}
+            className={`px-3.5 py-1.5 rounded-full text-xs shrink-0 transition-all border flex items-center gap-1.5 active:scale-[0.98] ${
+              channelFilter === 'website'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-xs shadow-blue-200 font-semibold'
+                : 'bg-blue-50/60 hover:bg-blue-100/70 text-blue-700 border-blue-200/70 hover:border-blue-300 font-medium'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Website Inquiries</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${channelFilter === 'website' ? 'bg-white/20 text-white font-bold' : 'bg-white text-blue-800 border border-blue-200/60 font-semibold shadow-2xs'}`}>
+              {websiteCount}
+            </span>
+          </button>
+
+          {/* Added Today */}
+          <button
+            type="button"
+            onClick={() => applyPreset(datePreset === 'today' ? 'all' : 'today')}
+            className={`px-3.5 py-1.5 rounded-full text-xs shrink-0 transition-all border flex items-center gap-1.5 active:scale-[0.98] ${
+              datePreset === 'today'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs shadow-indigo-200 font-semibold'
+                : 'bg-indigo-50/60 hover:bg-indigo-100/70 text-indigo-700 border-indigo-200/70 hover:border-indigo-300 font-medium'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Added Today</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${datePreset === 'today' ? 'bg-white/20 text-white font-bold' : 'bg-white text-indigo-800 border border-indigo-200/60 font-semibold shadow-2xs'}`}>
+              {todayCount}
+            </span>
+          </button>
+
+          {/* High Priority */}
+          <button
+            type="button"
+            onClick={() => setPriorityFilter(priorityFilter === 'High' ? 'all' : 'High')}
+            className={`px-3.5 py-1.5 rounded-full text-xs shrink-0 transition-all border flex items-center gap-1.5 active:scale-[0.98] ${
+              priorityFilter === 'High'
+                ? 'bg-amber-600 text-white border-amber-600 shadow-xs shadow-amber-200 font-semibold'
+                : 'bg-amber-50/60 hover:bg-amber-100/70 text-amber-800 border-amber-200/70 hover:border-amber-300 font-medium'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5" />
+            <span>High Priority</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${priorityFilter === 'High' ? 'bg-white/20 text-white font-bold' : 'bg-white text-amber-800 border border-amber-200/60 font-semibold shadow-2xs'}`}>
+              {highPriorityCount}
+            </span>
+          </button>
+
+          {/* Unassigned */}
+          <button
+            type="button"
+            onClick={() => setOwnerFilter(ownerFilter === 'unassigned' ? 'all' : 'unassigned')}
+            className={`px-3.5 py-1.5 rounded-full text-xs shrink-0 transition-all border flex items-center gap-1.5 active:scale-[0.98] ${
+              ownerFilter === 'unassigned'
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs shadow-emerald-200 font-semibold'
+                : 'bg-emerald-50/60 hover:bg-emerald-100/70 text-emerald-800 border-emerald-200/70 hover:border-emerald-300 font-medium'
+            }`}
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>Unassigned</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${ownerFilter === 'unassigned' ? 'bg-white/20 text-white font-bold' : 'bg-white text-emerald-800 border border-emerald-200/60 font-semibold shadow-2xs'}`}>
+              {unassignedCount}
+            </span>
+          </button>
+        </div>
+
+        {/* Row 3: Active Filters Removable Badges */}
+        {activeFiltersCount > 0 && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
+            <span className="text-slate-400 font-medium text-[11px]">Active Filters:</span>
+
+            {query && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-xs">
+                <span>Search: <strong>"{query}"</strong></span>
+                <button onClick={() => setQuery('')} className="hover:text-slate-900 ml-0.5"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+
+            {channelFilter === 'website' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs">
+                <Globe className="w-3 h-3" />
+                <span>Channel: <strong>Website</strong></span>
+                <button onClick={() => setChannelFilter('all')} className="hover:text-blue-900 ml-0.5"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+
+            {channelFilter !== 'all' && channelFilter !== 'website' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-xs">
+                <span>Channel: <strong>{channelFilter}</strong></span>
+                <button onClick={() => setChannelFilter('all')} className="hover:text-slate-900 ml-0.5"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+
+            {(fromDate || toDate) && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs">
+                <Calendar className="w-3 h-3" />
+                <span>Date: <strong>{datePreset !== 'custom' ? datePreset : `${fromDate || 'start'} → ${toDate || 'end'}`}</strong></span>
+                <button onClick={() => applyPreset('all')} className="hover:text-indigo-900 ml-0.5"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+
+            {statusFilter.map(st => (
+              <span key={st} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-xs">
+                <span>Status: <strong>{st}</strong></span>
+                <button onClick={() => setStatusFilter(prev => prev.filter(s => s !== st))} className="hover:text-slate-900 ml-0.5"><X className="w-3 h-3" /></button>
+              </span>
+            ))}
+
+            {ownerFilter === 'unassigned' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">
+                <span>Owner: <strong>Unassigned</strong></span>
+                <button onClick={() => setOwnerFilter('all')} className="hover:text-emerald-900 ml-0.5"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+
+            {ownerFilter !== 'all' && ownerFilter !== 'unassigned' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">
+                <span>Owner: <strong>{users.find(u => String(u.id) === String(ownerFilter))?.name || ownerFilter}</strong></span>
+                <button onClick={() => setOwnerFilter('all')} className="hover:text-emerald-900 ml-0.5"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+
+            {priorityFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs">
+                <Flame className="w-3 h-3 text-amber-500" />
+                <span>Priority: <strong>{priorityFilter}</strong></span>
+                <button onClick={() => setPriorityFilter('all')} className="hover:text-amber-900 ml-0.5"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+
+            <button
+              onClick={clearAllFilters}
+              className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 hover:underline ml-auto"
+            >
+              Clear All ({activeFiltersCount})
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="rounded-lg border bg-white overflow-hidden shadow-sm">
@@ -649,7 +1227,16 @@ export default function CampaignList({ autoOpenKey = 0 }) {
                           👤 {c.uploadedBy?.name || c.uploadedByName || 'Admin'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-slate-700">{c.channel || '-'}</td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {isWebsiteCampaign(c) ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200/80">
+                            <Globe className="w-3 h-3 text-blue-500" />
+                            <span>Website</span>
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-700 font-medium">{c.channel || '-'}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">{c.leadsGenerated ?? 0}</td>
                       <td className="px-4 py-3 text-slate-700">{c.owner?.name || '-'}</td>
                       <td className="px-4 py-3 text-slate-700">{c.priority || '-'}</td>
