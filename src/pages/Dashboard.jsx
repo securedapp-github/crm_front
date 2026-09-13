@@ -2,22 +2,19 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { useEffect, useMemo, useState } from "react"
 import { getMe } from "../api/auth"
 import { 
-  HomeIcon, 
-  DashboardIcon, 
-  EnvelopeClosedIcon, 
-  CheckCircledIcon, 
-  ArchiveIcon, 
-  SpeakerLoudIcon, 
-  PaperPlaneIcon, 
-  ClipboardIcon, 
-  CardStackIcon, 
-  PersonIcon, 
-  AvatarIcon, 
-  ActivityLogIcon, 
-  GearIcon, 
-  LaptopIcon 
-} from "@radix-ui/react-icons"
-import { LifeBuoy } from "lucide-react"
+  Home, 
+  LayoutDashboard, 
+  Mail, 
+  CheckCircle2, 
+  Megaphone, 
+  Send, 
+  Activity, 
+  LifeBuoy, 
+  Laptop, 
+  Users, 
+  CreditCard, 
+  ClipboardList 
+} from "lucide-react"
 import BirthdayModal from "../components/BirthdayModal"
 import { getTodayBirthdays } from "../api/user"
 
@@ -173,23 +170,23 @@ export default function Dashboard() {
     const roles = (user.role || '').split(',').map(r => r.trim().toLowerCase());
     
     const map = {
-      dashboard: { href: "/dashboard", label: "Dashboard", icon: <HomeIcon className="w-5 h-5" /> },
-      salesDashboard: { href: "/dashboard/sales-dashboard", label: "Sales Dashboard", icon: <DashboardIcon className="w-5 h-5" /> },
-      salesMail: { href: "/dashboard/sales/mail", label: "Send Mail", icon: <EnvelopeClosedIcon className="w-5 h-5" /> },
-      salesCompleted: { href: "/dashboard/sales/completed", label: "Completed Deals", icon: <CheckCircledIcon className="w-5 h-5" /> },
-      salesActivities: { href: "/dashboard/sales/activities", label: "My Marketing Activities", icon: <SpeakerLoudIcon className="w-5 h-5" /> },
-      salesSequences: { href: "/dashboard/sales-dashboard/sequences", label: "Email Sequences", icon: <PaperPlaneIcon className="w-5 h-5" /> },
-      marketingDashboard: { href: "/dashboard/marketing", label: "Lead Management", icon: <SpeakerLoudIcon className="w-5 h-5" /> },
-      marketingTeam: { href: "/dashboard/marketing-team", label: "Marketing Portal", icon: <SpeakerLoudIcon className="w-5 h-5" /> },
-      growthTeam: { href: "/dashboard/growth-team", label: "Growth Portal", icon: <ActivityLogIcon className="w-5 h-5" /> },
+      dashboard: { href: "/dashboard", label: "Dashboard", icon: <Home className="w-5 h-5" /> },
+      salesDashboard: { href: "/dashboard/sales-dashboard", label: "Sales Dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
+      salesMail: { href: "/dashboard/sales/mail", label: "Send Mail", icon: <Mail className="w-5 h-5" /> },
+      salesCompleted: { href: "/dashboard/sales/completed", label: "Completed Deals", icon: <CheckCircle2 className="w-5 h-5" /> },
+      salesActivities: { href: "/dashboard/sales/activities", label: "My Marketing Activities", icon: <Megaphone className="w-5 h-5" /> },
+      salesSequences: { href: "/dashboard/sales-dashboard/sequences", label: "Email Sequences", icon: <Send className="w-5 h-5" /> },
+      marketingDashboard: { href: "/dashboard/marketing", label: "Lead Management", icon: <Megaphone className="w-5 h-5" /> },
+      marketingTeam: { href: "/dashboard/marketing-team", label: "Marketing Portal", icon: <Megaphone className="w-5 h-5" /> },
+      growthTeam: { href: "/dashboard/growth-team", label: "Growth Portal", icon: <Activity className="w-5 h-5" /> },
       operationsTeam: { href: "/dashboard/operations-team", label: "Operations Team", icon: <LifeBuoy className="w-5 h-5" /> },
-      techTeam: { href: "/dashboard/tech-team", label: "Tech Portal", icon: <LaptopIcon className="w-5 h-5" /> },
-      hrTeam: { href: "/dashboard/hr-team", label: "HR Portal", icon: <AvatarIcon className="w-5 h-5" /> },
-      finance: { href: "/dashboard/finance", label: "Finance Hub", icon: <CardStackIcon className="w-5 h-5" /> },
-      activity: { href: "/dashboard/activity", label: "Activity Overview", icon: <ActivityLogIcon className="w-5 h-5" /> },
+      techTeam: { href: "/dashboard/tech-team", label: "Tech Portal", icon: <Laptop className="w-5 h-5" /> },
+      hrTeam: { href: "/dashboard/hr-team", label: "HR Portal", icon: <Users className="w-5 h-5" /> },
+      finance: { href: "/dashboard/finance", label: "Finance Hub", icon: <CreditCard className="w-5 h-5" /> },
+      activity: { href: "/dashboard/activity", label: "Activity Overview", icon: <Activity className="w-5 h-5" /> },
       tickets: { href: "/dashboard/tickets", label: "My Assigned Tickets", icon: <LifeBuoy className="w-5 h-5" /> },
 
-      leave: { href: "/dashboard/leave", label: "Leave Requests", icon: <ClipboardIcon className="w-5 h-5" /> }
+      leave: { href: "/dashboard/leave", label: "Leave Requests", icon: <ClipboardList className="w-5 h-5" /> }
     };
 
     if (roles.includes('admin')) {

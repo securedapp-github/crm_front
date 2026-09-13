@@ -194,7 +194,7 @@ export default function Navbar() {
                 </div>
                 
                 {/* Dropdown Menu */}
-                <div className={`absolute right-0 top-full pt-2 w-48 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] origin-top-right ${dropdownOpen ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}`}>
+                <div className={`absolute right-0 top-full pt-2 w-48 transition-all duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] origin-top-right ${dropdownOpen ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}`}>
                   <div className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden py-1">
                     <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
                       <p className="text-xs font-semibold text-slate-800 truncate">{name}</p>
