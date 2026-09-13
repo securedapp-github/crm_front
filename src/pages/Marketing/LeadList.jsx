@@ -8,7 +8,7 @@ import { useToast } from '../../components/ToastProvider'
 import Modal from '../../components/Modal'
 import { resolveAccount } from '../../api/account'
 import { getSequences, enrollLead as apiEnrollLead, stopSequence } from '../../api/sequence'
-import { generateLeadTemplate, parseLeadExcelSheet, exportDuplicateLeadsReport } from '../../utils/leadSheetImport'
+import { generateLeadTemplate, parseLeadExcelSheet, exportDuplicateLeadsReport, exportLeadsToExcel } from '../../utils/leadSheetImport'
 import { 
   Search, 
   Globe, 
@@ -28,7 +28,8 @@ import {
   ExternalLink,
   Layers,
   Tag,
-  Briefcase
+  Briefcase,
+  Download
 } from 'lucide-react'
 
 const STATUS_COLORS = {
@@ -68,6 +69,7 @@ export default function LeadList({ initialFilter = 'all' }) {
   const [statusFilter, setStatusFilter] = useState([]) // array of strings
   const [ownerFilter, setOwnerFilter] = useState('all') // 'all' | 'unassigned' | userId
   const [scoreFilter, setScoreFilter] = useState('all') // 'all' | 'hot' | 'gradeA' | 'gradeB' | 'gradeC'
+  const [uploaderFilter, setUploaderFilter] = useState('all') // 'all' | 'system' | uploaderName
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [dateMenuOpen, setDateMenuOpen] = useState(false)
 
@@ -179,6 +181,7 @@ export default function LeadList({ initialFilter = 'all' }) {
     setStatusFilter([])
     setOwnerFilter('all')
     setScoreFilter('all')
+    setUploaderFilter('all')
   }
 
   const fetchData = async () => {
@@ -232,6 +235,37 @@ export default function LeadList({ initialFilter = 'all' }) {
     return Array.from(pages)
   }, [leads])
 
+  // Discover all unique uploaders dynamically across leads
+  const availableUploaders = useMemo(() => {
+    const uploaderMap = new Map()
+    let systemCount = 0
+
+    leads.forEach(l => {
+      const uploaderName = l.uploadedBy?.name || l.uploadedByName
+      const uploaderEmail = l.uploadedBy?.email
+      const key = uploaderName || (l.uploadedById ? `User #${l.uploadedById}` : null)
+
+      if (key) {
+        const existing = uploaderMap.get(key) || { 
+          id: l.uploadedById || key, 
+          name: key, 
+          email: uploaderEmail || null, 
+          count: 0 
+        }
+        existing.count += 1
+        uploaderMap.set(key, existing)
+      } else {
+        systemCount += 1
+      }
+    })
+
+    const list = Array.from(uploaderMap.values()).sort((a, b) => b.count - a.count)
+    return {
+      list,
+      systemCount
+    }
+  }, [leads])
+
   // Verify company domain like Campaigns (.com, .io, .in)
   useEffect(() => {
     const raw = form.accountDomain || ''
@@ -267,8 +301,9 @@ export default function LeadList({ initialFilter = 'all' }) {
     if (statusFilter.length > 0) count += statusFilter.length
     if (ownerFilter !== 'all') count++
     if (scoreFilter !== 'all') count++
+    if (uploaderFilter !== 'all') count++
     return count
-  }, [query, fromDate, toDate, sourceFilter, websitePageFilter, statusFilter, ownerFilter, scoreFilter])
+  }, [query, fromDate, toDate, sourceFilter, websitePageFilter, statusFilter, ownerFilter, scoreFilter, uploaderFilter])
 
   // Filtered Leads calculation
   const filtered = useMemo(() => {
@@ -291,6 +326,8 @@ export default function LeadList({ initialFilter = 'all' }) {
           l?.industry,
           l?.region,
           l?.uploadedByName,
+          l?.uploadedBy?.name,
+          l?.uploadedBy?.email,
           l?.owner?.name,
           l?.customFields ? JSON.stringify(l.customFields) : ''
         ].filter(Boolean).join(' ').toLowerCase()
@@ -348,9 +385,23 @@ export default function LeadList({ initialFilter = 'all' }) {
         if (l.grade !== 'C') return false
       }
 
+      // 8. Uploaded By (CRM User) filter
+      if (uploaderFilter !== 'all' && uploaderFilter) {
+        if (uploaderFilter === 'system') {
+          const hasUser = !!(l.uploadedBy?.name || l.uploadedByName || l.uploadedById)
+          if (hasUser) return false
+        } else {
+          const uName = (l.uploadedBy?.name || l.uploadedByName || (l.uploadedById ? `User #${l.uploadedById}` : '')).toLowerCase()
+          const target = String(uploaderFilter).toLowerCase()
+          if (uName !== target && String(l.uploadedById) !== target && String(l.uploadedBy?.id) !== target) {
+            return false
+          }
+        }
+      }
+
       return true
     })
-  }, [leads, query, fromDate, toDate, leadTypeFilter, sourceFilter, websitePageFilter, statusFilter, ownerFilter, scoreFilter])
+  }, [leads, query, fromDate, toDate, leadTypeFilter, sourceFilter, websitePageFilter, statusFilter, ownerFilter, scoreFilter, uploaderFilter])
 
   // Dynamic quick-chip counts
   const websiteCount = useMemo(() => leads.filter(isWebsiteLead).length, [leads])
@@ -456,10 +507,21 @@ export default function LeadList({ initialFilter = 'all' }) {
     } catch (e) { show('Failed to stop sequence', 'error') }
   }
 
-  // Bulk Upload Logic
+  // Bulk Upload & Download Logic
   const downloadTemplate = () => {
     generateLeadTemplate()
     show('Sample upload template downloaded successfully', 'success')
+  }
+
+  const handleExportLeads = () => {
+    if (!filtered || filtered.length === 0) {
+      show('No leads found in current view to export', 'error')
+      return
+    }
+    const todayStr = new Date().toISOString().split('T')[0]
+    const filename = `CRM_Leads_Export_${todayStr}.xlsx`
+    exportLeadsToExcel(filtered, filename)
+    show(`Exported ${filtered.length} leads to Excel (${filename})`, 'success')
   }
 
   const handleBulkUpload = async () => {
@@ -789,6 +851,41 @@ export default function LeadList({ initialFilter = 'all' }) {
                     </div>
                   </div>
 
+                  {/* Filter 5: Uploaded By (CRM User) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        📤 Uploaded By (CRM User)
+                      </label>
+                      {uploaderFilter !== 'all' && (
+                        <button
+                          type="button"
+                          onClick={() => setUploaderFilter('all')}
+                          className="text-[10px] font-semibold text-rose-600 hover:underline"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                    <select
+                      value={uploaderFilter}
+                      onChange={e => setUploaderFilter(e.target.value)}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="all">All Uploaders & Sources</option>
+                      {availableUploaders.list.map(u => (
+                        <option key={u.name} value={u.name}>
+                          👤 {u.name} {u.email ? `(${u.email})` : ''} — {u.count} lead{u.count === 1 ? '' : 's'}
+                        </option>
+                      ))}
+                      {availableUploaders.systemCount > 0 && (
+                        <option value="system">
+                          ⚙️ System Admin / Direct Sheet ({availableUploaders.systemCount} leads)
+                        </option>
+                      )}
+                    </select>
+                  </div>
+
                   <div className="border-t border-slate-100 pt-3 flex items-center justify-end">
                     <button
                       type="button"
@@ -809,6 +906,26 @@ export default function LeadList({ initialFilter = 'all' }) {
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
               <span>Import (.xlsx)</span>
+            </button>
+
+            {/* Download / Export Filtered Leads Button */}
+            <button
+              onClick={handleExportLeads}
+              disabled={filtered.length === 0}
+              className={`px-3.5 py-2 rounded-xl border text-xs font-semibold shrink-0 shadow-2xs flex items-center gap-1.5 transition-all ${
+                filtered.length === 0
+                  ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed opacity-60'
+                  : 'border-emerald-200 text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100 hover:border-emerald-300 active:scale-[0.98]'
+              }`}
+              title={filtered.length > 0 ? `Download ${filtered.length} filtered leads to Excel (.xlsx)` : 'No leads to download'}
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Download (.xlsx)</span>
+              {filtered.length > 0 && (
+                <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-white text-emerald-700 border border-emerald-200 shadow-2xs">
+                  {filtered.length}
+                </span>
+              )}
             </button>
 
             {/* Add Lead Button */}
@@ -1012,6 +1129,13 @@ export default function LeadList({ initialFilter = 'all' }) {
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">
                 <span><strong>Grade A</strong></span>
                 <button onClick={() => setScoreFilter('all')} className="hover:text-emerald-900 ml-0.5"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+
+            {uploaderFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 text-xs">
+                <span>Uploaded By: <strong>{uploaderFilter === 'system' ? 'System Admin / Direct Sheet' : uploaderFilter}</strong></span>
+                <button onClick={() => setUploaderFilter('all')} className="hover:text-violet-900 ml-0.5"><X className="w-3 h-3" /></button>
               </span>
             )}
 
