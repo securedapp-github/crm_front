@@ -11,7 +11,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Search, MoreHorizontal, Eye, Pencil, Copy, Trash2, FileText, Download } from 'lucide-react';
 import { formatCurrency, getStatusColor, getStatusLabel } from '@/invoice/lib/invoiceUtils';
 import { exportInvoicesToCSV } from '@/invoice/lib/exportUtils';
-import { format } from 'date-fns';
 import { printInvoicePDF, downloadInvoicePDF } from '@/utils/pdfManager';
 import { toast } from 'sonner';
 

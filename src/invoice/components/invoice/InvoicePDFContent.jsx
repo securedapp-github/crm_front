@@ -1,6 +1,5 @@
 import React from 'react';
 import { formatCurrency, numberToWords, getFullFileUrl } from '@/invoice/lib/invoiceUtils';
-import { format } from 'date-fns';
 
 export default function InvoicePDFContent({ invoice, business }) {
   const items = invoice.items || [];

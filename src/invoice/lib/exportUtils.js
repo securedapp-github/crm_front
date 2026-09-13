@@ -1,30 +1,17 @@
+import * as XLSX from 'xlsx';
+
 export function exportToCSV(rows, columns, filename) {
-  const header = columns.map((c) => `"${c.label}"`).join(',');
-  const body = rows.map((row) =>
-    columns.map((c) => {
-      let val = c.accessor(row);
-      if (val === null || val === undefined) val = '';
-      val = String(val).replace(/"/g, '""');
-      return `"${val}"`;
-    }).join(',')
-  ).join('\n');
-
-  const csv = header + '\n' + body;
-  
-  const isIOS = typeof navigator !== 'undefined' && typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-  if (isIOS) {
-    window.open('data:text/csv;charset=utf-8,' + encodeURIComponent(csv), '_blank');
-  } else {
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${filename}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }
+  const data = rows.map((row) => {
+    const obj = {};
+    columns.forEach((c) => { obj[c.label] = c.accessor(row) ?? ''; });
+    return obj;
+  });
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Data');
+  XLSX.writeFile(wb, `${filename}.csv`);
 }
+
 
 export function exportInvoicesToCSV(invoices) {
   exportToCSV(invoices, [
