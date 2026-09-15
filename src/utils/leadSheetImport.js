@@ -333,3 +333,49 @@ export function exportDuplicateLeadsReport(duplicateList, filename = 'Skipped_Du
   XLSX.utils.book_append_sheet(wb, ws, 'Skipped_Duplicates')
   XLSX.writeFile(wb, filename)
 }
+
+/**
+ * Generates and downloads an Excel spreadsheet (.xlsx) of leads with comprehensive metadata.
+ *
+ * @param {Array} leads - List of lead objects to export
+ * @param {string} filename - Filename for the downloaded file
+ */
+export function exportLeadsToExcel(leads, filename = 'CRM_Leads_Export.xlsx') {
+  if (!leads || leads.length === 0) return
+
+  const formattedRows = leads.map((l, index) => {
+    const uploader = l.uploadedBy?.name || l.uploadedByName || (l.sheetSource ? `Sheet: ${l.sheetSource}` : 'System Admin')
+    const owner = l.owner?.name || (l.assignedTo ? `User #${l.assignedTo}` : 'Unassigned')
+    const dateFormatted = l.createdAt ? new Date(l.createdAt).toISOString().split('T')[0] : ''
+
+    return {
+      '#': index + 1,
+      'Lead Name': l.name || `${l.firstName || ''} ${l.lastName || ''}`.trim() || 'N/A',
+      'Company': l.company || '',
+      'Domain': l.accountDomain || '',
+      'Email': l.email || '',
+      'Phone': l.phone || '',
+      'Job Title': l.jobTitle || '',
+      'Stage / Status': l.status || 'New',
+      'Lead Type': l.isMarketingLead ? 'Marketing' : 'Sales',
+      'Uploaded By (CRM User)': uploader,
+      'Assigned Owner': owner,
+      'Source': l.source || '',
+      'Sheet Source Tab': l.sheetSource || '',
+      'Score': l.score ?? '',
+      'Grade': l.grade || '',
+      'Industry': l.industry || '',
+      'Region': l.region || '',
+      'Date Added': dateFormatted,
+      'Description / Notes': l.description || ''
+    }
+  })
+
+  const ws = XLSX.utils.json_to_sheet(formattedRows)
+  ws['!cols'] = getColumnWidths(formattedRows)
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'CRM_Leads')
+  XLSX.writeFile(wb, filename)
+}
+

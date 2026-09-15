@@ -11,7 +11,6 @@ import { Label } from '@/invoice/components/ui/label';
 import { ArrowLeft, Pencil, CreditCard, Share2, Copy, Mail, MessageCircle, Check, Download, Printer } from 'lucide-react';
 import { formatCurrency, getStatusColor, getStatusLabel } from '@/invoice/lib/invoiceUtils';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
 import InvoicePDFContent from '@/invoice/components/invoice/InvoicePDFContent';
 import { printInvoicePDF, downloadInvoicePDF } from '@/utils/pdfManager';
 

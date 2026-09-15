@@ -1,4 +1,3 @@
-import { format } from 'date-fns';
 import { formatCurrency, numberToWords } from '@/invoice/lib/invoiceUtils';
 import html2pdf from 'html2pdf.js';
 import { calculatePayslipTotals } from './payslipUtils';

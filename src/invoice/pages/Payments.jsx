@@ -6,7 +6,6 @@ import { Badge } from '@/invoice/components/ui/badge';
 import { Search, CreditCard, Download } from 'lucide-react';
 import { formatCurrency } from '@/invoice/lib/invoiceUtils';
 import { exportPaymentsToCSV } from '@/invoice/lib/exportUtils';
-import { format } from 'date-fns';
 import { Button } from '@/invoice/components/ui/button';
 
 const methodLabels = {
