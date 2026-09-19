@@ -8,7 +8,7 @@ import { Label } from '@/invoice/components/ui/label';
 import { Textarea } from '@/invoice/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/invoice/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/invoice/components/ui/tabs';
-import { ArrowLeft, Plus, Save, Send, Eye, Edit3, Palette, Search, Settings, Download } from 'lucide-react';
+import { ArrowLeft, Plus, Save, Send, Eye, Edit3, Palette, Search, Settings, Download, RefreshCw, Check } from 'lucide-react';
 import InvoiceItemRow from '@/invoice/components/invoice/InvoiceItemRow';
 import TaxSummary from '@/invoice/components/invoice/TaxSummary';
 import CustomerSelector from '@/invoice/components/invoice/CustomerSelector';
@@ -32,6 +32,8 @@ export default function InvoiceForm() {
   const [saved, setSaved] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(isEdit ? 'Edit Invoice' : 'New Invoice');
+  const [userEditedTerms, setUserEditedTerms] = useState(false);
+  const [originalTerms, setOriginalTerms] = useState('');
 
   const { data: businessList } = useQuery({
     queryKey: ['business'],
@@ -63,6 +65,11 @@ export default function InvoiceForm() {
   });
 
   useEffect(() => {
+    setUserEditedTerms(false);
+    setOriginalTerms('');
+  }, [id]);
+
+  useEffect(() => {
     if (business && !isEdit) {
       setForm((prev) => ({
         ...prev,
@@ -78,12 +85,33 @@ export default function InvoiceForm() {
 
   useEffect(() => {
     if (existingInvoice?.[0] && isEdit) {
-      setForm(existingInvoice[0]);
-      if (existingInvoice[0].invoice_name) {
-        setTitleInput(existingInvoice[0].invoice_name);
+      const inv = existingInvoice[0];
+      const origTerms = inv.terms_and_conditions || '';
+      setOriginalTerms(origTerms);
+
+      const hasBusinessTerms = Boolean(business?.terms_and_conditions && business.terms_and_conditions.trim());
+      const termsToUse = (!userEditedTerms && hasBusinessTerms) ? business.terms_and_conditions : origTerms;
+
+      setForm({
+        ...inv,
+        terms_and_conditions: termsToUse
+      });
+
+      if (inv.invoice_name) {
+        setTitleInput(inv.invoice_name);
       }
     }
-  }, [existingInvoice, isEdit]);
+  }, [existingInvoice, isEdit, business?.terms_and_conditions]);
+
+  // When business terms are available or changed, and user has not manually customized terms, fetch latest terms
+  useEffect(() => {
+    if (isEdit && business?.terms_and_conditions && business.terms_and_conditions.trim() && !userEditedTerms) {
+      setForm((prev) => ({
+        ...prev,
+        terms_and_conditions: business.terms_and_conditions
+      }));
+    }
+  }, [isEdit, business?.terms_and_conditions, userEditedTerms]);
 
   const totals = useMemo(() =>
     calculateInvoiceTotals(form.items, form.tax_type, form.additional_charges_amount),
@@ -121,6 +149,9 @@ export default function InvoiceForm() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['business'] });
+      if (id) {
+        queryClient.invalidateQueries({ queryKey: ['invoice', id] });
+      }
       setSaved(true);
       toast.success('Done! Invoice saved successfully.');
       setTimeout(() => {
@@ -166,7 +197,7 @@ export default function InvoiceForm() {
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold">Billed By</h3>
             {business && (
-              <button type="button" onClick={() => navigate('/dashboard/invoice-settings')} className="text-muted-foreground hover:text-foreground transition-colors" title="Edit Settings">
+              <button type="button" onClick={() => navigate('/dashboard/finance/invoice-generator/settings')} className="text-muted-foreground hover:text-foreground transition-colors" title="Edit Settings">
                 <Settings className="h-4 w-4" />
               </button>
             )}
@@ -182,7 +213,7 @@ export default function InvoiceForm() {
           ) : (
             <div className="p-4 bg-muted/50 rounded-xl text-sm text-center space-y-3">
               <p className="text-muted-foreground">No business profile configured.</p>
-              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/dashboard/invoice-settings')}>
+              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/dashboard/finance/invoice-generator/settings')}>
                 <Settings className="h-3.5 w-3.5" /> Configure Business
               </Button>
             </div>
@@ -267,7 +298,7 @@ export default function InvoiceForm() {
             </thead>
             <tbody>
               {form.items.map((item, i) => (
-                <InvoiceItemRow key={i} item={item} index={i} onChange={updateItem} onRemove={removeItem} />
+                <InvoiceItemRow key={i} item={item} index={i} onChange={updateItem} onRemove={removeItem} currency={form.currency} />
               ))}
             </tbody>
           </table>
@@ -314,8 +345,55 @@ export default function InvoiceForm() {
           <Textarea value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="mt-1 h-24" placeholder="Additional notes..." />
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground">Terms & Conditions</Label>
-          <Textarea value={form.terms_and_conditions || ''} onChange={(e) => setForm({ ...form, terms_and_conditions: e.target.value })} className="mt-1 h-24" placeholder="Payment terms..." />
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground">Terms & Conditions</Label>
+              {business?.terms_and_conditions && form.terms_and_conditions === business.terms_and_conditions && (
+                <span className="text-[10px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5">
+                  <Check className="h-3 w-3" /> Latest terms applied
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {originalTerms && originalTerms !== form.terms_and_conditions && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((prev) => ({ ...prev, terms_and_conditions: originalTerms }));
+                    setUserEditedTerms(true);
+                    toast.info('Restored original invoice terms');
+                  }}
+                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  title="Revert back to the terms originally saved on this invoice"
+                >
+                  Restore original
+                </button>
+              )}
+              {business?.terms_and_conditions && form.terms_and_conditions !== business.terms_and_conditions && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((prev) => ({ ...prev, terms_and_conditions: business.terms_and_conditions }));
+                    setUserEditedTerms(false);
+                    toast.success('Loaded latest Terms & Conditions from settings');
+                  }}
+                  className="text-[11px] text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-medium flex items-center gap-1 transition-colors"
+                  title="Fetch the latest terms configured in Settings"
+                >
+                  <RefreshCw className="h-3 w-3" /> Fetch latest terms
+                </button>
+              )}
+            </div>
+          </div>
+          <Textarea
+            value={form.terms_and_conditions || ''}
+            onChange={(e) => {
+              setUserEditedTerms(true);
+              setForm({ ...form, terms_and_conditions: e.target.value });
+            }}
+            className="h-24"
+            placeholder="Payment terms..."
+          />
         </div>
       </div>
     </div>
@@ -345,7 +423,7 @@ export default function InvoiceForm() {
                 autoFocus
               />
             ) : (
-              <h1 
+              <h1
                 onDoubleClick={() => setIsEditingTitle(true)}
                 onClick={() => setIsEditingTitle(true)}
                 className="text-xl lg:text-2xl font-bold font-display tracking-tight cursor-pointer hover:text-indigo-600 transition-colors"

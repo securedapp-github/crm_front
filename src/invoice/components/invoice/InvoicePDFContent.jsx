@@ -1,39 +1,41 @@
 import React from 'react';
-import { formatCurrency, numberToWords, getFullFileUrl } from '@/invoice/lib/invoiceUtils';
+import { formatCurrency, numberToWords, getFullFileUrl, format } from '@/invoice/lib/invoiceUtils';
 
 export default function InvoicePDFContent({ invoice, business }) {
   const items = invoice.items || [];
   const taxType = invoice.tax_type || 'gst';
-  const hasLongDesc = items.some(item => (item.description || '').length > 100);
-  const isLarge = items.length >= 3 || (invoice.grand_total || 0) >= 100000 || hasLongDesc;
+  const isLarge = items.length >= 6;
   const colWidths = {
     gst: {
       index: 'w-[4%]',
-      item: 'w-[24%]',
-      gstRate: 'w-[8%]',
-      qty: 'w-[8%]',
-      rate: 'w-[11%]',
-      amount: 'w-[11%]',
-      cgst: 'w-[11%]',
-      sgst: 'w-[11%]',
-      total: 'w-[12%]'
+      item: 'w-[22%]',
+      gstRate: 'w-[7%]',
+      qty: 'w-[7%]',
+      rate: 'w-[10%]',
+      discount: 'w-[9%]',
+      amount: 'w-[10%]',
+      cgst: 'w-[10%]',
+      sgst: 'w-[10%]',
+      total: 'w-[11%]'
     },
     igst: {
       index: 'w-[4%]',
-      item: 'w-[28%]',
+      item: 'w-[26%]',
       gstRate: 'w-[8%]',
       qty: 'w-[8%]',
-      rate: 'w-[13%]',
-      amount: 'w-[13%]',
-      igst: 'w-[14%]',
+      rate: 'w-[11%]',
+      discount: 'w-[9%]',
+      amount: 'w-[11%]',
+      igst: 'w-[11%]',
       total: 'w-[12%]'
     },
     none: {
       index: 'w-[5%]',
-      item: 'w-[45%]',
-      qty: 'w-[10%]',
-      rate: 'w-[13%]',
-      amount: 'w-[13%]',
+      item: 'w-[38%]',
+      qty: 'w-[9%]',
+      rate: 'w-[12%]',
+      discount: 'w-[10%]',
+      amount: 'w-[12%]',
       total: 'w-[14%]'
     }
   }[taxType] || {};
@@ -96,6 +98,7 @@ export default function InvoicePDFContent({ invoice, business }) {
               {taxType !== 'none' && <th className={`text-center px-2 py-3 ${colWidths.gstRate}`}>GST Rate</th>}
               <th className={`text-center px-2 py-3 ${colWidths.qty}`}>Quantity</th>
               <th className={`text-right px-2 py-3 ${colWidths.rate}`}>Rate</th>
+              <th className={`text-right px-2 py-3 ${colWidths.discount}`}>Discount</th>
               <th className={`text-right px-2 py-3 ${colWidths.amount}`}>Amount</th>
               {taxType !== 'none' && (
                 taxType === 'gst' ? (
@@ -129,7 +132,17 @@ export default function InvoicePDFContent({ invoice, business }) {
                   {taxType !== 'none' && <td className="px-2 py-3 text-center">{item.tax_percent || 0}%</td>}
                   <td className="px-2 py-3 text-center whitespace-nowrap">{qty}</td>
                   <td className="px-2 py-3 text-right whitespace-nowrap">{formatCurrency(rate, invoice.currency)}</td>
-                  <td className="px-2 py-3 text-right whitespace-nowrap">{formatCurrency(baseAmount, invoice.currency)}</td>
+                  <td className="px-2 py-3 text-right whitespace-nowrap text-emerald-600 font-medium">
+                    {disc > 0 ? (
+                      <div>
+                        <span>{item.discount_percent}%</span>
+                        <div className="text-[10px] text-emerald-700/80">-{formatCurrency(disc, invoice.currency)}</div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-3 text-right whitespace-nowrap">{formatCurrency(taxable, invoice.currency)}</td>
                   {taxType !== 'none' && (
                     taxType === 'gst' ? (
                       <>
@@ -149,7 +162,16 @@ export default function InvoicePDFContent({ invoice, business }) {
               {taxType !== 'none' && <td className="px-2 py-3" />}
               <td className="px-2 py-3 text-center whitespace-nowrap">{items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</td>
               <td className="px-2 py-3" />
-              <td className="px-2 py-3 text-right whitespace-nowrap">{formatCurrency(items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0), invoice.currency)}</td>
+              <td className="px-2 py-3 text-right text-emerald-600 font-bold whitespace-nowrap">
+                {(invoice.total_discount || 0) > 0 ? `-${formatCurrency(invoice.total_discount, invoice.currency)}` : '-'}
+              </td>
+              <td className="px-2 py-3 text-right whitespace-nowrap">
+                {formatCurrency(items.reduce((sum, item) => {
+                  const b = (item.quantity || 0) * (item.rate || 0);
+                  const d = b * ((item.discount_percent || 0) / 100);
+                  return sum + (b - d);
+                }, 0), invoice.currency)}
+              </td>
               {taxType === 'gst' ? (
                 <>
                   <td className="px-2 py-3" />
@@ -167,128 +189,128 @@ export default function InvoicePDFContent({ invoice, business }) {
       {/* Bottom Section */}
       <div className={`break-inside-avoid space-y-4 ${isLarge ? 'border-t-4 border-dashed border-cyan-300 pt-6 mt-8' : ''}`}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-        {/* Bank Details */}
-        <div className="bg-cyan-50/55 border border-cyan-100 rounded-xl p-4 self-start space-y-3">
-          <h3 className="text-xs uppercase font-semibold text-cyan-600 tracking-wider">Bank Details</h3>
-          <table className="w-full text-sm border-none">
-            <tbody className="space-y-1">
-              <tr className="align-top">
-                <td className="w-32 text-gray-500 py-0.5"><strong>Account Name</strong></td>
-                <td className="text-gray-800 py-0.5">{invoice.bank_details?.beneficiary_name || business?.beneficiary_name || '-'}</td>
-              </tr>
-              <tr className="align-top">
-                <td className="w-32 text-gray-500 py-0.5"><strong>Account Number</strong></td>
-                <td className="text-gray-800 py-0.5">{invoice.bank_details?.account_number || business?.account_number || '-'}</td>
-              </tr>
-              <tr className="align-top">
-                <td className="w-32 text-gray-500 py-0.5"><strong>IFSC</strong></td>
-                <td className="text-gray-800 py-0.5">{invoice.bank_details?.ifsc_code || business?.ifsc_code || '-'}</td>
-              </tr>
-              {(invoice.bank_details?.swift_code || business?.swift_code) && (
+          {/* Bank Details */}
+          <div className="bg-cyan-50/55 border border-cyan-100 rounded-xl p-4 self-start space-y-3">
+            <h3 className="text-xs uppercase font-semibold text-cyan-600 tracking-wider">Bank Details</h3>
+            <table className="w-full text-sm border-none">
+              <tbody className="space-y-1">
                 <tr className="align-top">
-                  <td className="w-32 text-gray-500 py-0.5"><strong>SWIFT Code</strong></td>
-                  <td className="text-gray-800 py-0.5">{invoice.bank_details?.swift_code || business?.swift_code}</td>
+                  <td className="w-28 text-gray-500 py-0.5"><strong>Account<br />Name</strong></td>
+                  <td className="text-gray-800 py-0.5">{invoice.bank_details?.beneficiary_name || business?.beneficiary_name || '-'}</td>
                 </tr>
-              )}
-              <tr className="align-top">
-                <td className="w-32 text-gray-500 py-0.5"><strong>Bank</strong></td>
-                <td className="text-gray-800 py-0.5">{invoice.bank_details?.bank_name || business?.bank_name || '-'}</td>
-              </tr>
-              {(invoice.bank_details?.upi_id || business?.upi_id) && (
                 <tr className="align-top">
-                  <td className="w-32 text-gray-500 py-0.5"><strong>UPI</strong></td>
-                  <td className="text-gray-800 py-0.5">{invoice.bank_details?.upi_id || business?.upi_id}</td>
+                  <td className="w-28 text-gray-500 py-0.5"><strong>Account<br />Number</strong></td>
+                  <td className="text-gray-800 py-0.5">{invoice.bank_details?.account_number || business?.account_number || '-'}</td>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Summary and Signature */}
-        <div className="flex flex-col items-end space-y-4">
-          <div className="w-full max-w-[320px] text-sm space-y-2 text-gray-600">
-            <div className="flex justify-between">
-              <span>Amount</span>
-              <strong className="text-gray-900">{formatCurrency(invoice.subtotal, invoice.currency)}</strong>
-            </div>
-            {(invoice.total_discount || 0) > 0 && (
-              <div className="flex justify-between text-green-600">
-                <span>Discount</span>
-                <strong>-{formatCurrency(invoice.total_discount, invoice.currency)}</strong>
-              </div>
-            )}
-            {taxType === 'gst' && (
-              <>
-                <div className="flex justify-between">
-                  <span>CGST</span>
-                  <strong className="text-gray-900">{formatCurrency(invoice.cgst_amount, invoice.currency)}</strong>
-                </div>
-                <div className="flex justify-between">
-                  <span>SGST</span>
-                  <strong className="text-gray-900">{formatCurrency(invoice.sgst_amount, invoice.currency)}</strong>
-                </div>
-              </>
-            )}
-            {taxType === 'igst' && (
-              <div className="flex justify-between">
-                <span>IGST</span>
-                <strong className="text-gray-900">{formatCurrency(invoice.igst_amount, invoice.currency)}</strong>
-              </div>
-            )}
-            {(invoice.additional_charges_amount || 0) > 0 && (
-              <div className="flex justify-between">
-                <span>{invoice.additional_charges_label || 'Additional Charges'}</span>
-                <strong className="text-gray-900">{formatCurrency(invoice.additional_charges_amount, invoice.currency)}</strong>
-              </div>
-            )}
-            <div className="border-y-2 border-gray-900 py-2.5 my-2 flex justify-between font-bold text-gray-900 text-base">
-              <span>Total (INR)</span>
-              <span>{formatCurrency(invoice.grand_total, invoice.currency)}</span>
-            </div>
-            {(invoice.amount_paid || 0) > 0 && (
-              <div className="space-y-1">
-                <div className="flex justify-between text-green-600 text-xs">
-                  <span>Amount Paid</span>
-                  <strong>-{formatCurrency(invoice.amount_paid, invoice.currency)}</strong>
-                </div>
-                <div className="flex justify-between font-semibold text-gray-800">
-                  <span>Balance Due</span>
-                  <strong>{formatCurrency(invoice.balance_due, invoice.currency)}</strong>
-                </div>
-              </div>
-            )}
+                <tr className="align-top">
+                  <td className="w-32 text-gray-500 py-0.5"><strong>IFSC</strong></td>
+                  <td className="text-gray-800 py-0.5">{invoice.bank_details?.ifsc_code || business?.ifsc_code || '-'}</td>
+                </tr>
+                {(invoice.bank_details?.swift_code || business?.swift_code) && (
+                  <tr className="align-top">
+                    <td className="w-32 text-gray-500 py-0.5"><strong>SWIFT Code</strong></td>
+                    <td className="text-gray-800 py-0.5">{invoice.bank_details?.swift_code || business?.swift_code}</td>
+                  </tr>
+                )}
+                <tr className="align-top">
+                  <td className="w-32 text-gray-500 py-0.5"><strong>Bank</strong></td>
+                  <td className="text-gray-800 py-0.5">{invoice.bank_details?.bank_name || business?.bank_name || '-'}</td>
+                </tr>
+                {(invoice.bank_details?.upi_id || business?.upi_id) && (
+                  <tr className="align-top">
+                    <td className="w-32 text-gray-500 py-0.5"><strong>UPI</strong></td>
+                    <td className="text-gray-800 py-0.5">{invoice.bank_details?.upi_id || business?.upi_id}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
 
-          <div className="text-center pt-2 w-48">
-            {business?.signature_url ? (
-              <img src={business.signature_url} alt="Signature" className="h-12 object-contain mx-auto mb-1" />
-            ) : (
-              <div className="h-12"></div>
-            )}
-            <div className="border-t border-gray-200 pt-1">
-              <p className="text-[10px] text-gray-400">Authorized Signatory</p>
+          {/* Summary and Signature */}
+          <div className="flex flex-col items-end space-y-4">
+            <div className="w-full max-w-[320px] text-sm space-y-2 text-gray-600">
+              <div className="flex justify-between">
+                <span>Amount</span>
+                <strong className="text-gray-900">{formatCurrency(invoice.subtotal, invoice.currency)}</strong>
+              </div>
+              {(invoice.total_discount || 0) > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Discount</span>
+                  <strong>-{formatCurrency(invoice.total_discount, invoice.currency)}</strong>
+                </div>
+              )}
+              {taxType === 'gst' && (
+                <>
+                  <div className="flex justify-between">
+                    <span>CGST</span>
+                    <strong className="text-gray-900">{formatCurrency(invoice.cgst_amount, invoice.currency)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>SGST</span>
+                    <strong className="text-gray-900">{formatCurrency(invoice.sgst_amount, invoice.currency)}</strong>
+                  </div>
+                </>
+              )}
+              {taxType === 'igst' && (
+                <div className="flex justify-between">
+                  <span>IGST</span>
+                  <strong className="text-gray-900">{formatCurrency(invoice.igst_amount, invoice.currency)}</strong>
+                </div>
+              )}
+              {(invoice.additional_charges_amount || 0) > 0 && (
+                <div className="flex justify-between">
+                  <span>{invoice.additional_charges_label || 'Additional Charges'}</span>
+                  <strong className="text-gray-900">{formatCurrency(invoice.additional_charges_amount, invoice.currency)}</strong>
+                </div>
+              )}
+              <div className="border-y-2 border-gray-900 py-2.5 my-2 flex justify-between font-bold text-gray-900 text-base">
+                <span>Total (INR)</span>
+                <span>{formatCurrency(invoice.grand_total, invoice.currency)}</span>
+              </div>
+              {(invoice.amount_paid || 0) > 0 && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-green-600 text-xs">
+                    <span>Amount Paid</span>
+                    <strong>-{formatCurrency(invoice.amount_paid, invoice.currency)}</strong>
+                  </div>
+                  <div className="flex justify-between font-semibold text-gray-800">
+                    <span>Balance Due</span>
+                    <strong>{formatCurrency(invoice.balance_due, invoice.currency)}</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="text-center pt-2 w-48">
+              {business?.signature_url ? (
+                <img src={business.signature_url} alt="Signature" className="h-12 object-contain mx-auto mb-1" />
+              ) : (
+                <div className="h-12"></div>
+              )}
+              <div className="border-t border-gray-200 pt-1">
+                <p className="text-[10px] text-gray-400">Authorized Signatory</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Terms & Conditions */}
-      {invoice.terms_and_conditions && (
-        <div className="text-xs text-gray-500 pt-2">
-          <h4 className="font-semibold text-cyan-600 mb-1">Terms and Conditions</h4>
-          <ol className="list-decimal list-inside space-y-0.5">
-            {invoice.terms_and_conditions.split('\n').filter(line => line.trim()).map((line, idx) => (
-              <li key={idx}>{line}</li>
-            ))}
-          </ol>
+        {/* Terms & Conditions */}
+        {(invoice.terms_and_conditions || business?.terms_and_conditions) && (
+          <div className="text-xs text-gray-500 pt-2">
+            <h4 className="font-semibold text-cyan-600 mb-1">Terms and Conditions</h4>
+            <ol className="list-decimal list-inside space-y-0.5">
+              {(invoice.terms_and_conditions || business?.terms_and_conditions).split('\n').filter(line => line.trim()).map((line, idx) => (
+                <li key={idx}>{line}</li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {/* Contact enquiry footer */}
+        <div className="border-t border-gray-100 pt-4 text-center text-xs text-gray-600">
+          For any enquiry, reach out via email at <strong className="text-gray-800">{business?.email || '-'}</strong>, call on <strong className="text-gray-800">{business?.phone || '-'}</strong>
         </div>
-      )}
 
-      {/* Contact enquiry footer */}
-      <div className="border-t border-gray-100 pt-4 text-center text-xs text-gray-600">
-        For any enquiry, reach out via email at <strong className="text-gray-800">{business?.email || '-'}</strong>, call on <strong className="text-gray-800">{business?.phone || '-'}</strong>
-      </div>
-      
       </div>
 
     </div>

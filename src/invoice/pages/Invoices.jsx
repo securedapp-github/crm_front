@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/invoice/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/invoice/components/ui/alert-dialog';
 import { Plus, Search, MoreHorizontal, Eye, Pencil, Copy, Trash2, FileText, Download } from 'lucide-react';
-import { formatCurrency, getStatusColor, getStatusLabel } from '@/invoice/lib/invoiceUtils';
+import { formatCurrency, getStatusColor, getStatusLabel, format } from '@/invoice/lib/invoiceUtils';
 import { exportInvoicesToCSV } from '@/invoice/lib/exportUtils';
 import { printInvoicePDF, downloadInvoicePDF } from '@/utils/pdfManager';
 import { toast } from 'sonner';
@@ -73,6 +73,9 @@ export default function Invoices() {
       const { id, created_date, updated_date, created_by_id, ...data } = invoice;
       data.invoice_number = data.invoice_number + '-COPY';
       data.status = 'draft';
+      if (business?.terms_and_conditions) {
+        data.terms_and_conditions = business.terms_and_conditions;
+      }
       return invoiceApi.entities.Invoice.create(data);
     },
     onSuccess: (newInv) => {
