@@ -9,11 +9,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/invoice/components/ui
 import { Search, Plus, User, ArrowLeftRight, X, Mail, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
+const emptyCustomer = { name: '', email: '', phone: '', gst_number: '', address_line1: '', city: '', state: '', pincode: '' };
+
 export default function CustomerSelector({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [showNew, setShowNew] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({});
+  const [newCustomer, setNewCustomer] = useState(emptyCustomer);
 
   const { data: customers = [], refetch } = useQuery({
     queryKey: ['customers'],
@@ -50,7 +52,7 @@ export default function CustomerSelector({ value, onChange }) {
       refetch();
       handleSelect(created);
       setShowNew(false);
-      setNewCustomer({ name: '', email: '', phone: '', gst_number: '', address_line1: '', city: '', state: '', pincode: '' });
+      setNewCustomer(emptyCustomer);
     } catch (err) {
       toast.error(err.message || 'Failed to add client');
     }
@@ -276,7 +278,7 @@ export default function CustomerSelector({ value, onChange }) {
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" size="sm" onClick={() => setShowNew(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleCreateNew} disabled={!newCustomer.name.trim()}>Save Client</Button>
+            <Button size="sm" onClick={handleCreateNew} disabled={!newCustomer.name?.trim()}>Save Client</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
