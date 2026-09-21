@@ -8,7 +8,7 @@ import { Badge } from '@/invoice/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/invoice/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/invoice/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/invoice/components/ui/alert-dialog';
-import { Plus, Search, MoreHorizontal, Eye, Pencil, Copy, Trash2, FileText, Download } from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Eye, Pencil, Copy, Trash2, FileText, Download, Calendar, X } from 'lucide-react';
 import { formatCurrency, getStatusColor, getStatusLabel, format } from '@/invoice/lib/invoiceUtils';
 import { exportInvoicesToCSV } from '@/invoice/lib/exportUtils';
 import { printInvoicePDF, downloadInvoicePDF } from '@/utils/pdfManager';
@@ -19,7 +19,28 @@ export default function Invoices() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [datePreset, setDatePreset] = useState('all');
   const [deleteId, setDeleteId] = useState(null);
+
+  const handlePresetChange = (preset) => {
+    setDatePreset(preset);
+    if (preset === 'all') return (setDateFrom(''), setDateTo(''));
+    const now = new Date();
+    const toDate = (d) => d.toLocaleDateString('en-CA');
+    const y = now.getFullYear(), m = now.getMonth(), dt = now.getDate();
+    const map = {
+      today: [now, now],
+      yesterday: [new Date(y, m, dt - 1), new Date(y, m, dt - 1)],
+      this_week: [new Date(y, m, dt - ((now.getDay() + 6) % 7)), now],
+      this_month: [new Date(y, m, 1), new Date(y, m + 1, 0)],
+      last_month: [new Date(y, m - 1, 1), new Date(y, m, 0)],
+      last_30_days: [new Date(y, m, dt - 30), now]
+    };
+    if (map[preset]) {
+      setDateFrom(toDate(map[preset][0]));
+      setDateTo(toDate(map[preset][1]));
+    }
+  };
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -126,10 +147,67 @@ export default function Invoices() {
             className="pl-10"
           />
         </div>
-        <div className="flex gap-2 items-center">
-          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-[140px] h-9 text-xs" />
-          <span className="text-xs text-muted-foreground">to</span>
-          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-[140px] h-9 text-xs" />
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+          <Select value={datePreset} onValueChange={handlePresetChange}>
+            <SelectTrigger className="w-[125px] h-9 text-xs">
+              <SelectValue placeholder="Date Range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Dates</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="yesterday">Yesterday</SelectItem>
+              <SelectItem value="this_week">This Week</SelectItem>
+              <SelectItem value="this_month">This Month</SelectItem>
+              <SelectItem value="last_month">Last Month</SelectItem>
+              <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-1.5 bg-background border border-input rounded-md px-2.5 h-9 shadow-sm hover:border-ring focus-within:ring-2 focus-within:ring-ring/20 transition-all">
+            <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setDatePreset('custom');
+              }}
+              onClick={(e) => {
+                try { e.currentTarget.showPicker(); } catch {}
+              }}
+              className="bg-transparent text-xs text-foreground outline-none cursor-pointer w-[110px]"
+              title="Click to select start date"
+            />
+            <span className="text-xs text-muted-foreground select-none">→</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setDatePreset('custom');
+              }}
+              onClick={(e) => {
+                try { e.currentTarget.showPicker(); } catch {}
+              }}
+              className="bg-transparent text-xs text-foreground outline-none cursor-pointer w-[110px]"
+              title="Click to select end date"
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDateFrom('');
+                  setDateTo('');
+                  setDatePreset('all');
+                }}
+                className="text-muted-foreground hover:text-foreground p-0.5 rounded-full hover:bg-muted ml-0.5"
+                title="Clear date filter"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-[160px]">

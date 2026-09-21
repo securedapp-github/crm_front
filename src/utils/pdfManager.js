@@ -514,7 +514,11 @@ export function generateInvoiceHTML(invoice, business) {
         <div class="terms-conditions">
           <h4>Terms and Conditions</h4>
           <ol>
-            ${(invoice.terms_and_conditions || business?.terms_and_conditions).split('\n').filter(line => line.trim()).map(line => `<li>${escapeHtml(line)}</li>`).join('')}
+            ${(invoice.terms_and_conditions || business?.terms_and_conditions)
+              .split('\n')
+              .filter(line => line.trim())
+              .map(line => `<li>${escapeHtml(line.replace(/^\s*(?:\d+[\.\)\-]|[-*•])\s*/, ''))}</li>`)
+              .join('')}
           </ol>
         </div>
       ` : ''}

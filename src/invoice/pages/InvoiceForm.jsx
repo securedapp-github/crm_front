@@ -8,7 +8,7 @@ import { Label } from '@/invoice/components/ui/label';
 import { Textarea } from '@/invoice/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/invoice/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/invoice/components/ui/tabs';
-import { ArrowLeft, Plus, Save, Send, Eye, Edit3, Palette, Search, Settings, Download, RefreshCw, Check } from 'lucide-react';
+import { ArrowLeft, Plus, Save, Send, Eye, Edit3, Palette, Search, Settings, Download, RefreshCw, Check, Mail, MapPin } from 'lucide-react';
 import InvoiceItemRow from '@/invoice/components/invoice/InvoiceItemRow';
 import TaxSummary from '@/invoice/components/invoice/TaxSummary';
 import CustomerSelector from '@/invoice/components/invoice/CustomerSelector';
@@ -184,47 +184,98 @@ export default function InvoiceForm() {
         </div>
         <div>
           <Label className="text-xs text-muted-foreground">Invoice Date</Label>
-          <Input type="date" value={form.invoice_date} onChange={(e) => setForm({ ...form, invoice_date: e.target.value })} className="mt-1" />
+          <Input
+            type="date"
+            value={form.invoice_date}
+            onChange={(e) => setForm({ ...form, invoice_date: e.target.value })}
+            onClick={(e) => { try { e.currentTarget.showPicker(); } catch {} }}
+            className="mt-1 cursor-pointer"
+          />
         </div>
         <div>
           <Label className="text-xs text-muted-foreground">Due Date</Label>
-          <Input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="mt-1" />
+          <Input
+            type="date"
+            value={form.due_date}
+            onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+            onClick={(e) => { try { e.currentTarget.showPicker(); } catch {} }}
+            className="mt-1 cursor-pointer"
+          />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
+        <div className="flex flex-col">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold">Billed By</h3>
+            <h3 className="text-sm font-semibold text-foreground">Billed By</h3>
             {business && (
-              <button type="button" onClick={() => navigate('/dashboard/finance/invoice-generator/settings')} className="text-muted-foreground hover:text-foreground transition-colors" title="Edit Settings">
-                <Settings className="h-4 w-4" />
-              </button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/dashboard/finance/invoice-generator/settings')}
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                title="Edit Business Profile"
+              >
+                <Settings className="h-3.5 w-3.5" />
+                <span>Settings</span>
+              </Button>
             )}
           </div>
           {business && business.company_name ? (
-            <div className="p-4 bg-muted/50 rounded-xl text-sm space-y-1">
-              <p className="font-medium">{business.company_name}</p>
-              {business.address_line1 && <p className="text-muted-foreground">{business.address_line1}, {business.city}, {business.state}</p>}
-              {business.gst_number && <p className="text-muted-foreground">GSTIN: {business.gst_number}</p>}
-              {business.cin_number && <p className="text-muted-foreground">CIN: {business.cin_number}</p>}
-              {business.email && <p className="text-muted-foreground">{business.email}</p>}
+            <div className="p-4 bg-muted/50 border border-border/60 rounded-xl text-sm space-y-1.5 min-h-[160px] flex flex-col justify-between shadow-sm">
+              <div className="space-y-1.5">
+                <p className="font-semibold text-foreground text-sm leading-tight break-words">
+                  {business.company_name}
+                </p>
+                {business.email && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 break-all">
+                    <Mail className="h-3 w-3 text-muted-foreground/70 shrink-0" />
+                    <span>{business.email}</span>
+                  </p>
+                )}
+                {business.address_line1 && (
+                  <p className="text-xs text-muted-foreground leading-relaxed flex items-start gap-1.5 break-words">
+                    <MapPin className="h-3 w-3 text-muted-foreground/70 shrink-0 mt-0.5" />
+                    <span className="flex-1">
+                      {business.address_line1}{business.city ? `, ${business.city}` : ''}{business.state ? `, ${business.state}` : ''}{business.pincode ? ` - ${business.pincode}` : ''}
+                    </span>
+                  </p>
+                )}
+              </div>
+
+              {(business.gst_number || business.cin_number) && (
+                <div className="pt-1.5 mt-auto border-t border-border/40 flex flex-wrap items-center justify-between gap-2">
+                  {business.gst_number && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-medium text-muted-foreground">GSTIN</span>
+                      <span className="text-xs font-mono font-medium text-foreground bg-background/80 px-1.5 py-0.5 rounded border border-border/40">
+                        {business.gst_number}
+                      </span>
+                    </div>
+                  )}
+                  {business.cin_number && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-medium text-muted-foreground">CIN</span>
+                      <span className="text-xs font-mono font-medium text-foreground bg-background/80 px-1.5 py-0.5 rounded border border-border/40">
+                        {business.cin_number}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
-            <div className="p-4 bg-muted/50 rounded-xl text-sm text-center space-y-3">
-              <p className="text-muted-foreground">No business profile configured.</p>
-              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/dashboard/finance/invoice-generator/settings')}>
+            <div className="p-4 bg-muted/30 border border-dashed border-border/80 rounded-xl text-sm text-center min-h-[160px] flex flex-col items-center justify-center space-y-2.5">
+              <p className="text-xs text-muted-foreground">No business profile configured.</p>
+              <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs h-8" onClick={() => navigate('/dashboard/finance/invoice-generator/settings')}>
                 <Settings className="h-3.5 w-3.5" /> Configure Business
               </Button>
             </div>
           )}
         </div>
-        <div>
-          <h3 className="text-sm font-semibold mb-2">Billed To</h3>
-          <CustomerSelector value={form} onChange={handleCustomerChange} />
-          {form.customer_address && <p className="text-xs text-muted-foreground mt-2">{form.customer_address}</p>}
-          {form.customer_gst && <p className="text-xs text-muted-foreground">GSTIN: {form.customer_gst}</p>}
-        </div>
+
+        <CustomerSelector value={form} onChange={handleCustomerChange} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

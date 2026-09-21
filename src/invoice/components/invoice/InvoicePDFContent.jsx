@@ -297,11 +297,16 @@ export default function InvoicePDFContent({ invoice, business }) {
         {/* Terms & Conditions */}
         {(invoice.terms_and_conditions || business?.terms_and_conditions) && (
           <div className="text-xs text-gray-500 pt-2">
-            <h4 className="font-semibold text-cyan-600 mb-1">Terms and Conditions</h4>
-            <ol className="list-decimal list-inside space-y-0.5">
-              {(invoice.terms_and_conditions || business?.terms_and_conditions).split('\n').filter(line => line.trim()).map((line, idx) => (
-                <li key={idx}>{line}</li>
-              ))}
+            <h4 className="font-semibold text-cyan-600 mb-1.5">Terms and Conditions</h4>
+            <ol className="list-decimal list-outside ml-4 space-y-1">
+              {(invoice.terms_and_conditions || business?.terms_and_conditions)
+                .split('\n')
+                .filter(line => line.trim())
+                .map((line, idx) => (
+                  <li key={idx} className="pl-1 leading-relaxed">
+                    {line.replace(/^\s*(?:\d+[\.\)\-]|[-*•])\s*/, '')}
+                  </li>
+                ))}
             </ol>
           </div>
         )}
