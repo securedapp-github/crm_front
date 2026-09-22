@@ -90,7 +90,7 @@ export default function InvoiceView() {
     return (
       <div className="text-center py-20">
         <p className="text-muted-foreground">Invoice not found</p>
-        <Link to="/dashboard/invoices"><Button variant="link">Back to Invoices</Button></Link>
+        <Link to="/dashboard/finance/invoice-generator/list"><Button variant="link">Back to Invoices</Button></Link>
       </div>
     );
   }

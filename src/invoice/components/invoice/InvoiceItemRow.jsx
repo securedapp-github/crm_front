@@ -2,9 +2,9 @@ import React from 'react';
 import { Input } from '@/invoice/components/ui/input';
 import { Button } from '@/invoice/components/ui/button';
 import { Trash2 } from 'lucide-react';
-import { calculateItemAmount } from '@/invoice/lib/invoiceUtils';
+import { calculateItemAmount, formatCurrency } from '@/invoice/lib/invoiceUtils';
 
-export default function InvoiceItemRow({ item, index, onChange, onRemove, showHsn = true }) {
+export default function InvoiceItemRow({ item, index, onChange, onRemove, showHsn = true, currency = 'INR' }) {
   const amount = calculateItemAmount(item);
 
   const handleChange = (field, value) => {
@@ -34,7 +34,7 @@ export default function InvoiceItemRow({ item, index, onChange, onRemove, showHs
       <td className="p-2">
         <Input type="number" value={item.tax_percent ?? 18} onChange={(e) => handleChange('tax_percent', Number(e.target.value))} className="text-sm h-9 w-16" min="0" />
       </td>
-      <td className="p-2 text-right text-sm font-medium min-w-[90px]">₹{amount.toFixed(2)}</td>
+      <td className="p-2 text-right text-sm font-medium min-w-[90px]">{formatCurrency(amount, currency)}</td>
       <td className="p-2">
         <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onRemove(index)}>
           <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />

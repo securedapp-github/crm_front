@@ -605,7 +605,7 @@ export default function DashboardHome() {
         {/* Quick Action Navigation Strip */}
         <section className="flex flex-wrap items-center gap-3">
           <button
-            onClick={() => navigate('/dashboard/sales/deals/new')}
+            onClick={() => navigate('/dashboard/sales')}
             className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200/90 rounded-2xl text-xs sm:text-sm font-semibold text-slate-700 hover:bg-emerald-50/50 hover:border-emerald-300 hover:text-emerald-800 transition-all duration-200 shadow-xs hover:shadow-md hover:-translate-y-0.5"
           >
             <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 group-hover:bg-emerald-200 transition-colors">

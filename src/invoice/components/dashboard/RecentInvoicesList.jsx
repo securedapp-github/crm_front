@@ -11,7 +11,7 @@ export default function RecentInvoicesList({ invoices }) {
     <div className="bg-card rounded-2xl border border-border overflow-hidden">
       <div className="flex items-center justify-between p-6 pb-4">
         <h3 className="text-base font-semibold">Recent Invoices</h3>
-        <Link to="/dashboard/invoices" className="text-xs text-primary font-medium hover:underline flex items-center gap-1">
+        <Link to="/dashboard/finance/invoice-generator/list" className="text-xs text-primary font-medium hover:underline flex items-center gap-1">
           View all <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
@@ -22,7 +22,7 @@ export default function RecentInvoicesList({ invoices }) {
           </div>
         )}
         {recent.map((inv) => (
-          <Link key={inv.id} to={`/dashboard/invoices/${inv.id}`} className="flex items-center justify-between px-6 py-3.5 hover:bg-muted/50 transition-colors">
+          <Link key={inv.id} to={`/dashboard/finance/invoice-generator/list/${inv.id}`} className="flex items-center justify-between px-6 py-3.5 hover:bg-muted/50 transition-colors">
             <div className="flex items-center gap-4">
               <div>
                 <p className="text-sm font-medium">{inv.customer_name}</p>

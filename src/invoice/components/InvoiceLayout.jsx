@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from "react-router-dom"
 import { ArrowLeft } from "lucide-react"
+import ErrorBoundary from "@/components/ErrorBoundary"
 
 const TABS = [
   { href: '/dashboard/finance/invoice-generator', label: 'Create Invoice' },
@@ -47,7 +48,9 @@ export default function InvoiceLayout() {
         </div>
       </div>
       <div className="animate-fade-up">
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </div>
     </div>
   )

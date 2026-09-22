@@ -116,7 +116,8 @@ export default function Dashboard() {
     // Add specific prefixes based on roles
     if (roles.includes('sales')) {
       allowedPrefixes.push('/dashboard/sales-dashboard');
-      allowedPrefixes.push('/dashboard/sales/');
+      allowedPrefixes.push('/dashboard/sales');
+      allowedPrefixes.push('/dashboard/sales-team');
     }
     
     if (roles.includes('marketing')) {
@@ -205,6 +206,7 @@ export default function Dashboard() {
         map.techTeam,
         map.hrTeam,
         map.finance,
+        map.tickets,
         map.leave
       ];
     }

@@ -53,6 +53,7 @@ import InvoicePayments from '@/invoice/pages/Payments'
 import InvoiceProducts from '@/invoice/pages/Products'
 import InvoiceSettings from '@/invoice/pages/Settings'
 import InvoiceLayout from '@/invoice/components/InvoiceLayout'
+import ErrorBoundary from './components/ErrorBoundary'
 import { Toaster } from 'sonner'
 
 function App() {
@@ -61,8 +62,9 @@ function App() {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ToastProvider>
           <Toaster position="top-center" richColors />
-          <Navbar />
-          <Routes>
+          <ErrorBoundary>
+            <Navbar />
+            <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
@@ -126,6 +128,7 @@ function App() {
             </Route>
             <Route path="/invoice/:id/public" element={<PublicInvoice />} />
           </Routes>
+          </ErrorBoundary>
         </ToastProvider>
       </BrowserRouter>
     </QueryClientProvider>

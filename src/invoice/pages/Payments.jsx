@@ -4,7 +4,7 @@ import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Input } from '@/invoice/components/ui/input';
 import { Badge } from '@/invoice/components/ui/badge';
 import { Search, CreditCard, Download } from 'lucide-react';
-import { formatCurrency } from '@/invoice/lib/invoiceUtils';
+import { formatCurrency, format } from '@/invoice/lib/invoiceUtils';
 import { exportPaymentsToCSV } from '@/invoice/lib/exportUtils';
 import { Button } from '@/invoice/components/ui/button';
 

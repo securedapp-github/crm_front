@@ -1,15 +1,15 @@
-import { formatCurrency, numberToWords } from '@/invoice/lib/invoiceUtils';
+import { formatCurrency, numberToWords, format } from '@/invoice/lib/invoiceUtils';
 import html2pdf from 'html2pdf.js';
 import { calculatePayslipTotals } from './payslipUtils';
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-const isDev = typeof window !== 'undefined' && 
-  (window.location?.hostname === 'localhost' || 
-   window.location?.hostname === '127.0.0.1' || 
-   window.location?.hostname === '::1');
+const isDev = typeof window !== 'undefined' &&
+  (window.location?.hostname === 'localhost' ||
+    window.location?.hostname === '127.0.0.1' ||
+    window.location?.hostname === '::1');
 
 function logDebug(...args) {
   if (isDev) {
@@ -70,37 +70,39 @@ export function generateInvoiceHTML(invoice, business) {
   const colWidths = {
     gst: {
       index: '4%',
-      item: '24%',
-      gstRate: '8%',
-      qty: '8%',
-      rate: '11%',
-      amount: '11%',
-      cgst: '11%',
-      sgst: '11%',
-      total: '12%'
+      item: '22%',
+      gstRate: '7%',
+      qty: '7%',
+      rate: '10%',
+      discount: '9%',
+      amount: '10%',
+      cgst: '10%',
+      sgst: '10%',
+      total: '11%'
     },
     igst: {
       index: '4%',
-      item: '28%',
+      item: '26%',
       gstRate: '8%',
       qty: '8%',
-      rate: '13%',
-      amount: '13%',
-      igst: '14%',
+      rate: '11%',
+      discount: '9%',
+      amount: '11%',
+      igst: '11%',
       total: '12%'
     },
     none: {
       index: '5%',
-      item: '45%',
-      qty: '10%',
-      rate: '13%',
-      amount: '13%',
+      item: '38%',
+      qty: '9%',
+      rate: '12%',
+      discount: '10%',
+      amount: '12%',
       total: '14%'
     }
   }[taxType] || {};
 
-  const hasLongDesc = items.some(item => (item.description || '').length > 100);
-  const isLarge = items.length >= 3 || (invoice.grand_total || 0) >= 100000 || hasLongDesc;
+  const isLarge = items.length >= 6;
 
   return `
     <!DOCTYPE html>
@@ -377,6 +379,7 @@ export function generateInvoiceHTML(invoice, business) {
             ${taxType !== 'none' ? `<th class="text-center" style="width: ${colWidths.gstRate};">GST Rate</th>` : ''}
             <th class="text-center" style="width: ${colWidths.qty};">Quantity</th>
             <th class="text-right" style="width: ${colWidths.rate};">Rate</th>
+            <th class="text-right" style="width: ${colWidths.discount};">Discount</th>
             <th class="text-right" style="width: ${colWidths.amount};">Amount</th>
             ${taxType !== 'none' ? (taxType === 'gst' ? `<th class="text-right" style="width: ${colWidths.cgst};">CGST</th><th class="text-right" style="width: ${colWidths.sgst};">SGST</th>` : `<th class="text-right" style="width: ${colWidths.igst};">IGST</th>`) : ''}
             <th class="text-right" style="width: ${colWidths.total};">Total</th>
@@ -384,14 +387,14 @@ export function generateInvoiceHTML(invoice, business) {
         </thead>
         <tbody>
           ${items.map((item, i) => {
-            const qty = item.quantity || 0;
-            const rate = item.rate || 0;
-            const baseAmount = qty * rate;
-            const disc = baseAmount * ((item.discount_percent || 0) / 100);
-            const taxable = baseAmount - disc;
-            const taxAmt = taxable * ((item.tax_percent || 0) / 100);
-            const itemTotal = taxable + taxAmt;
-            return `
+    const qty = item.quantity || 0;
+    const rate = item.rate || 0;
+    const baseAmount = qty * rate;
+    const disc = baseAmount * ((item.discount_percent || 0) / 100);
+    const taxable = baseAmount - disc;
+    const taxAmt = taxable * ((item.tax_percent || 0) / 100);
+    const itemTotal = taxable + taxAmt;
+    return `
               <tr>
                 <td>${i + 1}.</td>
                 <td>
@@ -401,7 +404,10 @@ export function generateInvoiceHTML(invoice, business) {
                 ${taxType !== 'none' ? `<td class="text-center" style="white-space: nowrap;">${item.tax_percent || 0}%</td>` : ''}
                 <td class="text-center" style="white-space: nowrap;">${qty}</td>
                 <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(rate, invoice.currency))}</td>
-                <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(baseAmount, invoice.currency))}</td>
+                <td class="text-right" style="white-space: nowrap; color: #16a34a;">
+                  ${disc > 0 ? `<strong>${item.discount_percent}%</strong><div style="font-size: 10px; color: #15803d;">-${escapeHtml(formatCurrency(disc, invoice.currency))}</div>` : '<span style="color: #94a3b8;">-</span>'}
+                </td>
+                <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(taxable, invoice.currency))}</td>
                 ${taxType !== 'none' ? (taxType === 'gst' ? `
                   <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(taxAmt / 2, invoice.currency))}</td>
                   <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(taxAmt / 2, invoice.currency))}</td>
@@ -411,13 +417,22 @@ export function generateInvoiceHTML(invoice, business) {
                 <td class="text-right" style="font-weight: 600; color: #1e293b; white-space: nowrap;">${escapeHtml(formatCurrency(itemTotal, invoice.currency))}</td>
               </tr>
             `;
-          }).join('')}
+  }).join('')}
           <tr class="total-row">
             <td colspan="2" style="font-weight: 700;">Total</td>
             ${taxType !== 'none' ? '<td></td>' : ''}
             <td class="text-center" style="font-weight: 700; white-space: nowrap;">${items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</td>
             <td></td>
-            <td class="text-right" style="font-weight: 700; white-space: nowrap;">${escapeHtml(formatCurrency(items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0), invoice.currency))}</td>
+            <td class="text-right" style="font-weight: 700; white-space: nowrap; color: #16a34a;">
+              ${(invoice.total_discount || 0) > 0 ? `-${escapeHtml(formatCurrency(invoice.total_discount, invoice.currency))}` : '-'}
+            </td>
+            <td class="text-right" style="font-weight: 700; white-space: nowrap;">
+              ${escapeHtml(formatCurrency(items.reduce((sum, item) => {
+    const b = (item.quantity || 0) * (item.rate || 0);
+    const d = b * ((item.discount_percent || 0) / 100);
+    return sum + (b - d);
+  }, 0), invoice.currency))}
+            </td>
             ${taxType === 'gst' ? '<td></td><td></td>' : (taxType === 'igst' ? '<td></td>' : '')}
             <td class="text-right" style="font-weight: 700; color: #0f172a; white-space: nowrap;">${escapeHtml(formatCurrency(invoice.grand_total, invoice.currency))}</td>
           </tr>
@@ -429,8 +444,8 @@ export function generateInvoiceHTML(invoice, business) {
           <div class="bank-details-box">
           <h3>Bank Details</h3>
           <table>
-            <tr><td><strong>Account Name</strong></td><td>${escapeHtml(invoice.bank_details?.beneficiary_name || business?.beneficiary_name || '-')}</td></tr>
-            <tr><td><strong>Account Number</strong></td><td>${escapeHtml(invoice.bank_details?.account_number || business?.account_number || '-')}</td></tr>
+            <tr><td style="width: 120px; vertical-align: top;"><strong>Account<br>Name</strong></td><td>${escapeHtml(invoice.bank_details?.beneficiary_name || business?.beneficiary_name || '-')}</td></tr>
+            <tr><td style="width: 120px; vertical-align: top;"><strong>Account<br>Number</strong></td><td>${escapeHtml(invoice.bank_details?.account_number || business?.account_number || '-')}</td></tr>
             <tr><td><strong>IFSC</strong></td><td>${escapeHtml(invoice.bank_details?.ifsc_code || business?.ifsc_code || '-')}</td></tr>
             ${(invoice.bank_details?.swift_code || business?.swift_code) ? `<tr><td><strong>SWIFT Code</strong></td><td>${escapeHtml(invoice.bank_details?.swift_code || business?.swift_code)}</td></tr>` : ''}
             <tr><td><strong>Bank</strong></td><td>${escapeHtml(invoice.bank_details?.bank_name || business?.bank_name || '-')}</td></tr>
@@ -495,11 +510,15 @@ export function generateInvoiceHTML(invoice, business) {
         </div>
       </div>
 
-      ${invoice.terms_and_conditions ? `
+      ${(invoice.terms_and_conditions || business?.terms_and_conditions) ? `
         <div class="terms-conditions">
           <h4>Terms and Conditions</h4>
           <ol>
-            ${invoice.terms_and_conditions.split('\n').filter(line => line.trim()).map(line => `<li>${escapeHtml(line)}</li>`).join('')}
+            ${(invoice.terms_and_conditions || business?.terms_and_conditions)
+              .split('\n')
+              .filter(line => line.trim())
+              .map(line => `<li>${escapeHtml(line.replace(/^\s*(?:\d+[\.\)\-]|[-*•])\s*/, ''))}</li>`)
+              .join('')}
           </ol>
         </div>
       ` : ''}
@@ -861,7 +880,7 @@ function downloadPDFFromHTML(htmlContent, filename) {
         const totalPages = pdf.internal.getNumberOfPages();
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
-        
+
         for (let i = 1; i <= totalPages; i++) {
           pdf.setPage(i);
           pdf.setFontSize(9);

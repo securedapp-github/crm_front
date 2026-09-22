@@ -62,13 +62,24 @@ export function formatCurrency(amount, currency = 'INR') {
   const num = Number(amount);
   const cleanNum = isNaN(num) ? 0 : num;
   const cleanCurrency = String(currency || 'INR').toUpperCase();
+  const hasPaise = Math.abs(Math.round(cleanNum * 100)) % 100 !== 0;
+  const fractionDigits = hasPaise ? 2 : 0;
+
   if (cleanCurrency === 'INR') {
-    return '₹' + cleanNum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return '₹' + cleanNum.toLocaleString('en-IN', {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits
+    });
   }
   try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: cleanCurrency }).format(cleanNum);
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: cleanCurrency,
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits
+    }).format(cleanNum);
   } catch (err) {
-    return `${cleanCurrency} ${cleanNum.toFixed(2)}`;
+    return `${cleanCurrency} ${hasPaise ? cleanNum.toFixed(2) : cleanNum.toFixed(0)}`;
   }
 }
 
@@ -106,7 +117,7 @@ export function numberToWords(num) {
   const decPart = Math.round((Math.abs(n) - intPart) * 100);
 
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
-  'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
   const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
   function convert(val) {
@@ -147,3 +158,22 @@ export function getFullFileUrl(url) {
   }
   return url;
 }
+
+export function formatDate(date, formatPattern = 'MMM dd, yyyy') {
+  if (!date) return '-';
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return '-';
+
+  const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = monthsShort[d.getMonth()];
+  const year = d.getFullYear();
+
+  if (formatPattern === 'dd MMM yyyy') {
+    return `${day} ${month} ${year}`;
+  }
+  return `${month} ${day}, ${year}`;
+}
+
+export const format = formatDate;
+
