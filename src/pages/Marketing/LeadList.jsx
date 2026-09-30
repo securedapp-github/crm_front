@@ -105,6 +105,16 @@ export default function LeadList({ initialFilter = 'all' }) {
   const [assignTarget, setAssignTarget] = useState('')
   const [assignSaving, setAssignSaving] = useState(false)
 
+  // Current logged in user & admin check
+  const localUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null')
+    } catch {
+      return null
+    }
+  }, [])
+  const isAdmin = Boolean(localUser?.role && localUser.role.toLowerCase().includes('admin'))
+
   // Global keyboard shortcut for search focus (Cmd/Ctrl + K or '/')
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1272,11 +1282,40 @@ export default function LeadList({ initialFilter = 'all' }) {
                           <span className="inline-flex items-center gap-1.5 font-medium text-xs text-slate-800">
                             <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
                             {l.owner.name}
+                            {isAdmin && (
+                              <button
+                                onClick={() => {
+                                  setAssigningLead(l)
+                                  setAssignTarget(l.assignedTo ? String(l.assignedTo) : '')
+                                  setAssignOpen(true)
+                                }}
+                                title="Change Owner (Admin)"
+                                className="ml-1 text-[10px] text-slate-400 hover:text-indigo-600 transition-colors"
+                              >
+                                ✏️
+                              </button>
+                            )}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60 font-medium">
-                            ⏳ Unassigned
-                          </span>
+                          <button
+                            onClick={() => {
+                              if (isAdmin) {
+                                setAssigningLead(l)
+                                setAssignTarget('')
+                                setAssignOpen(true)
+                              } else {
+                                show('Only administrators can assign lead owners.', 'warning')
+                              }
+                            }}
+                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border font-medium transition-colors ${
+                              isAdmin
+                                ? 'text-amber-700 bg-amber-50 hover:bg-amber-100 border-amber-200/80 cursor-pointer'
+                                : 'text-amber-600 bg-amber-50 border-amber-200/60 cursor-default'
+                            }`}
+                            title={isAdmin ? 'Click to assign lead owner' : 'Only administrators can assign owners'}
+                          >
+                            ⏳ Unassigned {isAdmin && <span className="text-[10px] font-semibold text-indigo-600 ml-1">+ Assign</span>}
+                          </button>
                         )}
                       </td>
 
@@ -1363,16 +1402,20 @@ export default function LeadList({ initialFilter = 'all' }) {
                             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                               <div className="flex items-center justify-between">
                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Owner</p>
-                                <button
-                                  onClick={() => {
-                                    setAssigningLead(l)
-                                    setAssignTarget(l.assignedTo ? String(l.assignedTo) : '')
-                                    setAssignOpen(true)
-                                  }}
-                                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                                >
-                                  {l.owner?.name ? 'Change Owner' : '+ Assign'}
-                                </button>
+                                {isAdmin ? (
+                                  <button
+                                    onClick={() => {
+                                      setAssigningLead(l)
+                                      setAssignTarget(l.assignedTo ? String(l.assignedTo) : '')
+                                      setAssignOpen(true)
+                                    }}
+                                    className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                                  >
+                                    {l.owner?.name ? 'Change Owner' : '+ Assign'}
+                                  </button>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 font-medium">(Admin only)</span>
+                                )}
                               </div>
                               <p className="mt-1 text-sm text-slate-800 font-medium">{l.owner?.name || 'Unassigned'}</p>
                             </div>
