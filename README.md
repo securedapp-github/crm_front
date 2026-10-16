@@ -34,7 +34,3 @@ Frontend application for the CRM system built with React.js
      ```env
      VITE_API_URL=http://localhost:5000/api
      ```
-
-For a deployed frontend, set `VITE_API_URL` to the publicly reachable backend
-API URL (e.g. `https://crm.securedapp.io/api`). Do not deploy a production build with `localhost` unless the backend
-is intentionally running on every user's machine.
