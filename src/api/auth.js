@@ -1,18 +1,40 @@
 import axios from 'axios'
 
+const LIVE_API_URL = 'https://crm.securedapp.io/api'
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+
+const isLocalHost = (hostname = '') => LOCAL_HOSTS.has(hostname.toLowerCase())
+
+const normalizeApiUrl = (value) => {
+  const raw = value ? value.trim() : ''
+  if (!raw) return ''
+  return raw.endsWith('/api') ? raw : `${raw.replace(/\/$/, '')}/api`
+}
+
 const getBaseApiUrl = () => {
-  // If running locally in browser (localhost or 127.0.0.1), always route to local backend port 5000
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return 'http://localhost:5000/api'
+  const browserHost = typeof window !== 'undefined' ? window.location.hostname : ''
+  const isLocalBrowser = isLocalHost(browserHost)
+  const configuredUrl = normalizeApiUrl(import.meta.env.VITE_API_URL || '')
+
+  if (configuredUrl) {
+    // A localhost API in a production build points to the visitor's machine,
+    // which is the usual cause of browser-level "Network Error" messages.
+    // Keep it for local development, but use the live host remotely.
+    try {
+      const baseOrigin = typeof window !== 'undefined' ? window.location.origin : LIVE_API_URL
+      const configuredHost = new URL(configuredUrl, baseOrigin).hostname
+      if (isLocalBrowser || !isLocalHost(configuredHost)) return configuredUrl
+    } catch (_) {
+      if (isLocalBrowser) return configuredUrl
+    }
   }
-  if (import.meta.env.VITE_API_URL) {
-    const raw = import.meta.env.VITE_API_URL.trim()
-    return raw.endsWith('/api') ? raw : `${raw.replace(/\/$/, '')}/api`
-  }
+
   if (typeof window !== 'undefined') {
-    return `${window.location.origin}/api`
+    if (isLocalBrowser) return 'http://localhost:5000/api'
+    const origin = window.location.origin || ''
+    return isLocalHost(window.location.hostname) ? LIVE_API_URL : `${origin}/api`
   }
-  return 'http://localhost:5000/api'
+  return LIVE_API_URL
 }
 
 const API = getBaseApiUrl()
@@ -38,11 +60,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const { config } = error;
-    if (!config || !config.retryCount) {
-      config.retryCount = 0;
-    }
+    if (!config) return Promise.reject(error)
+    config.retryCount = config.retryCount || 0
     // Only retry GET requests on network errors or 502/503/504 gateway errors
-    const isRetryable = config.method === 'get' && (!error.response || [502, 503, 504].includes(error.response.status));
+    const isRetryable = config.method === 'get' && error.code !== 'ERR_CANCELED' &&
+      (!error.response || [502, 503, 504].includes(error.response.status));
     if (isRetryable && config.retryCount < 2) {
       config.retryCount += 1;
       // Exponential backoff: 1s, 2s

@@ -3,12 +3,18 @@ const getApiBase = () => {
   if (viteApiUrl) {
     try {
       const url = new URL(viteApiUrl);
-      return `${url.origin}/local-api`;
+      const browserHost = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isLocalBrowser = ['localhost', '127.0.0.1', '::1'].includes(browserHost);
+      const isLocalConfiguredApi = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+      if (isLocalBrowser || !isLocalConfiguredApi) return `${url.origin}/local-api`;
     } catch (e) {
-      return '/local-api';
+      // Use the same-origin proxy for invalid or relative production config.
     }
   }
-  return '/local-api';
+  if (typeof window !== 'undefined' && !['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)) {
+    return `${window.location.origin}/local-api`;
+  }
+  return 'https://crm.securedapp.io/local-api';
 };
 
 const API_BASE = getApiBase();

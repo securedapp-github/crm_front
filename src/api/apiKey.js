@@ -3,10 +3,7 @@ import axios from 'axios';
 
 // Base API endpoint determination
 const getApiBaseUrl = () => {
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return 'http://localhost:5000/api';
-  }
-  return import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  return api.defaults.baseURL || 'https://crm.securedapp.io/api';
 };
 
 // CRM Internal Management Endpoints (authenticated via JWT)
