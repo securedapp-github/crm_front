@@ -12,28 +12,15 @@ const normalizeApiUrl = (value) => {
 }
 
 const getBaseApiUrl = () => {
-  const browserHost = typeof window !== 'undefined' ? window.location.hostname : ''
-  const isLocalBrowser = isLocalHost(browserHost)
   const configuredUrl = normalizeApiUrl(import.meta.env.VITE_API_URL || '')
 
   if (configuredUrl) {
-    // A localhost API in a production build points to the visitor's machine,
-    // which is the usual cause of browser-level "Network Error" messages.
-    // Keep it for local development, but use the live host remotely.
     try {
-      const baseOrigin = typeof window !== 'undefined' ? window.location.origin : LIVE_API_URL
-      const configuredHost = new URL(configuredUrl, baseOrigin).hostname
-      if (isLocalBrowser || !isLocalHost(configuredHost)) return configuredUrl
-    } catch (_) {
-      if (isLocalBrowser) return configuredUrl
-    }
+      const configuredHost = new URL(configuredUrl).hostname
+      if (!isLocalHost(configuredHost)) return configuredUrl
+    } catch (_) {}
   }
 
-  if (typeof window !== 'undefined') {
-    if (isLocalBrowser) return 'http://localhost:5000/api'
-    const origin = window.location.origin || ''
-    return isLocalHost(window.location.hostname) ? LIVE_API_URL : `${origin}/api`
-  }
   return LIVE_API_URL
 }
 

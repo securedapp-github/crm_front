@@ -10,12 +10,14 @@ import RecentInvoicesList from '@/invoice/components/dashboard/RecentInvoicesLis
 export default function InvoiceDashboard() {
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices'],
-    queryFn: () => invoiceApi.entities.Invoice.list('-created_date', 200)
+    queryFn: () => invoiceApi.entities.Invoice.list('-created_date', 200),
+    placeholderData: (prev) => prev,
   });
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => invoiceApi.entities.Customer.list()
+    queryFn: () => invoiceApi.entities.Customer.list('-created_date', 200),
+    placeholderData: (prev) => prev,
   });
 
   const stats = React.useMemo(() => {
@@ -60,10 +62,19 @@ export default function InvoiceDashboard() {
     return Object.values(map).sort((a, b) => b.total - a.total).slice(0, 5);
   }, [invoices]);
 
-  if (isLoading) {
+  if (isLoading && invoices.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[50vh]">
-        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      <div className="space-y-8 animate-pulse">
+        <div className="space-y-2">
+          <div className="h-8 w-52 bg-slate-200 rounded-lg" />
+          <div className="h-4 w-40 bg-slate-100 rounded" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-28 bg-card rounded-2xl border border-border p-5" />
+          ))}
+        </div>
+        <div className="h-64 bg-card rounded-2xl border border-border p-5" />
       </div>
     );
   }

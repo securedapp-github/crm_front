@@ -46,12 +46,14 @@ export default function Invoices() {
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices'],
-    queryFn: () => invoiceApi.entities.Invoice.list('-created_date', 200)
+    queryFn: () => invoiceApi.entities.Invoice.list('-created_date', 200),
+    placeholderData: (prev) => prev,
   });
 
   const { data: businessList } = useQuery({
     queryKey: ['business'],
-    queryFn: () => invoiceApi.entities.Business.list()
+    queryFn: () => invoiceApi.entities.Business.list(),
+    placeholderData: (prev) => prev,
   });
   const business = businessList?.[0] || null;
 
@@ -115,10 +117,22 @@ export default function Invoices() {
     return matchSearch && matchStatus && matchDateFrom && matchDateTo;
   });
 
-  if (isLoading) {
+  if (isLoading && invoices.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[50vh]">
-        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <div className="h-8 w-44 bg-slate-200 rounded-lg animate-pulse" />
+            <div className="h-4 w-32 bg-slate-100 rounded animate-pulse" />
+          </div>
+          <div className="h-10 w-32 bg-slate-200 rounded-lg animate-pulse" />
+        </div>
+        <div className="bg-card rounded-2xl border border-border overflow-hidden p-6 space-y-4 animate-pulse">
+          <div className="h-10 bg-slate-100 rounded-lg" />
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-14 bg-slate-100/70 rounded-lg border border-slate-200/50" />
+          ))}
+        </div>
       </div>
     );
   }

@@ -16,7 +16,8 @@ export default function Settings() {
 
   const { data: businessList, isLoading } = useQuery({
     queryKey: ['business'],
-    queryFn: () => invoiceApi.entities.Business.list()
+    queryFn: () => invoiceApi.entities.Business.list(),
+    placeholderData: (prev) => prev,
   });
 
   const business = businessList?.[0];
@@ -73,10 +74,24 @@ export default function Settings() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !business) {
     return (
-      <div className="flex items-center justify-center h-[50vh]">
-        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      <div className="space-y-6 max-w-[800px] animate-pulse">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-48 bg-slate-200 rounded-lg" />
+            <div className="h-4 w-40 bg-slate-100 rounded" />
+          </div>
+          <div className="h-10 w-32 bg-slate-200 rounded-lg" />
+        </div>
+        <div className="h-12 bg-slate-100 rounded-lg" />
+        <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
+          <div className="h-10 bg-slate-100/70 rounded-lg" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="h-10 bg-slate-100/70 rounded-lg" />
+            <div className="h-10 bg-slate-100/70 rounded-lg" />
+          </div>
+        </div>
       </div>
     );
   }

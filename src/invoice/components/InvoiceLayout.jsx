@@ -1,19 +1,76 @@
+import React, { useEffect, useCallback } from "react"
 import { Link, Outlet, useLocation } from "react-router-dom"
 import { ArrowLeft } from "lucide-react"
 import ErrorBoundary from "@/components/ErrorBoundary"
+import { useQueryClient } from "@tanstack/react-query"
+import { invoiceApi } from "@/invoice/api/invoiceClient"
 
 const TABS = [
-  { href: '/dashboard/finance/invoice-generator', label: 'Create Invoice' },
-  { href: '/dashboard/finance/invoice-generator/dashboard', label: 'Dashboard' },
-  { href: '/dashboard/finance/invoice-generator/list', label: 'All Invoices' },
-  { href: '/dashboard/finance/invoice-generator/customers', label: 'Customers' },
-  { href: '/dashboard/finance/invoice-generator/payments', label: 'Payments' },
-  { href: '/dashboard/finance/invoice-generator/catalog', label: 'Product Catalog' },
-  { href: '/dashboard/finance/invoice-generator/settings', label: 'Settings' },
+  { href: '/dashboard/finance/invoice-generator', label: 'Create Invoice', id: 'create' },
+  { href: '/dashboard/finance/invoice-generator/dashboard', label: 'Dashboard', id: 'dashboard' },
+  { href: '/dashboard/finance/invoice-generator/list', label: 'All Invoices', id: 'invoices' },
+  { href: '/dashboard/finance/invoice-generator/customers', label: 'Customers', id: 'customers' },
+  { href: '/dashboard/finance/invoice-generator/payments', label: 'Payments', id: 'payments' },
+  { href: '/dashboard/finance/invoice-generator/catalog', label: 'Product Catalog', id: 'products' },
+  { href: '/dashboard/finance/invoice-generator/settings', label: 'Settings', id: 'settings' },
 ]
 
 export default function InvoiceLayout() {
   const location = useLocation()
+  const queryClient = useQueryClient()
+
+  const prefetchTab = useCallback((tabId) => {
+    try {
+      if (tabId === 'customers' || tabId === 'dashboard') {
+        queryClient.prefetchQuery({
+          queryKey: ['customers'],
+          queryFn: () => invoiceApi.entities.Customer.list('-created_date', 200),
+          staleTime: 5 * 60 * 1000,
+        })
+      }
+      if (tabId === 'invoices' || tabId === 'dashboard') {
+        queryClient.prefetchQuery({
+          queryKey: ['invoices'],
+          queryFn: () => invoiceApi.entities.Invoice.list('-created_date', 200),
+          staleTime: 5 * 60 * 1000,
+        })
+      }
+      if (tabId === 'create' || tabId === 'invoices' || tabId === 'settings') {
+        queryClient.prefetchQuery({
+          queryKey: ['business'],
+          queryFn: () => invoiceApi.entities.Business.list(),
+          staleTime: 5 * 60 * 1000,
+        })
+      }
+      if (tabId === 'payments') {
+        queryClient.prefetchQuery({
+          queryKey: ['payments'],
+          queryFn: () => invoiceApi.entities.Payment.list('-created_date', 200),
+          staleTime: 5 * 60 * 1000,
+        })
+      }
+      if (tabId === 'products') {
+        queryClient.prefetchQuery({
+          queryKey: ['products'],
+          queryFn: () => invoiceApi.entities.Product.list('-updated_date', 200),
+          staleTime: 5 * 60 * 1000,
+        })
+      }
+    } catch (_) {}
+  }, [queryClient])
+
+  // Warm up cache for all invoice tabs as soon as user opens invoice generator
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      prefetchTab('dashboard')
+      prefetchTab('customers')
+      prefetchTab('invoices')
+      prefetchTab('payments')
+      prefetchTab('products')
+      prefetchTab('settings')
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [prefetchTab])
 
   const isActive = (tabHref) => {
     if (tabHref === '/dashboard/finance/invoice-generator') {
@@ -35,6 +92,8 @@ export default function InvoiceLayout() {
               <Link
                 key={tab.href}
                 to={tab.href}
+                onMouseEnter={() => prefetchTab(tab.id)}
+                onTouchStart={() => prefetchTab(tab.id)}
                 className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   active
                     ? 'bg-emerald-100 text-emerald-800 shadow-sm border border-emerald-200/50'

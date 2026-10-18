@@ -22,7 +22,8 @@ export default function Customers() {
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => invoiceApi.entities.Customer.list('-created_date', 200)
+    queryFn: () => invoiceApi.entities.Customer.list('-created_date', 200),
+    placeholderData: (prev) => prev,
   });
 
   const saveMutation = useMutation({
@@ -70,10 +71,30 @@ export default function Customers() {
     !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (isLoading) {
+  if (isLoading && customers.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[50vh]">
-        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <div className="h-8 w-48 bg-slate-200 rounded-lg animate-pulse" />
+            <div className="h-4 w-28 bg-slate-100 rounded animate-pulse" />
+          </div>
+          <div className="h-10 w-32 bg-slate-200 rounded-lg animate-pulse" />
+        </div>
+        <div className="h-10 max-w-md bg-slate-100 rounded-lg animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-card rounded-2xl border border-border p-5 space-y-3 animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-slate-200" />
+                <div className="space-y-1.5 flex-1">
+                  <div className="h-4 w-32 bg-slate-200 rounded" />
+                  <div className="h-3 w-40 bg-slate-100 rounded" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
