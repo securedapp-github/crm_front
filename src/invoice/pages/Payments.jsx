@@ -22,7 +22,8 @@ export default function Payments() {
 
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ['payments'],
-    queryFn: () => invoiceApi.entities.Payment.list('-created_date', 200)
+    queryFn: () => invoiceApi.entities.Payment.list('-created_date', 200),
+    placeholderData: (prev) => prev,
   });
 
   const filtered = payments.filter((p) =>
@@ -31,10 +32,22 @@ export default function Payments() {
 
   const totalReceived = payments.reduce((s, p) => s + (p.amount || 0), 0);
 
-  if (isLoading) {
+  if (isLoading && payments.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[50vh]">
-        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-44 bg-slate-200 rounded-lg animate-pulse" />
+            <div className="h-4 w-36 bg-slate-100 rounded animate-pulse" />
+          </div>
+          <div className="h-9 w-28 bg-slate-200 rounded-lg animate-pulse" />
+        </div>
+        <div className="h-10 max-w-md bg-slate-100 rounded-lg animate-pulse" />
+        <div className="bg-card rounded-2xl border border-border p-6 space-y-3 animate-pulse">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-12 bg-slate-100/70 rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }

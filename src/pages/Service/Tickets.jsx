@@ -65,7 +65,7 @@ const CANNED_RESPONSES = [
 const getAttachmentUrl = (path) => {
   if (!path) return ''
   if (path.startsWith('http')) return path
-  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+  const apiBase = import.meta.env.VITE_API_URL || 'https://crm.securedapp.io/api'
   const rootDomain = apiBase.replace(/\/api\/?$/, '')
   return `${rootDomain}${path}`
 }

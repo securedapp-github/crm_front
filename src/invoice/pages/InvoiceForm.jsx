@@ -37,14 +37,16 @@ export default function InvoiceForm() {
 
   const { data: businessList } = useQuery({
     queryKey: ['business'],
-    queryFn: () => invoiceApi.entities.Business.list()
+    queryFn: () => invoiceApi.entities.Business.list(),
+    placeholderData: (prev) => prev,
   });
   const business = businessList?.[0] || null;
 
   const { data: existingInvoice } = useQuery({
     queryKey: ['invoice', id],
     queryFn: () => invoiceApi.entities.Invoice.filter({ id }),
-    enabled: isEdit
+    enabled: isEdit,
+    placeholderData: (prev) => prev,
   });
 
   const [form, setForm] = useState({

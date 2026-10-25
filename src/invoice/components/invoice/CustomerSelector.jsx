@@ -19,7 +19,8 @@ export default function CustomerSelector({ value, onChange }) {
 
   const { data: customers = [], refetch } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => invoiceApi.entities.Customer.list()
+    queryFn: () => invoiceApi.entities.Customer.list('-created_date', 200),
+    placeholderData: (prev) => prev,
   });
 
   const filtered = customers.filter((c) =>

@@ -1,29 +1,59 @@
 const getApiBase = () => {
-  const viteApiUrl = import.meta.env.VITE_API_URL;
+  const viteApiUrl = (import.meta.env.VITE_API_URL || '').trim();
   if (viteApiUrl) {
     try {
       const url = new URL(viteApiUrl);
-      return `${url.origin}/local-api`;
-    } catch (e) {
-      return '/local-api';
-    }
+      if (!['localhost', '127.0.0.1', '::1'].includes(url.hostname.toLowerCase())) {
+        return `${url.origin}/local-api`;
+      }
+    } catch (_) {}
   }
-  return '/local-api';
+  return 'https://crm.securedapp.io/local-api';
 };
 
 const API_BASE = getApiBase();
 
+const getAuthHeaders = () => {
+  const headers = {};
+  try {
+    const rawUser = localStorage.getItem('user');
+    if (rawUser) {
+      const localUser = JSON.parse(rawUser);
+      if (localUser && localUser.role) {
+        headers['X-Panel-Type'] = localUser.role.toLowerCase().includes('admin') ? 'admin' : 'team';
+      }
+    }
+  } catch (_) {}
+
+  if (!headers['X-Panel-Type']) {
+    headers['X-Panel-Type'] = 'admin';
+  }
+
+  try {
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch (_) {}
+
+  return headers;
+};
+
 const fetchJSON = async (url, options = {}) => {
-  const { timeout = 10000 } = options;
+  const { timeout = 10000, headers: customHeaders = {}, ...restOptions } = options;
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 
   try {
     const res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       signal: controller.signal,
-      ...options,
+      ...restOptions,
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+        ...customHeaders,
+      },
     });
     clearTimeout(id);
 
@@ -56,7 +86,8 @@ const createEntityClient = (entityName) => ({
     const params = new URLSearchParams();
     if (sort) params.set('sort', sort);
     if (limit) params.set('limit', limit);
-    return fetchJSON(`${API_BASE}/${entityName}?${params}`);
+    const queryString = params.toString();
+    return fetchJSON(`${API_BASE}/${entityName}${queryString ? `?${queryString}` : ''}`);
   },
   filter: (filters) =>
     fetchJSON(`${API_BASE}/${entityName}/filter`, {
@@ -107,6 +138,9 @@ export const invoiceApi = {
             body: formData,
             credentials: 'include',
             signal: controller.signal,
+            headers: {
+              ...getAuthHeaders(),
+            },
           });
           clearTimeout(timeoutId);
 
