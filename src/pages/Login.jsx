@@ -284,6 +284,19 @@ export default function Login() {
                   </div>
                 </div>
 
+                <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-2.5 flex items-center justify-between text-xs text-blue-900">
+                  <div className="truncate">
+                    <span className="font-bold">Demo Admin:</span> admin@securedapp.io
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAdminForm({ email: 'admin@securedapp.io', password: 'password123' })}
+                    className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-semibold transition shrink-0 ml-2"
+                  >
+                    Auto-fill
+                  </button>
+                </div>
+
                 {error && (
                   <div className="rounded-xl bg-rose-50 border border-rose-200/50 p-3 text-xs text-rose-600 flex items-center gap-2">
                     <ShieldAlert className="h-4 w-4 shrink-0" />
@@ -353,6 +366,32 @@ export default function Login() {
                     >
                       Forgot password?
                     </button>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-2.5 text-xs text-emerald-900 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[11px] uppercase tracking-wider text-emerald-800">Demo Accounts:</span>
+                    <span className="text-[10px] text-emerald-600 font-medium">Click role to auto-fill</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: 'Sales', email: 'sales@demo.com' },
+                      { label: 'Marketing', email: 'marketing@demo.com' },
+                      { label: 'Finance', email: 'finance@demo.com' },
+                      { label: 'HR', email: 'hr@demo.com' },
+                      { label: 'Tech', email: 'tech@demo.com' },
+                      { label: 'Ops', email: 'ops@demo.com' }
+                    ].map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => setSalesForm({ email: item.email, password: 'password123' })}
+                        className="px-2.5 py-1 bg-white hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-800 rounded-lg text-[11px] font-semibold transition shadow-xs"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 

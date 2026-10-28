@@ -21,17 +21,17 @@ export default defineConfig(({ mode }) => {
       }),
       proxy: {
         '/api': {
-          target: 'https://crm.securedapp.io',
+          target: 'http://localhost:5000',
           changeOrigin: true,
           secure: false,
         },
         '/local-api': {
-          target: 'https://crm.securedapp.io',
+          target: 'http://localhost:5000',
           changeOrigin: true,
           secure: false,
         },
         '/uploads': {
-          target: 'https://crm.securedapp.io',
+          target: 'http://localhost:5000',
           changeOrigin: true,
           secure: false,
         }
