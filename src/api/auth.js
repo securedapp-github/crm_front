@@ -12,6 +12,9 @@ const normalizeApiUrl = (value) => {
 }
 
 const getBaseApiUrl = () => {
+  const browserHost = typeof window !== 'undefined' ? window.location.hostname : ''
+  if (isLocalHost(browserHost)) return '/api'
+
   const configuredUrl = normalizeApiUrl(import.meta.env.VITE_API_URL || '')
 
   if (configuredUrl) {

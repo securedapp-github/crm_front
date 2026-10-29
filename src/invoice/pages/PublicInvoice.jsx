@@ -1,84 +1,156 @@
-import React, { useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React from 'react';
+import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Button } from '@/invoice/components/ui/button';
-import { Download, Printer } from 'lucide-react';
+import { Badge } from '@/invoice/components/ui/badge';
+import { Download, Printer, CheckCircle2 } from 'lucide-react';
 import InvoicePDFContent from '@/invoice/components/invoice/InvoicePDFContent';
+import { printInvoicePDF, downloadInvoicePDF } from '@/utils/pdfManager';
+import { getStatusColor, getStatusLabel, formatCurrency } from '@/invoice/lib/invoiceUtils';
 
 export default function PublicInvoice() {
   const { id } = useParams();
-  const printRef = useRef();
 
-  const { data: invoice, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['public-invoice', id],
     queryFn: async () => {
-      const list = await invoiceApi.entities.Invoice.filter({ id });
-      return list[0] || null;
-    }
+      try {
+        const res = await invoiceApi.getPublicInvoice(id);
+        if (res && res.invoice) {
+          return res;
+        }
+      } catch (err) {
+        console.warn('Public endpoint failed, attempting fallback:', err);
+      }
+      // Fallback for authenticated users viewing their own invoice
+      try {
+        const list = await invoiceApi.entities.Invoice.filter({ id });
+        const businessList = await invoiceApi.entities.Business.list();
+        return {
+          invoice: list?.[0] || null,
+          business: businessList?.[0] || null
+        };
+      } catch (err) {
+        throw new Error('Could not load invoice');
+      }
+    },
+    retry: 1
   });
 
-  const { data: business } = useQuery({
-    queryKey: ['business'],
-    queryFn: async () => {
-      const list = await invoiceApi.entities.Business.list();
-      return list[0] || null;
-    }
-  });
+  const invoice = data?.invoice;
+  const business = data?.business;
+
+  const [downloading, setDownloading] = React.useState(false);
 
   const handlePrint = () => {
-    const content = printRef.current;
-    if (!content) return;
-    const win = window.open('', '_blank');
-    win.document.write(`<html><head><title>${invoice?.invoice_number || 'Invoice'}</title>
-      <style>body{margin:0;font-family:Inter,-apple-system,sans-serif}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>
-      </head><body>${content.innerHTML}</body></html>`);
-    win.document.close();
-    setTimeout(() => { win.print(); win.close(); }, 500);
+    if (invoice) {
+      printInvoicePDF(invoice, business);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!invoice || downloading) return;
+    try {
+      setDownloading(true);
+      await downloadInvoicePDF(invoice, business);
+    } catch (err) {
+      console.error('Download error:', err);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-slate-50 gap-3">
+        <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-600 rounded-full animate-spin" />
+        <p className="text-xs text-slate-500 font-medium">Loading invoice...</p>
       </div>
     );
   }
 
-  if (!invoice) {
+  if (isError || !invoice) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold">Invoice Not Found</h1>
-          <p className="text-muted-foreground">This invoice may have been removed or the link is incorrect.</p>
+      <div className="min-h-[100dvh] flex items-center justify-center bg-slate-50 px-4">
+        <div className="text-center space-y-3 max-w-md bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto">
+            !
+          </div>
+          <h1 className="text-xl font-bold text-slate-900">Invoice Not Found</h1>
+          <p className="text-sm text-slate-500">
+            This invoice may have been archived, deleted, or the share link provided is invalid.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 py-6 px-4">
-      <div className="max-w-[900px] mx-auto space-y-4">
-        <div className="flex items-center justify-between no-print">
-          <div>
-            <h1 className="text-xl font-bold">{invoice.invoice_number}</h1>
-            <p className="text-sm text-muted-foreground">{invoice.customer_name}</p>
+    <div className="min-h-[100dvh] bg-slate-100/70 py-8 px-4">
+      <div className="max-w-[920px] mx-auto space-y-5">
+        {/* Top Header Card */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-900 font-display">
+                  {invoice.invoice_number}
+                </h1>
+                <Badge className={getStatusColor(invoice.status) + " border text-[11px] font-medium"}>
+                  {getStatusLabel(invoice.status)}
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Billed to <strong className="text-slate-700">{invoice.customer_name || 'Customer'}</strong>
+              </p>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
-              <Printer className="h-4 w-4" /> Print
+
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs text-slate-700 hover:text-slate-900 border-slate-300"
+              onClick={handlePrint}
+            >
+              <Printer className="h-3.5 w-3.5" /> Print
             </Button>
-            <Button size="sm" className="gap-1.5" onClick={handlePrint}>
-              <Download className="h-4 w-4" /> Download PDF
+            <Button
+              size="sm"
+              disabled={downloading}
+              className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm disabled:opacity-75"
+              onClick={handleDownload}
+            >
+              {downloading ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Generating PDF...
+                </>
+              ) : (
+                <>
+                  <Download className="h-3.5 w-3.5" /> Download PDF
+                </>
+              )}
             </Button>
           </div>
         </div>
-        <div ref={printRef}>
+
+        {/* Invoice Body */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
           <InvoicePDFContent invoice={invoice} business={business} />
         </div>
-        <p className="text-center text-xs text-muted-foreground no-print pt-4">
-          Powered by InvoiceFlow
-        </p>
+
+        {/* Footer */}
+        <div className="text-center space-y-1 pt-2 pb-6 text-xs text-slate-400">
+          <p className="flex items-center justify-center gap-1">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+            Verified & Issued via SecuredApp CRM Invoicing
+          </p>
+          <p className="text-[11px] text-slate-400">
+            For billing inquiries or wire transfers, refer to the payment details specified above.
+          </p>
+        </div>
       </div>
     </div>
   );

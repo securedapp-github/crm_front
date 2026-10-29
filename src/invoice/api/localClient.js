@@ -1,4 +1,8 @@
 const getApiBase = () => {
+  const browserHost = typeof window !== 'undefined' ? window.location.hostname : '';
+  if (['localhost', '127.0.0.1', '::1'].includes(browserHost.toLowerCase())) {
+    return '/local-api';
+  }
   const viteApiUrl = (import.meta.env.VITE_API_URL || '').trim();
   if (viteApiUrl) {
     try {
@@ -71,13 +75,17 @@ const fetchJSON = async (url, options = {}) => {
           }
         }
       } catch (_) {}
-      throw new Error(errMsg);
+      const err = new Error(errMsg);
+      err.status = res.status;
+      throw err;
     }
     return res.json();
   } catch (err) {
     clearTimeout(id);
     console.error('API request error:', err.message);
-    throw new Error(err.message || 'An unexpected connection error occurred');
+    const rethrow = new Error(err.message || 'An unexpected connection error occurred');
+    rethrow.status = err.status;
+    throw rethrow;
   }
 };
 
@@ -118,6 +126,121 @@ export const invoiceApi = {
     Business: createEntityClient('Business'),
     Product: createEntityClient('Product'),
     Payment: createEntityClient('Payment'),
+    RecurringInvoice: createEntityClient('RecurringInvoice'),
+  },
+  triggerRecurringRun: (id) =>
+    fetchJSON(`${API_BASE}/recurring-invoices/${id}/trigger-run`, { method: 'POST' }),
+  sweepRecurringInvoices: () =>
+    fetchJSON(`${API_BASE}/recurring-invoices/sweep`, { method: 'POST' }),
+  downloadMonthlyZip: async (month) => {
+    const url = `${API_BASE}/recurring-invoices/export/${month}`;
+    const res = await fetch(url, {
+      credentials: 'include',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      let msg = `Monthly export failed: HTTP ${res.status}`;
+      try {
+        const j = await res.json();
+        if (j.error) msg = j.error;
+      } catch (_) {}
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.style.display = 'none';
+    link.href = blobUrl;
+    link.download = `Invoices-${month}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    }, 1000);
+  },
+  recordPayment: async (invoiceId, paymentData, invoiceContext) => {
+    try {
+      return await fetchJSON(`${API_BASE}/invoice/${invoiceId}/record-payment`, {
+        method: 'POST',
+        body: JSON.stringify(paymentData),
+      });
+    } catch (err) {
+      if (err.status === 404 || (err.message && err.message.includes('404'))) {
+        const payAmt = Number(paymentData.amount) || 0;
+        const paymentRecord = await invoiceApi.entities.Payment.create({
+          invoice_id: invoiceId,
+          invoice_number: invoiceContext?.invoice_number || '',
+          customer_id: invoiceContext?.customer_id || '',
+          customer_name: invoiceContext?.customer_name || '',
+          amount: payAmt,
+          payment_date: paymentData.payment_date || new Date().toISOString().split('T')[0],
+          payment_method: paymentData.payment_method || 'bank_transfer',
+          reference_number: paymentData.reference_number || '',
+          notes: paymentData.notes || '',
+        });
+
+        const grandTotal = Number(invoiceContext?.grand_total) || 0;
+        const currentPaid = Number(invoiceContext?.amount_paid) || 0;
+        const newPaid = Number((currentPaid + payAmt).toFixed(2));
+        const newBalance = Math.max(0, Number((grandTotal - newPaid).toFixed(2)));
+        const newStatus = newBalance <= 0 ? 'paid' : 'partially_paid';
+
+        const updatedInvoice = await invoiceApi.entities.Invoice.update(invoiceId, {
+          amount_paid: newPaid,
+          balance_due: newBalance,
+          status: newStatus,
+        });
+
+        return { success: true, payment: paymentRecord, invoice: updatedInvoice };
+      }
+      throw err;
+    }
+  },
+  getPublicInvoice: (id) => fetchJSON(`${API_BASE}/public/invoice/${id}`),
+  getInvoicePdfUrl: (id) => `${API_BASE}/public/invoice/${id}/pdf`,
+  downloadVectorPdf: async (id, filename) => {
+    const url = `${API_BASE}/public/invoice/${id}/pdf`;
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) {
+      throw new Error(`Vector PDF download failed: HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.style.display = 'none';
+    link.href = blobUrl;
+    link.download = filename || `Invoice-${id}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    }, 1000);
+  },
+  previewVectorPdf: async (invoice, business, filename) => {
+    const url = `${API_BASE}/public/invoice/preview-pdf`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invoice, business }),
+      credentials: 'include'
+    });
+    if (!res.ok) {
+      throw new Error(`Preview vector PDF generation failed: HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.style.display = 'none';
+    link.href = blobUrl;
+    link.download = filename || `Invoice-${invoice.invoice_number || 'draft'}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    }, 1000);
   },
   auth: {
     me: async () => null,

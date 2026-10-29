@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const queryClientInstance = new QueryClient({
@@ -62,6 +62,7 @@ import InvoiceCustomers from '@/invoice/pages/Customers'
 import InvoicePayments from '@/invoice/pages/Payments'
 import InvoiceProducts from '@/invoice/pages/Products'
 import InvoiceSettings from '@/invoice/pages/Settings'
+import RecurringInvoices from '@/invoice/pages/RecurringInvoices'
 import InvoiceLayout from '@/invoice/components/InvoiceLayout'
 import ErrorBoundary from './components/ErrorBoundary'
 import { Toaster } from 'sonner'
@@ -128,14 +129,18 @@ function App() {
                 <Route index element={<InvoiceForm />} />
                 <Route path="dashboard" element={<InvoiceDashboard />} />
                 <Route path="list" element={<Invoices />} />
+                <Route path="recurring" element={<RecurringInvoices />} />
                 <Route path="list/:id" element={<InvoiceView />} />
                 <Route path="list/:id/edit" element={<InvoiceForm />} />
+                <Route path=":id/edit" element={<InvoiceForm />} />
+                <Route path=":id" element={<InvoiceView />} />
                 <Route path="customers" element={<InvoiceCustomers />} />
                 <Route path="payments" element={<InvoicePayments />} />
                 <Route path="catalog" element={<InvoiceProducts />} />
                 <Route path="settings" element={<InvoiceSettings />} />
               </Route>
             </Route>
+            <Route path="/invoices" element={<Navigate to="/dashboard/finance/invoice-generator/list" replace />} />
             <Route path="/invoice/:id/public" element={<PublicInvoice />} />
           </Routes>
           </ErrorBoundary>
