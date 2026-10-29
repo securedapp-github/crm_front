@@ -126,6 +126,38 @@ export const invoiceApi = {
     Business: createEntityClient('Business'),
     Product: createEntityClient('Product'),
     Payment: createEntityClient('Payment'),
+    RecurringInvoice: createEntityClient('RecurringInvoice'),
+  },
+  triggerRecurringRun: (id) =>
+    fetchJSON(`${API_BASE}/recurring-invoices/${id}/trigger-run`, { method: 'POST' }),
+  sweepRecurringInvoices: () =>
+    fetchJSON(`${API_BASE}/recurring-invoices/sweep`, { method: 'POST' }),
+  downloadMonthlyZip: async (month) => {
+    const url = `${API_BASE}/recurring-invoices/export/${month}`;
+    const res = await fetch(url, {
+      credentials: 'include',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      let msg = `Monthly export failed: HTTP ${res.status}`;
+      try {
+        const j = await res.json();
+        if (j.error) msg = j.error;
+      } catch (_) {}
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.style.display = 'none';
+    link.href = blobUrl;
+    link.download = `Invoices-${month}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    }, 1000);
   },
   recordPayment: async (invoiceId, paymentData, invoiceContext) => {
     try {
