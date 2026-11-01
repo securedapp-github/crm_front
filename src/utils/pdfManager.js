@@ -134,9 +134,9 @@ export function generateInvoiceHTML(invoice, business) {
           margin-bottom: 30px;
         }
         .invoice-title {
-          font-size: 32px;
+          font-size: 28px;
           font-weight: 700;
-          color: #06b6d4; /* cyan-500 */
+          color: #059669; /* emerald-600 */
           margin: 0 0 10px 0;
         }
         .invoice-meta-info p {
@@ -162,8 +162,8 @@ export function generateInvoiceHTML(invoice, business) {
           margin-bottom: 30px;
         }
         .meta-block {
-          background-color: #ecfeff; /* cyan-50 */
-          border: 1px solid #cffafe; /* cyan-100 */
+          background-color: #f8fafc;
+          border: 1px solid #e2e8f0;
           border-radius: 8px;
           padding: 16px;
         }
@@ -172,7 +172,7 @@ export function generateInvoiceHTML(invoice, business) {
           font-size: 12px;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          color: #0891b2; /* cyan-600 */
+          color: #059669; /* emerald-600 */
           font-weight: 600;
         }
         .meta-block p {
@@ -197,7 +197,7 @@ export function generateInvoiceHTML(invoice, business) {
           word-break: break-word;
         }
         table.items-table th {
-          background-color: #06b6d4; /* cyan-500 */
+          background-color: #059669; /* emerald-600 */
           color: #ffffff;
           font-weight: 600;
           text-align: left;
@@ -306,6 +306,28 @@ export function generateInvoiceHTML(invoice, business) {
           font-size: 11px;
           color: #64748b;
         }
+        .notes-box {
+          margin-top: 24px;
+          background-color: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 12px 14px;
+          font-size: 12px;
+          color: #334155;
+        }
+        .notes-box h4 {
+          margin: 0 0 4px 0;
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #059669;
+          font-weight: 700;
+        }
+        .notes-box p {
+          margin: 0;
+          white-space: pre-wrap;
+          line-height: 1.5;
+        }
         .terms-conditions {
           margin-top: 30px;
           font-size: 12px;
@@ -402,7 +424,7 @@ export function generateInvoiceHTML(invoice, business) {
                   ${item.description ? `<div class="item-desc">${escapeHtml(item.description)}</div>` : ''}
                 </td>
                 ${taxType !== 'none' ? `<td class="text-center" style="white-space: nowrap;">${item.tax_percent || 0}%</td>` : ''}
-                <td class="text-center" style="white-space: nowrap;">${qty}</td>
+                <td class="text-center" style="white-space: nowrap;">${qty}${item.unit ? ' ' + escapeHtml(item.unit) : ''}</td>
                 <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(rate, invoice.currency))}</td>
                 <td class="text-right" style="white-space: nowrap; color: #16a34a;">
                   ${disc > 0 ? `<strong>${item.discount_percent}%</strong><div style="font-size: 10px; color: #15803d;">-${escapeHtml(formatCurrency(disc, invoice.currency))}</div>` : '<span style="color: #94a3b8;">-</span>'}
@@ -439,7 +461,10 @@ export function generateInvoiceHTML(invoice, business) {
         </tbody>
       </table>
 
-      <div class="summary-block ${isLarge ? 'page-break' : ''}">
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 11px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <span style="color: #64748b; font-weight: 500;">Invoice Amount in Words:</span>
+        <strong style="color: #0f172a; text-align: right;">${escapeHtml(numberToWords(invoice.grand_total, invoice.currency))}</strong>
+      </div>
         <div class="bottom-section">
           <div class="bank-details-box">
           <h3>Bank Details</h3>
@@ -488,7 +513,7 @@ export function generateInvoiceHTML(invoice, business) {
               </div>
             ` : ''}
             <div class="summary-row grand-total-row">
-              <span>Total (INR)</span>
+              <span>Total (${escapeHtml(invoice.currency || 'INR')})</span>
               <strong>${escapeHtml(formatCurrency(invoice.grand_total, invoice.currency))}</strong>
             </div>
             ${(invoice.amount_paid || 0) > 0 ? `
@@ -509,6 +534,13 @@ export function generateInvoiceHTML(invoice, business) {
           </div>
         </div>
       </div>
+
+      ${invoice.notes ? `
+        <div class="notes-box">
+          <h4>Notes & Remarks</h4>
+          <p>${escapeHtml(invoice.notes)}</p>
+        </div>
+      ` : ''}
 
       ${(invoice.terms_and_conditions || business?.terms_and_conditions) ? `
         <div class="terms-conditions">
@@ -948,13 +980,62 @@ function downloadPDFFromHTML(htmlContent, filename) {
 
 export async function downloadInvoicePDF(invoice, business) {
   logDebug('[Checkpoint 1] downloadInvoicePDF started');
+  const invoiceNum = (invoice.invoice_number || 'Draft').toString().replace(/[^a-zA-Z0-9.-]/g, '_');
+  const filename = `Invoice_${invoiceNum}.pdf`;
+
+  // 1. Primary: Server-side Playwright Vector PDF (High precision, vector fonts, page-break perfect)
+  try {
+    let apiBase = '/local-api';
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname.toLowerCase();
+      if (!['localhost', '127.0.0.1', '::1'].includes(host) && import.meta.env?.VITE_API_URL) {
+        try {
+          apiBase = `${new URL(import.meta.env.VITE_API_URL).origin}/local-api`;
+        } catch (_) {}
+      }
+    }
+
+    let response = null;
+    if (invoice && invoice.id) {
+      response = await fetch(`${apiBase}/public/invoice/${invoice.id}/pdf`, { credentials: 'include' });
+    } else if (invoice) {
+      response = await fetch(`${apiBase}/public/invoice/preview-pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice, business }),
+        credentials: 'include'
+      });
+    }
+
+    if (response && response.ok) {
+      const blob = await response.blob();
+      if (blob && (blob.type.includes('pdf') || blob.size > 500)) {
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (document.body.contains(a)) document.body.removeChild(a);
+          window.URL.revokeObjectURL(blobUrl);
+        }, 1000);
+        return;
+      }
+    }
+  } catch (backendErr) {
+    console.warn('[PDF Service] Server-side PDF generation failed or backend unreachable, falling back to client-side renderer:', backendErr);
+  }
+
+  // 2. Resilient Fallback: Client-side html2pdf renderer
   const businessCopy = { ...business };
   if (businessCopy) {
     if (businessCopy.logo_url) businessCopy.logo_url = await toBase64DataUrl(businessCopy.logo_url);
     if (businessCopy.signature_url) businessCopy.signature_url = await toBase64DataUrl(businessCopy.signature_url);
   }
   const html = generateInvoiceHTML(invoice, businessCopy);
-  downloadPDFFromHTML(html, `Invoice_${invoice.invoice_number || 'Draft'}.pdf`);
+  downloadPDFFromHTML(html, filename);
 }
 
 export async function downloadPayslipPDF(data, user, business) {

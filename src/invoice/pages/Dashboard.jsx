@@ -27,26 +27,38 @@ export default function InvoiceDashboard() {
     const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
     const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
 
-    const isThisMonth = (inv) => {
-      if (!inv.invoice_date) return false;
-      const d = new Date(inv.invoice_date);
-      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
-    };
-    const isLastMonth = (inv) => {
-      if (!inv.invoice_date) return false;
-      const d = new Date(inv.invoice_date);
-      return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
-    };
+      const isThisMonth = (inv) => {
+        if (!inv.invoice_date) return false;
+        const d = new Date(inv.invoice_date);
+        return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+      };
+      const isLastMonth = (inv) => {
+        if (!inv.invoice_date) return false;
+        const d = new Date(inv.invoice_date);
+        return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+      };
 
-    const total = invoices.length;
-    const revenue = invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + (i.grand_total || 0), 0);
-    const thisMonthRev = invoices.filter((i) => i.status === 'paid' && isThisMonth(i)).reduce((s, i) => s + (i.grand_total || 0), 0);
-    const lastMonthRev = invoices.filter((i) => i.status === 'paid' && isLastMonth(i)).reduce((s, i) => s + (i.grand_total || 0), 0);
-    const pending = invoices.filter((i) => ['sent', 'viewed', 'partially_paid', 'overdue'].includes(i.status)).reduce((s, i) => s + (i.balance_due || i.grand_total || 0), 0);
-    const overdue = invoices.filter((i) => i.status === 'overdue').length;
-    const sent = invoices.filter((i) => i.status === 'sent').length;
+      const getInvoicePaid = (i) => {
+        if (i.amount_paid !== undefined && i.amount_paid !== null) return Number(i.amount_paid) || 0;
+        return i.status === 'paid' ? (Number(i.grand_total) || 0) : 0;
+      };
 
-    const revTrend = lastMonthRev > 0 ? Math.round((thisMonthRev - lastMonthRev) / lastMonthRev * 100) : null;
+      const getInvoicePending = (i) => {
+        if (['paid', 'cancelled'].includes(i.status)) return 0;
+        if (i.balance_due !== undefined && i.balance_due !== null) return Number(i.balance_due) || 0;
+        const paid = Number(i.amount_paid) || 0;
+        return Math.max(0, (Number(i.grand_total) || 0) - paid);
+      };
+
+      const total = invoices.length;
+      const revenue = invoices.reduce((s, i) => s + getInvoicePaid(i), 0);
+      const thisMonthRev = invoices.filter(isThisMonth).reduce((s, i) => s + getInvoicePaid(i), 0);
+      const lastMonthRev = invoices.filter(isLastMonth).reduce((s, i) => s + getInvoicePaid(i), 0);
+      const pending = invoices.reduce((s, i) => s + getInvoicePending(i), 0);
+      const overdue = invoices.filter((i) => i.status === 'overdue').length;
+      const sent = invoices.filter((i) => i.status === 'sent').length;
+
+      const revTrend = lastMonthRev > 0 ? Math.round((thisMonthRev - lastMonthRev) / lastMonthRev * 100) : null;
 
     return { total, revenue, pending, overdue, sent, revTrend, thisMonthRev, lastMonthRev };
   }, [invoices]);

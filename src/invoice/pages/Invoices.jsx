@@ -8,7 +8,7 @@ import { Badge } from '@/invoice/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/invoice/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/invoice/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/invoice/components/ui/alert-dialog';
-import { Plus, Search, MoreHorizontal, Eye, Pencil, Copy, Trash2, FileText, Download, Calendar, X } from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Eye, Pencil, Copy, Trash2, FileText, Download, Calendar, X, Repeat } from 'lucide-react';
 import { formatCurrency, getStatusColor, getStatusLabel, format } from '@/invoice/lib/invoiceUtils';
 import { exportInvoicesToCSV } from '@/invoice/lib/exportUtils';
 import { printInvoicePDF, downloadInvoicePDF } from '@/utils/pdfManager';
@@ -298,6 +298,9 @@ export default function Invoices() {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => duplicateMutation.mutate(inv)}>
                             <Copy className="h-4 w-4 mr-2" /> Duplicate
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`/dashboard/finance/invoice-generator/recurring?fromInvoice=${inv.id}`)}>
+                            <Repeat className="h-4 w-4 mr-2 text-emerald-600" /> Make Recurring
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handlePrint(inv)}>
                             <FileText className="h-4 w-4 mr-2" /> Print

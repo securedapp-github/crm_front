@@ -16,7 +16,10 @@ export default function RevenueChart({ invoices }) {
       const d = new Date(inv.invoice_date);
       const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
       if (months[key]) {
-        months[key].revenue += inv.grand_total || 0;
+        const paidAmount = inv.amount_paid !== undefined && inv.amount_paid !== null
+          ? (Number(inv.amount_paid) || 0)
+          : (inv.status === 'paid' ? (Number(inv.grand_total) || 0) : 0);
+        months[key].revenue += paidAmount;
         months[key].count += 1;
       }
     });

@@ -34,7 +34,9 @@ export default function CustomerSelector({ value, onChange }) {
       customer_id: customer.id,
       customer_name: customer.name,
       customer_email: customer.email,
-      customer_gst: customer.gst_number,
+      customer_gst: customer.gst_number || '',
+      customer_state: customer.state || '',
+      customer_city: customer.city || '',
       customer_address: [customer.address_line1, customer.city, customer.state, customer.pincode].filter(Boolean).join(', ')
     });
     setOpen(false);
@@ -43,7 +45,15 @@ export default function CustomerSelector({ value, onChange }) {
 
   const handleClear = (e) => {
     e.stopPropagation();
-    onChange({ customer_id: '', customer_name: '', customer_email: '', customer_gst: '', customer_address: '' });
+    onChange({
+      customer_id: '',
+      customer_name: '',
+      customer_email: '',
+      customer_gst: '',
+      customer_state: '',
+      customer_city: '',
+      customer_address: ''
+    });
   };
 
   const handleCreateNew = async () => {

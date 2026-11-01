@@ -27,8 +27,15 @@ export default function InvoiceView() {
   const { data: invoice, isLoading } = useQuery({
     queryKey: ['invoice', id],
     queryFn: async () => {
+      if (!id) return null;
+      try {
+        const item = await invoiceApi.entities.Invoice.get(id);
+        if (item && (item.id || item.invoice_number)) return item;
+      } catch (err) {
+        console.warn('Direct get invoice failed, attempting filter fallback:', err);
+      }
       const list = await invoiceApi.entities.Invoice.filter({ id });
-      return list[0] || null;
+      return Array.isArray(list) ? (list[0] || null) : list;
     }
   });
 
@@ -45,37 +52,44 @@ export default function InvoiceView() {
 
   const paymentMutation = useMutation({
     mutationFn: async () => {
-      await invoiceApi.entities.Payment.create({
-        invoice_id: id,
-        invoice_number: invoice.invoice_number,
-        customer_id: invoice.customer_id,
-        customer_name: invoice.customer_name,
-        ...payment
-      });
-      const newPaid = (invoice.amount_paid || 0) + Number(payment.amount);
-      const newBalance = (invoice.grand_total || 0) - newPaid;
-      const newStatus = newBalance <= 0 ? 'paid' : 'partially_paid';
-      await invoiceApi.entities.Invoice.update(id, {
-        amount_paid: newPaid,
-        balance_due: Math.max(0, newBalance),
-        status: newStatus
-      });
+      const amt = Number(payment.amount);
+      if (!amt || isNaN(amt) || amt <= 0) {
+        throw new Error('Please enter a valid payment amount greater than 0');
+      }
+      return invoiceApi.recordPayment(id, payment, invoice);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoice', id] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       setPaymentOpen(false);
+      toast.success('Payment recorded successfully');
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to record payment');
     }
   });
+
+  const [downloading, setDownloading] = useState(false);
 
   const handlePrint = () => {
     if (!invoice) return;
     printInvoicePDF(invoice, business);
   };
 
-  const handleDownload = () => {
-    if (!invoice) return;
-    downloadInvoicePDF(invoice, business);
+  const handleDownload = async () => {
+    if (!invoice || downloading) return;
+    try {
+      setDownloading(true);
+      toast.info('Generating high-precision vector PDF...');
+      await downloadInvoicePDF(invoice, business);
+      toast.success('Invoice PDF downloaded successfully');
+    } catch (err) {
+      console.error('Download error:', err);
+      toast.error('Failed to download PDF: ' + (err.message || 'Unknown error'));
+    } finally {
+      setDownloading(false);
+    }
   };
 
   if (isLoading) {
@@ -127,7 +141,17 @@ export default function InvoiceView() {
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setPayment({ ...payment, amount: invoice.balance_due || invoice.grand_total || 0 }); setPaymentOpen(true); }}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={invoice.status === 'paid' || (invoice.balance_due !== undefined && invoice.balance_due <= 0)}
+            onClick={() => {
+              const currentBalance = invoice.balance_due !== undefined ? invoice.balance_due : (invoice.grand_total || 0) - (invoice.amount_paid || 0);
+              setPayment({ ...payment, amount: Math.max(0, currentBalance) });
+              setPaymentOpen(true);
+            }}
+          >
             <CreditCard className="h-3.5 w-3.5" /> Record Payment
           </Button>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate(`/dashboard/finance/invoice-generator/list/${id}/edit`)}>
@@ -139,8 +163,22 @@ export default function InvoiceView() {
           <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
             <Printer className="h-3.5 w-3.5" /> Print
           </Button>
-          <Button variant="primary" size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleDownload}>
-            <Download className="h-3.5 w-3.5" /> Download PDF
+          <Button
+            size="sm"
+            disabled={downloading}
+            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-70"
+            onClick={handleDownload}
+          >
+            {downloading ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                Generating PDF...
+              </>
+            ) : (
+              <>
+                <Download className="h-3.5 w-3.5" /> Download PDF
+              </>
+            )}
           </Button>
         </div>
       </div>
