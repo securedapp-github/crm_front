@@ -295,45 +295,18 @@ export function numberToWords(num, currency = 'INR') {
 }
 
 export function getFullFileUrl(url) {
-  if (!url) return '';
-  if (url.startsWith('data:')) return url;
-
-  const browserHost = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
-  const isLocalBrowser = ['localhost', '127.0.0.1', '::1'].includes(browserHost);
-
+  if (!url || url.startsWith('data:')) return url || '';
   let pathname = url;
   if (url.startsWith('http://') || url.startsWith('https://')) {
     try {
       const parsed = new URL(url);
-      const isLocalUrl = ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname.toLowerCase());
-      if (!isLocalUrl && !parsed.hostname.includes('securedapp.in')) {
-        return url;
-      }
+      if (!['localhost', '127.0.0.1'].includes(parsed.hostname) && !parsed.hostname.includes('securedapp.')) return url;
       pathname = parsed.pathname;
-    } catch (_) {
-      return url;
-    }
+    } catch (_) { return url; }
   }
-
-  if (!pathname.startsWith('/')) {
-    pathname = `/${pathname}`;
-  }
-
-  if (isLocalBrowser) {
-    return pathname;
-  }
-
-  const viteApiUrl = (import.meta.env.VITE_API_URL || '').trim();
-  if (viteApiUrl) {
-    try {
-      const parsed = new URL(viteApiUrl);
-      if (!['localhost', '127.0.0.1', '::1'].includes(parsed.hostname.toLowerCase())) {
-        return `${parsed.origin}${pathname}`;
-      }
-    } catch (_) {}
-  }
-
-  return `https://crm.securedapp.io${pathname}`;
+  const cleanPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  const isLocal = typeof window !== 'undefined' && ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname.toLowerCase());
+  return isLocal ? cleanPath : `https://crm.securedapp.io${cleanPath}`;
 }
 
 export function formatDate(date, formatPattern = 'MMM dd, yyyy') {

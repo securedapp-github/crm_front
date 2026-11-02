@@ -148,16 +148,8 @@ export const invoiceApi = {
     }
     const blob = await res.blob();
     const blobUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.style.display = 'none';
-    link.href = blobUrl;
-    link.download = `Invoices-${month}.zip`;
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(() => {
-      if (document.body.contains(link)) document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    }, 1000);
+    Object.assign(document.createElement('a'), { href: blobUrl, download: `Invoices-${month}.zip` }).click();
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
   },
   recordPayment: async (invoiceId, paymentData, invoiceContext) => {
     try {

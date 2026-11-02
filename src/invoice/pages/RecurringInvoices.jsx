@@ -24,13 +24,11 @@ import {
   X
 } from "lucide-react"
 
+const ordinalRules = new Intl.PluralRules('en', { type: 'ordinal' })
+const ordinalSuffixes = { one: 'st', two: 'nd', few: 'rd', other: 'th' }
 function getOrdinalSuffix(day) {
   const d = Number(day) || 1
-  const j = d % 10, k = d % 100
-  if (j === 1 && k !== 11) return `${d}st`
-  if (j === 2 && k !== 12) return `${d}nd`
-  if (j === 3 && k !== 13) return `${d}rd`
-  return `${d}th`
+  return `${d}${ordinalSuffixes[ordinalRules.select(d)] || 'th'}`
 }
 
 export default function RecurringInvoices() {
@@ -83,24 +81,14 @@ export default function RecurringInvoices() {
     }
   }
 
-  // Map each recurring profile id to its latest generated invoice (sorted chronologically)
+  // Map each recurring profile id to its latest generated invoice
   const latestInvoiceByProfile = useMemo(() => {
-    const map = {}
-    const recurringInvoices = invoices.filter(i => Boolean(i.recurring_invoice_id || i.generated_from_recurring))
-
-    // Sort newest first
-    const sorted = [...recurringInvoices].sort((a, b) => {
-      const dateA = a.invoice_date || a.created_date || ''
-      const dateB = b.invoice_date || b.created_date || ''
-      return dateB.localeCompare(dateA)
-    })
-
-    for (const inv of sorted) {
+    return invoices.reduce((map, inv) => {
       if (inv.recurring_invoice_id && !map[inv.recurring_invoice_id]) {
         map[inv.recurring_invoice_id] = inv
       }
-    }
-    return map
+      return map
+    }, {})
   }, [invoices])
 
   // Strictly filter generated recurring invoices for the selected month
@@ -568,27 +556,16 @@ function RecurringProfileModal({ invoices, profile, initialInvoiceId, onClose, o
       source_invoice_number: selectedInv?.invoice_number || profile?.source_invoice_number || null,
       start_date: profile?.start_date || new Date().toISOString(),
       template_data: {
-        customer_id: baseSource.customer_id,
+        ...baseSource,
         customer_name: customerName,
         customer_email: baseSource.customer_email || baseSource.client_email || '',
         customer_address: baseSource.customer_address || baseSource.client_address || '',
         customer_gst: baseSource.customer_gst || baseSource.client_gst || '',
-        currency: baseSource.currency || 'INR',
-        tax_type: baseSource.tax_type || 'gst',
-        items: items,
+        items,
         subtotal: Number(baseSource.subtotal) || totalAmount,
-        tax_amount: Number(baseSource.tax_amount) || 0,
-        cgst_amount: baseSource.cgst_amount,
-        sgst_amount: baseSource.sgst_amount,
-        igst_amount: baseSource.igst_amount,
-        total_discount: baseSource.total_discount,
-        additional_charges_amount: baseSource.additional_charges_amount,
-        additional_charges_label: baseSource.additional_charges_label,
         grand_total: totalAmount,
         total: totalAmount,
-        notes: baseSource.notes || 'Monthly recurring retainer invoice automatically generated as draft.',
-        terms_and_conditions: baseSource.terms_and_conditions,
-        bank_details: baseSource.bank_details
+        notes: baseSource.notes || 'Monthly recurring retainer invoice automatically generated as draft.'
       }
     }
 

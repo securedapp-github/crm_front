@@ -989,16 +989,8 @@ export async function downloadInvoicePDF(invoice, business) {
 
     if (blob) {
       const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (document.body.contains(a)) document.body.removeChild(a);
-        window.URL.revokeObjectURL(blobUrl);
-      }, 1000);
+      Object.assign(document.createElement('a'), { href: blobUrl, download: filename }).click();
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
       return;
     }
   } catch (reactPdfErr) {
