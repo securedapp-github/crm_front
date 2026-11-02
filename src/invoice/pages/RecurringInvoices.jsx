@@ -127,7 +127,11 @@ export default function RecurringInvoices() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['recurringInvoices'] })
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
-      toast.success(`Success! Generated ${data.generated || 0} draft invoice(s).`)
+      if (data.generated > 0) {
+        toast.success(`Success! Generated ${data.generated} draft invoice(s).`)
+      } else {
+        toast.info(data.message || 'Invoice for this period already exists and is up to date.')
+      }
     },
     onError: (err) => toast.error(`Run failed: ${err.message}`),
   })
@@ -140,7 +144,11 @@ export default function RecurringInvoices() {
       const count = Array.isArray(data?.results)
         ? data.results.reduce((acc, r) => acc + (r.generated || 0), 0)
         : 0
-      toast.success(`Sweep finished: ${count} draft invoice(s) created.`)
+      if (count > 0) {
+        toast.success(`Sweep finished: ${count} draft invoice(s) created.`)
+      } else {
+        toast.info('Sweep finished: all recurring profiles are up to date.')
+      }
     },
     onError: (err) => toast.error(`Sweep failed: ${err.message}`),
   })
@@ -546,9 +554,12 @@ function RecurringProfileModal({ invoices, profile, initialInvoiceId, onClose, o
     const baseSource = selectedInv || profile?.template_data || {}
     const items = selectedInv?.items || profile?.template_data?.items || []
 
+    const customerName = baseSource.customer_name || baseSource.client_name || 'Customer'
+    const totalAmount = Number(baseSource.grand_total) || Number(baseSource.total) || 0
+
     const payload = {
       customer_id: baseSource.customer_id,
-      customer_name: baseSource.customer_name || 'Customer',
+      customer_name: customerName,
       billing_day: Math.min(28, Math.max(1, Number(billingDay) || 1)),
       due_days: Math.max(0, Number(dueDays) || 15),
       frequency: 'monthly',
@@ -558,14 +569,14 @@ function RecurringProfileModal({ invoices, profile, initialInvoiceId, onClose, o
       start_date: profile?.start_date || new Date().toISOString(),
       template_data: {
         customer_id: baseSource.customer_id,
-        customer_name: baseSource.customer_name || '',
-        customer_email: baseSource.customer_email || '',
-        customer_address: baseSource.customer_address || '',
-        customer_gst: baseSource.customer_gst || '',
+        customer_name: customerName,
+        customer_email: baseSource.customer_email || baseSource.client_email || '',
+        customer_address: baseSource.customer_address || baseSource.client_address || '',
+        customer_gst: baseSource.customer_gst || baseSource.client_gst || '',
         currency: baseSource.currency || 'INR',
         tax_type: baseSource.tax_type || 'gst',
         items: items,
-        subtotal: Number(baseSource.subtotal) || 0,
+        subtotal: Number(baseSource.subtotal) || totalAmount,
         tax_amount: Number(baseSource.tax_amount) || 0,
         cgst_amount: baseSource.cgst_amount,
         sgst_amount: baseSource.sgst_amount,
@@ -573,7 +584,8 @@ function RecurringProfileModal({ invoices, profile, initialInvoiceId, onClose, o
         total_discount: baseSource.total_discount,
         additional_charges_amount: baseSource.additional_charges_amount,
         additional_charges_label: baseSource.additional_charges_label,
-        grand_total: Number(baseSource.grand_total) || 0,
+        grand_total: totalAmount,
+        total: totalAmount,
         notes: baseSource.notes || 'Monthly recurring retainer invoice automatically generated as draft.',
         terms_and_conditions: baseSource.terms_and_conditions,
         bank_details: baseSource.bank_details
