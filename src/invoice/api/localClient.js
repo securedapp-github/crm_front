@@ -7,12 +7,12 @@ const getApiBase = () => {
   if (viteApiUrl) {
     try {
       const url = new URL(viteApiUrl);
-      if (!['localhost', '127.0.0.1', '::1'].includes(url.hostname.toLowerCase())) {
+      if (!['localhost', '127.0.0.1', '::1'].includes(url.hostname.toLowerCase()) && !url.hostname.includes('securedapp.in')) {
         return `${url.origin}/local-api`;
       }
     } catch (_) {}
   }
-  return 'https://crm.securedapp.io/local-api';
+  return 'https://crm-be.securedapp.io/local-api';
 };
 
 const API_BASE = getApiBase();

@@ -5,15 +5,15 @@ import { invoiceApi } from "@/invoice/api/invoiceClient"
 import { formatCurrency, formatDate } from "@/invoice/lib/invoiceUtils"
 import { downloadInvoicePDF } from "@/utils/pdfManager"
 import { toast } from "sonner"
-import { 
-  Repeat, 
-  Plus, 
-  Play, 
-  Pause, 
-  Trash2, 
-  Download, 
-  FileText, 
-  CheckCircle2, 
+import {
+  Repeat,
+  Plus,
+  Play,
+  Pause,
+  Trash2,
+  Download,
+  FileText,
+  CheckCircle2,
   AlertCircle,
   Archive,
   RefreshCw,
@@ -137,7 +137,7 @@ export default function RecurringInvoices() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['recurringInvoices'] })
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
-      const count = Array.isArray(data?.results) 
+      const count = Array.isArray(data?.results)
         ? data.results.reduce((acc, r) => acc + (r.generated || 0), 0)
         : 0
       toast.success(`Sweep finished: ${count} draft invoice(s) created.`)
@@ -153,14 +153,14 @@ export default function RecurringInvoices() {
     },
   })
 
-  const handleDownloadSinglePDF = (inv) => {
+  const handleDownloadSinglePDF = async (inv) => {
     try {
       toast.info(`Preparing ${inv.invoice_number || 'invoice'} PDF...`)
-      downloadInvoicePDF(inv, business)
+      await downloadInvoicePDF(inv, business)
       toast.success(`Downloaded ${inv.invoice_number || 'invoice'} successfully!`)
     } catch (err) {
       console.error('PDF download error:', err)
-      toast.error('Failed to download PDF: ' + err.message)
+      toast.error('Failed to download PDF: ' + (err.message || 'Unknown error'))
     }
   }
 
@@ -301,13 +301,12 @@ export default function RecurringInvoices() {
                           </span>
                         </td>
                         <td className="py-3 px-4">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            p.status === 'active' 
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
-                              : isPaused 
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${p.status === 'active'
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              : isPaused
                                 ? 'bg-amber-100 text-amber-800 border border-amber-200'
                                 : 'bg-slate-100 text-slate-700 border border-slate-200'
-                          }`}>
+                            }`}>
                             {p.status === 'active' && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
                             {isPaused && <Pause className="w-3 h-3 text-amber-600" />}
                             <span className="capitalize">{p.status || 'active'}</span>
@@ -607,7 +606,7 @@ function RecurringProfileModal({ invoices, profile, initialInvoiceId, onClose, o
               {profile ? 'Edit Recurring Profile' : 'New Recurring Profile'}
             </h3>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
           >

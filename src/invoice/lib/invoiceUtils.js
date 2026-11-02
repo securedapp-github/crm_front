@@ -296,17 +296,44 @@ export function numberToWords(num, currency = 'INR') {
 
 export function getFullFileUrl(url) {
   if (!url) return '';
-  if (url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) return url;
-  const viteApiUrl = import.meta.env.VITE_API_URL;
-  if (viteApiUrl) {
+  if (url.startsWith('data:')) return url;
+
+  const browserHost = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+  const isLocalBrowser = ['localhost', '127.0.0.1', '::1'].includes(browserHost);
+
+  let pathname = url;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
     try {
-      const parsed = new URL(viteApiUrl);
-      return `${parsed.origin}${url}`;
-    } catch (e) {
+      const parsed = new URL(url);
+      const isLocalUrl = ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname.toLowerCase());
+      if (!isLocalUrl && !parsed.hostname.includes('securedapp.in')) {
+        return url;
+      }
+      pathname = parsed.pathname;
+    } catch (_) {
       return url;
     }
   }
-  return url;
+
+  if (!pathname.startsWith('/')) {
+    pathname = `/${pathname}`;
+  }
+
+  if (isLocalBrowser) {
+    return pathname;
+  }
+
+  const viteApiUrl = (import.meta.env.VITE_API_URL || '').trim();
+  if (viteApiUrl) {
+    try {
+      const parsed = new URL(viteApiUrl);
+      if (!['localhost', '127.0.0.1', '::1'].includes(parsed.hostname.toLowerCase())) {
+        return `${parsed.origin}${pathname}`;
+      }
+    } catch (_) {}
+  }
+
+  return `https://crm-be.securedapp.io${pathname}`;
 }
 
 export function formatDate(date, formatPattern = 'MMM dd, yyyy') {

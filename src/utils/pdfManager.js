@@ -1,4 +1,4 @@
-import { formatCurrency, numberToWords, format } from '@/invoice/lib/invoiceUtils';
+import { formatCurrency, numberToWords, format, getFullFileUrl } from '@/invoice/lib/invoiceUtils';
 import html2pdf from 'html2pdf.js';
 import { calculatePayslipTotals } from './payslipUtils';
 
@@ -35,18 +35,7 @@ const isIOS = typeof navigator !== 'undefined' && typeof window !== 'undefined' 
 
 async function toBase64DataUrl(url) {
   if (!url || url.startsWith('data:')) return url;
-  let targetUrl = url;
-  if (url.startsWith('/uploads')) {
-    const viteApiUrl = import.meta.env.VITE_API_URL;
-    if (viteApiUrl) {
-      try {
-        const parsed = new URL(viteApiUrl);
-        targetUrl = `${parsed.origin}${url}`;
-      } catch (e) {
-        // ignore
-      }
-    }
-  }
+  const targetUrl = getFullFileUrl(url);
   try {
     const res = await fetch(targetUrl);
     const blob = await res.blob();
@@ -988,10 +977,17 @@ export async function downloadInvoicePDF(invoice, business) {
     let apiBase = '/local-api';
     if (typeof window !== 'undefined') {
       const host = window.location.hostname.toLowerCase();
-      if (!['localhost', '127.0.0.1', '::1'].includes(host) && import.meta.env?.VITE_API_URL) {
-        try {
-          apiBase = `${new URL(import.meta.env.VITE_API_URL).origin}/local-api`;
-        } catch (_) {}
+      if (!['localhost', '127.0.0.1', '::1'].includes(host)) {
+        apiBase = 'https://crm-be.securedapp.io/local-api';
+        const viteApiUrl = (import.meta.env?.VITE_API_URL || '').trim();
+        if (viteApiUrl) {
+          try {
+            const url = new URL(viteApiUrl);
+            if (!['localhost', '127.0.0.1', '::1'].includes(url.hostname.toLowerCase())) {
+              apiBase = `${url.origin}/local-api`;
+            }
+          } catch (_) {}
+        }
       }
     }
 

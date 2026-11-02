@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const LIVE_API_URL = 'https://crm.securedapp.io/api'
+const LIVE_API_URL = 'https://crm-be.securedapp.io/api'
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
 
 const isLocalHost = (hostname = '') => LOCAL_HOSTS.has(hostname.toLowerCase())
@@ -20,7 +20,7 @@ const getBaseApiUrl = () => {
   if (configuredUrl) {
     try {
       const configuredHost = new URL(configuredUrl).hostname
-      if (!isLocalHost(configuredHost)) return configuredUrl
+      if (!isLocalHost(configuredHost) && !configuredHost.includes('securedapp.in')) return configuredUrl
     } catch (_) {}
   }
 
