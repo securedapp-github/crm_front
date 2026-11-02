@@ -978,7 +978,7 @@ export async function downloadInvoicePDF(invoice, business) {
     if (typeof window !== 'undefined') {
       const host = window.location.hostname.toLowerCase();
       if (!['localhost', '127.0.0.1', '::1'].includes(host)) {
-        apiBase = 'https://crm-be.securedapp.io/local-api';
+        apiBase = 'https://crm.securedapp.io/local-api';
         const viteApiUrl = (import.meta.env?.VITE_API_URL || '').trim();
         if (viteApiUrl) {
           try {

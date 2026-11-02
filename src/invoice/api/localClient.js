@@ -12,7 +12,7 @@ const getApiBase = () => {
       }
     } catch (_) {}
   }
-  return 'https://crm-be.securedapp.io/local-api';
+  return 'https://crm.securedapp.io/local-api';
 };
 
 const API_BASE = getApiBase();

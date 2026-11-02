@@ -1,1 +1,4 @@
-/*    /index.html   200
+/api/*         https://crm-be.securedapp.io/api/:splat       200!
+/local-api/*   https://crm-be.securedapp.io/local-api/:splat 200!
+/uploads/*     https://crm-be.securedapp.io/uploads/:splat   200!
+/*             /index.html                                   200

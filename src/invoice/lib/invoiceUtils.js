@@ -333,7 +333,7 @@ export function getFullFileUrl(url) {
     } catch (_) {}
   }
 
-  return `https://crm-be.securedapp.io${pathname}`;
+  return `https://crm.securedapp.io${pathname}`;
 }
 
 export function formatDate(date, formatPattern = 'MMM dd, yyyy') {

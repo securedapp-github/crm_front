@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // Base API endpoint determination
 const getApiBaseUrl = () => {
-  return api.defaults.baseURL || 'https://crm-be.securedapp.io/api';
+  return api.defaults.baseURL || 'https://crm.securedapp.io/api';
 };
 
 // CRM Internal Management Endpoints (authenticated via JWT)
