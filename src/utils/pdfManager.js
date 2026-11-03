@@ -1,4 +1,5 @@
-import { formatCurrency, numberToWords, format } from '@/invoice/lib/invoiceUtils';
+import React from 'react';
+import { formatCurrency, numberToWords, format, getFullFileUrl } from '@/invoice/lib/invoiceUtils';
 import html2pdf from 'html2pdf.js';
 import { calculatePayslipTotals } from './payslipUtils';
 
@@ -35,18 +36,7 @@ const isIOS = typeof navigator !== 'undefined' && typeof window !== 'undefined' 
 
 async function toBase64DataUrl(url) {
   if (!url || url.startsWith('data:')) return url;
-  let targetUrl = url;
-  if (url.startsWith('/uploads')) {
-    const viteApiUrl = import.meta.env.VITE_API_URL;
-    if (viteApiUrl) {
-      try {
-        const parsed = new URL(viteApiUrl);
-        targetUrl = `${parsed.origin}${url}`;
-      } catch (e) {
-        // ignore
-      }
-    }
-  }
+  const targetUrl = getFullFileUrl(url);
   try {
     const res = await fetch(targetUrl);
     const blob = await res.blob();
@@ -983,49 +973,28 @@ export async function downloadInvoicePDF(invoice, business) {
   const invoiceNum = (invoice.invoice_number || 'Draft').toString().replace(/[^a-zA-Z0-9.-]/g, '_');
   const filename = `Invoice_${invoiceNum}.pdf`;
 
-  // 1. Primary: Server-side Playwright Vector PDF (High precision, vector fonts, page-break perfect)
+  // 1. Primary: True Vector PDF using @react-pdf/renderer (Option A - Zero Chromium, crystal-clear vector quality)
   try {
-    let apiBase = '/local-api';
-    if (typeof window !== 'undefined') {
-      const host = window.location.hostname.toLowerCase();
-      if (!['localhost', '127.0.0.1', '::1'].includes(host) && import.meta.env?.VITE_API_URL) {
-        try {
-          apiBase = `${new URL(import.meta.env.VITE_API_URL).origin}/local-api`;
-        } catch (_) {}
-      }
+    const { pdf } = await import('@react-pdf/renderer');
+    const { default: InvoicePDFDocument } = await import('@/invoice/components/pdf/InvoicePDFDocument');
+
+    const businessCopy = { ...business };
+    if (businessCopy) {
+      if (businessCopy.logo_url) businessCopy.logo_url = await toBase64DataUrl(businessCopy.logo_url);
+      if (businessCopy.signature_url) businessCopy.signature_url = await toBase64DataUrl(businessCopy.signature_url);
     }
 
-    let response = null;
-    if (invoice && invoice.id) {
-      response = await fetch(`${apiBase}/public/invoice/${invoice.id}/pdf`, { credentials: 'include' });
-    } else if (invoice) {
-      response = await fetch(`${apiBase}/public/invoice/preview-pdf`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoice, business }),
-        credentials: 'include'
-      });
-    }
+    const doc = React.createElement(InvoicePDFDocument, { invoice, business: businessCopy });
+    const blob = await pdf(doc).toBlob();
 
-    if (response && response.ok) {
-      const blob = await response.blob();
-      if (blob && (blob.type.includes('pdf') || blob.size > 500)) {
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = blobUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-          if (document.body.contains(a)) document.body.removeChild(a);
-          window.URL.revokeObjectURL(blobUrl);
-        }, 1000);
-        return;
-      }
+    if (blob) {
+      const blobUrl = window.URL.createObjectURL(blob);
+      Object.assign(document.createElement('a'), { href: blobUrl, download: filename }).click();
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+      return;
     }
-  } catch (backendErr) {
-    console.warn('[PDF Service] Server-side PDF generation failed or backend unreachable, falling back to client-side renderer:', backendErr);
+  } catch (reactPdfErr) {
+    console.warn('[@react-pdf/renderer] Vector PDF generation fallback to html2pdf:', reactPdfErr);
   }
 
   // 2. Resilient Fallback: Client-side html2pdf renderer

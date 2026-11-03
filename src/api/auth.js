@@ -20,7 +20,7 @@ const getBaseApiUrl = () => {
   if (configuredUrl) {
     try {
       const configuredHost = new URL(configuredUrl).hostname
-      if (!isLocalHost(configuredHost)) return configuredUrl
+      if (!isLocalHost(configuredHost) && !configuredHost.includes('securedapp.in')) return configuredUrl
     } catch (_) {}
   }
 

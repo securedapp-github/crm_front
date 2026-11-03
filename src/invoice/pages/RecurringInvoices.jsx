@@ -5,15 +5,15 @@ import { invoiceApi } from "@/invoice/api/invoiceClient"
 import { formatCurrency, formatDate } from "@/invoice/lib/invoiceUtils"
 import { downloadInvoicePDF } from "@/utils/pdfManager"
 import { toast } from "sonner"
-import { 
-  Repeat, 
-  Plus, 
-  Play, 
-  Pause, 
-  Trash2, 
-  Download, 
-  FileText, 
-  CheckCircle2, 
+import {
+  Repeat,
+  Plus,
+  Play,
+  Pause,
+  Trash2,
+  Download,
+  FileText,
+  CheckCircle2,
   AlertCircle,
   Archive,
   RefreshCw,
@@ -24,13 +24,11 @@ import {
   X
 } from "lucide-react"
 
+const ordinalRules = new Intl.PluralRules('en', { type: 'ordinal' })
+const ordinalSuffixes = { one: 'st', two: 'nd', few: 'rd', other: 'th' }
 function getOrdinalSuffix(day) {
   const d = Number(day) || 1
-  const j = d % 10, k = d % 100
-  if (j === 1 && k !== 11) return `${d}st`
-  if (j === 2 && k !== 12) return `${d}nd`
-  if (j === 3 && k !== 13) return `${d}rd`
-  return `${d}th`
+  return `${d}${ordinalSuffixes[ordinalRules.select(d)] || 'th'}`
 }
 
 export default function RecurringInvoices() {
@@ -83,24 +81,14 @@ export default function RecurringInvoices() {
     }
   }
 
-  // Map each recurring profile id to its latest generated invoice (sorted chronologically)
+  // Map each recurring profile id to its latest generated invoice
   const latestInvoiceByProfile = useMemo(() => {
-    const map = {}
-    const recurringInvoices = invoices.filter(i => Boolean(i.recurring_invoice_id || i.generated_from_recurring))
-
-    // Sort newest first
-    const sorted = [...recurringInvoices].sort((a, b) => {
-      const dateA = a.invoice_date || a.created_date || ''
-      const dateB = b.invoice_date || b.created_date || ''
-      return dateB.localeCompare(dateA)
-    })
-
-    for (const inv of sorted) {
+    return invoices.reduce((map, inv) => {
       if (inv.recurring_invoice_id && !map[inv.recurring_invoice_id]) {
         map[inv.recurring_invoice_id] = inv
       }
-    }
-    return map
+      return map
+    }, {})
   }, [invoices])
 
   // Strictly filter generated recurring invoices for the selected month
@@ -127,7 +115,11 @@ export default function RecurringInvoices() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['recurringInvoices'] })
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
-      toast.success(`Success! Generated ${data.generated || 0} draft invoice(s).`)
+      if (data.generated > 0) {
+        toast.success(`Success! Generated ${data.generated} draft invoice(s).`)
+      } else {
+        toast.info(data.message || 'Invoice for this period already exists and is up to date.')
+      }
     },
     onError: (err) => toast.error(`Run failed: ${err.message}`),
   })
@@ -137,10 +129,14 @@ export default function RecurringInvoices() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['recurringInvoices'] })
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
-      const count = Array.isArray(data?.results) 
+      const count = Array.isArray(data?.results)
         ? data.results.reduce((acc, r) => acc + (r.generated || 0), 0)
         : 0
-      toast.success(`Sweep finished: ${count} draft invoice(s) created.`)
+      if (count > 0) {
+        toast.success(`Sweep finished: ${count} draft invoice(s) created.`)
+      } else {
+        toast.info('Sweep finished: all recurring profiles are up to date.')
+      }
     },
     onError: (err) => toast.error(`Sweep failed: ${err.message}`),
   })
@@ -153,14 +149,14 @@ export default function RecurringInvoices() {
     },
   })
 
-  const handleDownloadSinglePDF = (inv) => {
+  const handleDownloadSinglePDF = async (inv) => {
     try {
       toast.info(`Preparing ${inv.invoice_number || 'invoice'} PDF...`)
-      downloadInvoicePDF(inv, business)
+      await downloadInvoicePDF(inv, business)
       toast.success(`Downloaded ${inv.invoice_number || 'invoice'} successfully!`)
     } catch (err) {
       console.error('PDF download error:', err)
-      toast.error('Failed to download PDF: ' + err.message)
+      toast.error('Failed to download PDF: ' + (err.message || 'Unknown error'))
     }
   }
 
@@ -301,13 +297,12 @@ export default function RecurringInvoices() {
                           </span>
                         </td>
                         <td className="py-3 px-4">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            p.status === 'active' 
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
-                              : isPaused 
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${p.status === 'active'
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              : isPaused
                                 ? 'bg-amber-100 text-amber-800 border border-amber-200'
                                 : 'bg-slate-100 text-slate-700 border border-slate-200'
-                          }`}>
+                            }`}>
                             {p.status === 'active' && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
                             {isPaused && <Pause className="w-3 h-3 text-amber-600" />}
                             <span className="capitalize">{p.status || 'active'}</span>
@@ -547,9 +542,12 @@ function RecurringProfileModal({ invoices, profile, initialInvoiceId, onClose, o
     const baseSource = selectedInv || profile?.template_data || {}
     const items = selectedInv?.items || profile?.template_data?.items || []
 
+    const customerName = baseSource.customer_name || baseSource.client_name || 'Customer'
+    const totalAmount = Number(baseSource.grand_total) || Number(baseSource.total) || 0
+
     const payload = {
       customer_id: baseSource.customer_id,
-      customer_name: baseSource.customer_name || 'Customer',
+      customer_name: customerName,
       billing_day: Math.min(28, Math.max(1, Number(billingDay) || 1)),
       due_days: Math.max(0, Number(dueDays) || 15),
       frequency: 'monthly',
@@ -558,26 +556,16 @@ function RecurringProfileModal({ invoices, profile, initialInvoiceId, onClose, o
       source_invoice_number: selectedInv?.invoice_number || profile?.source_invoice_number || null,
       start_date: profile?.start_date || new Date().toISOString(),
       template_data: {
-        customer_id: baseSource.customer_id,
-        customer_name: baseSource.customer_name || '',
-        customer_email: baseSource.customer_email || '',
-        customer_address: baseSource.customer_address || '',
-        customer_gst: baseSource.customer_gst || '',
-        currency: baseSource.currency || 'INR',
-        tax_type: baseSource.tax_type || 'gst',
-        items: items,
-        subtotal: Number(baseSource.subtotal) || 0,
-        tax_amount: Number(baseSource.tax_amount) || 0,
-        cgst_amount: baseSource.cgst_amount,
-        sgst_amount: baseSource.sgst_amount,
-        igst_amount: baseSource.igst_amount,
-        total_discount: baseSource.total_discount,
-        additional_charges_amount: baseSource.additional_charges_amount,
-        additional_charges_label: baseSource.additional_charges_label,
-        grand_total: Number(baseSource.grand_total) || 0,
-        notes: baseSource.notes || 'Monthly recurring retainer invoice automatically generated as draft.',
-        terms_and_conditions: baseSource.terms_and_conditions,
-        bank_details: baseSource.bank_details
+        ...baseSource,
+        customer_name: customerName,
+        customer_email: baseSource.customer_email || baseSource.client_email || '',
+        customer_address: baseSource.customer_address || baseSource.client_address || '',
+        customer_gst: baseSource.customer_gst || baseSource.client_gst || '',
+        items,
+        subtotal: Number(baseSource.subtotal) || totalAmount,
+        grand_total: totalAmount,
+        total: totalAmount,
+        notes: baseSource.notes || 'Monthly recurring retainer invoice automatically generated as draft.'
       }
     }
 
@@ -607,7 +595,7 @@ function RecurringProfileModal({ invoices, profile, initialInvoiceId, onClose, o
               {profile ? 'Edit Recurring Profile' : 'New Recurring Profile'}
             </h3>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
           >
