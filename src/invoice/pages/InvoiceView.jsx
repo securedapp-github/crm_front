@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/invoice/components/ui/dialog';
 import { Input } from '@/invoice/components/ui/input';
 import { Label } from '@/invoice/components/ui/label';
-import { ArrowLeft, Pencil, CreditCard, Share2, Copy, Mail, MessageCircle, Check, Download, Printer } from 'lucide-react';
+import { ArrowLeft, Pencil, CreditCard, Share2, Copy, Mail, MessageCircle, Check, Download, Printer, FileText, Eye } from 'lucide-react';
 import { formatCurrency, getStatusColor, getStatusLabel } from '@/invoice/lib/invoiceUtils';
 import { toast } from 'sonner';
 import InvoicePDFContent from '@/invoice/components/invoice/InvoicePDFContent';
+import LivePDFViewer from '@/invoice/components/pdf/LivePDFViewer';
 import { printInvoicePDF, downloadInvoicePDF } from '@/utils/pdfManager';
 
 export default function InvoiceView() {
@@ -22,6 +23,7 @@ export default function InvoiceView() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [previewMode, setPreviewMode] = useState('sheet');
   const [payment, setPayment] = useState({ amount: 0, payment_date: new Date().toISOString().split('T')[0], payment_method: 'bank_transfer', reference_number: '', notes: '' });
 
   const { data: invoice, isLoading } = useQuery({
@@ -183,9 +185,44 @@ export default function InvoiceView() {
         </div>
       </div>
 
-      <div ref={printRef}>
-        <InvoicePDFContent invoice={invoice} business={business} />
+      {/* View Mode Switcher */}
+      <div className="flex items-center justify-between pb-1 print:hidden">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+          <button
+            type="button"
+            onClick={() => setPreviewMode('sheet')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+              previewMode === 'sheet'
+                ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            }`}
+          >
+            <FileText className="h-3.5 w-3.5" /> Document View
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreviewMode('vector_pdf')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+              previewMode === 'vector_pdf'
+                ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            }`}
+          >
+            <Eye className="h-3.5 w-3.5 text-emerald-600" /> PDF Preview
+          </button>
+        </div>
+        <span className="text-[11px] text-muted-foreground hidden sm:inline">
+          {previewMode === 'sheet' ? 'Document View' : 'PDF Preview'}
+        </span>
       </div>
+
+      {previewMode === 'sheet' ? (
+        <div ref={printRef}>
+          <InvoicePDFContent invoice={invoice} business={business} />
+        </div>
+      ) : (
+        <LivePDFViewer invoice={invoice} business={business} />
+      )}
 
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
         <DialogContent>
