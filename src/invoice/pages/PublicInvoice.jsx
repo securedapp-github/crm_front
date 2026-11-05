@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { invoiceApi } from '@/invoice/api/invoiceClient';
 import { Button } from '@/invoice/components/ui/button';
 import { Badge } from '@/invoice/components/ui/badge';
-import { Download, Printer, CheckCircle2 } from 'lucide-react';
+import { Download, Printer, CheckCircle2, FileText, Eye } from 'lucide-react';
 import InvoicePDFContent from '@/invoice/components/invoice/InvoicePDFContent';
+import LivePDFViewer from '@/invoice/components/pdf/LivePDFViewer';
 import { printInvoicePDF, downloadInvoicePDF } from '@/utils/pdfManager';
 import { getStatusColor, getStatusLabel, formatCurrency } from '@/invoice/lib/invoiceUtils';
 
 export default function PublicInvoice() {
   const { id } = useParams();
+  const [viewMode, setViewMode] = useState('sheet');
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['public-invoice', id],
@@ -136,10 +138,45 @@ export default function PublicInvoice() {
           </div>
         </div>
 
-        {/* Invoice Body */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-          <InvoicePDFContent invoice={invoice} business={business} />
+        {/* View Mode Switcher */}
+        <div className="flex items-center justify-between pb-1 print:hidden">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setViewMode('sheet')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                viewMode === 'sheet'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              <FileText className="h-3.5 w-3.5" /> Document View
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('vector_pdf')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                viewMode === 'vector_pdf'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              <Eye className="h-3.5 w-3.5 text-emerald-600" /> PDF Preview
+            </button>
+          </div>
+          <span className="text-[11px] text-muted-foreground hidden sm:inline">
+            {viewMode === 'sheet' ? 'Document View' : 'PDF Preview'}
+          </span>
         </div>
+
+        {/* Invoice Body */}
+        {viewMode === 'sheet' ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+            <InvoicePDFContent invoice={invoice} business={business} />
+          </div>
+        ) : (
+          <LivePDFViewer invoice={invoice} business={business} />
+        )}
 
         {/* Footer */}
         <div className="text-center space-y-1 pt-2 pb-6 text-xs text-slate-400">
