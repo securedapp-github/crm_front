@@ -56,39 +56,42 @@ async function toBase64DataUrl(url) {
 export function generateInvoiceHTML(invoice, business) {
   const items = invoice.items || [];
   const taxType = invoice.tax_type || 'gst';
+  const hasTax = taxType !== 'none';
+  const currency = invoice.currency || 'INR';
 
   const colWidths = {
     gst: {
       index: '4%',
       item: '22%',
-      gstRate: '7%',
-      qty: '7%',
+      hsn: '8%',
+      qty: '6%',
       rate: '10%',
-      discount: '9%',
-      amount: '10%',
+      discount: '8%',
+      taxable: '11%',
       cgst: '10%',
       sgst: '10%',
       total: '11%'
     },
     igst: {
       index: '4%',
-      item: '26%',
-      gstRate: '8%',
-      qty: '8%',
+      item: '24%',
+      hsn: '8%',
+      qty: '7%',
       rate: '11%',
       discount: '9%',
-      amount: '11%',
-      igst: '11%',
+      taxable: '12%',
+      igst: '13%',
       total: '12%'
     },
     none: {
       index: '5%',
       item: '38%',
+      hsn: '0%',
       qty: '9%',
-      rate: '12%',
-      discount: '10%',
-      amount: '12%',
-      total: '14%'
+      rate: '14%',
+      discount: '12%',
+      taxable: '0%',
+      total: '18%'
     }
   }[taxType] || {};
 
@@ -187,20 +190,24 @@ export function generateInvoiceHTML(invoice, business) {
           word-break: break-word;
         }
         table.items-table th {
-          background-color: #059669; /* emerald-600 */
+          background-color: #059669; /* Emerald 600 */
           color: #ffffff;
           font-weight: 600;
           text-align: left;
-          padding: 8px 4px;
-          font-size: 10px;
+          padding: 9px 8px;
+          font-size: 11px;
           text-transform: uppercase;
+          letter-spacing: 0.04em;
         }
         table.items-table td {
-          padding: 10px 4px;
-          border-bottom: 1px solid #f1f5f9;
-          font-size: 11px;
-          color: #475569;
-          vertical-align: top;
+          padding: 9px 8px;
+          border-bottom: 1px solid #e2e8f0;
+          font-size: 12px;
+          color: #334155;
+          vertical-align: middle;
+        }
+        table.items-table tbody tr:nth-child(even) {
+          background-color: #f8fafc;
         }
         table.items-table tr.total-row td {
           background-color: #f8fafc;
@@ -386,74 +393,87 @@ export function generateInvoiceHTML(invoice, business) {
       <table class="items-table">
         <thead>
           <tr style="white-space: nowrap;">
-            <th style="width: ${colWidths.index};">#</th>
-            <th style="width: ${colWidths.item};">Item</th>
-            ${taxType !== 'none' ? `<th class="text-center" style="width: ${colWidths.gstRate};">GST Rate</th>` : ''}
+            <th style="width: ${colWidths.index}; text-align: center;">#</th>
+            <th style="width: ${colWidths.item};">Item Description</th>
+            ${hasTax ? `<th class="text-center" style="width: ${colWidths.hsn};">HSN/SAC</th>` : ''}
             <th class="text-center" style="width: ${colWidths.qty};">Quantity</th>
             <th class="text-right" style="width: ${colWidths.rate};">Rate</th>
             <th class="text-right" style="width: ${colWidths.discount};">Discount</th>
-            <th class="text-right" style="width: ${colWidths.amount};">Amount</th>
-            ${taxType !== 'none' ? (taxType === 'gst' ? `<th class="text-right" style="width: ${colWidths.cgst};">CGST</th><th class="text-right" style="width: ${colWidths.sgst};">SGST</th>` : `<th class="text-right" style="width: ${colWidths.igst};">IGST</th>`) : ''}
+            ${hasTax ? `<th class="text-right" style="width: ${colWidths.taxable};">Taxable</th>` : ''}
+            ${taxType !== 'none' ? (taxType === 'gst' ? `
+              <th class="text-right" style="width: ${colWidths.cgst};">CGST</th>
+              <th class="text-right" style="width: ${colWidths.sgst};">SGST</th>
+            ` : `
+              <th class="text-right" style="width: ${colWidths.igst};">IGST</th>
+            `) : ''}
             <th class="text-right" style="width: ${colWidths.total};">Total</th>
           </tr>
         </thead>
         <tbody>
           ${items.map((item, i) => {
-    const qty = item.quantity || 0;
-    const rate = item.rate || 0;
+    const qty = Number(item.quantity) || 1;
+    const rate = Number(item.rate) || 0;
     const baseAmount = qty * rate;
-    const disc = baseAmount * ((item.discount_percent || 0) / 100);
-    const taxable = baseAmount - disc;
-    const taxAmt = taxable * ((item.tax_percent || 0) / 100);
+    const disc = baseAmount * ((Number(item.discount_percent) || 0) / 100);
+    const taxable = Math.max(0, baseAmount - disc);
+    const taxRate = Number(item.tax_percent) || 0;
+    const taxAmt = taxType === 'none' ? 0 : taxable * (taxRate / 100);
     const itemTotal = taxable + taxAmt;
     return `
               <tr>
-                <td>${i + 1}.</td>
+                <td style="text-align: center; color: #94a3b8; font-family: monospace;">${i + 1}</td>
                 <td>
-                  <strong style="color: #1e293b;">${escapeHtml(item.name || '-')}</strong>
-                  ${item.description ? `<div class="item-desc">${escapeHtml(item.description)}</div>` : ''}
+                  <strong style="color: #0f172a; font-size: 13px;">${escapeHtml(item.name || item.description || `Item #${i + 1}`)}</strong>
+                  ${item.description && item.name && item.description !== item.name ? `<div class="item-desc">${escapeHtml(item.description)}</div>` : ''}
                 </td>
-                ${taxType !== 'none' ? `<td class="text-center" style="white-space: nowrap;">${item.tax_percent || 0}%</td>` : ''}
-                <td class="text-center" style="white-space: nowrap;">${qty}${item.unit ? ' ' + escapeHtml(item.unit) : ''}</td>
-                <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(rate, invoice.currency))}</td>
-                <td class="text-right" style="white-space: nowrap; color: #16a34a;">
-                  ${disc > 0 ? `<strong>${item.discount_percent}%</strong><div style="font-size: 10px; color: #15803d;">-${escapeHtml(formatCurrency(disc, invoice.currency))}</div>` : '<span style="color: #94a3b8;">-</span>'}
+                ${hasTax ? `<td class="text-center" style="font-family: monospace; color: #475569;">${escapeHtml(item.hsn_code || '-')}</td>` : ''}
+                <td class="text-center" style="white-space: nowrap; font-weight: 500; color: #0f172a;">${qty}${item.unit ? ' ' + escapeHtml(item.unit) : ''}</td>
+                <td class="text-right" style="white-space: nowrap; font-family: monospace;">${escapeHtml(formatCurrency(rate, currency))}</td>
+                <td class="text-right" style="white-space: nowrap; color: #16a34a; font-family: monospace;">
+                  ${disc > 0 ? `<strong>${item.discount_percent}%</strong><div style="font-size: 10px; color: #15803d;">-${escapeHtml(formatCurrency(disc, currency))}</div>` : '<span style="color: #94a3b8;">-</span>'}
                 </td>
-                <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(taxable, invoice.currency))}</td>
+                ${hasTax ? `<td class="text-right" style="font-weight: 600; color: #0f172a; white-space: nowrap; font-family: monospace;">${escapeHtml(formatCurrency(taxable, currency))}</td>` : ''}
                 ${taxType !== 'none' ? (taxType === 'gst' ? `
-                  <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(taxAmt / 2, invoice.currency))}</td>
-                  <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(taxAmt / 2, invoice.currency))}</td>
+                  <td class="text-right" style="white-space: nowrap; font-family: monospace;">
+                    <div>${escapeHtml(formatCurrency(taxAmt / 2, currency))}</div>
+                    <div style="font-size: 10px; color: #64748b;">(${taxRate / 2}%)</div>
+                  </td>
+                  <td class="text-right" style="white-space: nowrap; font-family: monospace;">
+                    <div>${escapeHtml(formatCurrency(taxAmt / 2, currency))}</div>
+                    <div style="font-size: 10px; color: #64748b;">(${taxRate / 2}%)</div>
+                  </td>
                 ` : `
-                  <td class="text-right" style="white-space: nowrap;">${escapeHtml(formatCurrency(taxAmt, invoice.currency))}</td>
+                  <td class="text-right" style="white-space: nowrap; font-family: monospace;">
+                    <div>${escapeHtml(formatCurrency(taxAmt, currency))}</div>
+                    <div style="font-size: 10px; color: #64748b;">(${taxRate}%)</div>
+                  </td>
                 `) : ''}
-                <td class="text-right" style="font-weight: 600; color: #1e293b; white-space: nowrap;">${escapeHtml(formatCurrency(itemTotal, invoice.currency))}</td>
+                <td class="text-right" style="font-weight: 700; color: #0f172a; white-space: nowrap; font-family: monospace;">${escapeHtml(formatCurrency(itemTotal, currency))}</td>
               </tr>
             `;
   }).join('')}
           <tr class="total-row">
-            <td colspan="2" style="font-weight: 700;">Total</td>
-            ${taxType !== 'none' ? '<td></td>' : ''}
-            <td class="text-center" style="font-weight: 700; white-space: nowrap;">${items.reduce((sum, item) => sum + (item.quantity || 0), 0)}</td>
+            <td style="text-align: center;"></td>
+            <td style="font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px;">Total</td>
+            ${hasTax ? '<td></td>' : ''}
+            <td class="text-center" style="font-weight: 700; white-space: nowrap; font-family: monospace;">${items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}</td>
             <td></td>
-            <td class="text-right" style="font-weight: 700; white-space: nowrap; color: #16a34a;">
-              ${(invoice.total_discount || 0) > 0 ? `-${escapeHtml(formatCurrency(invoice.total_discount, invoice.currency))}` : '-'}
+            <td class="text-right" style="font-weight: 700; white-space: nowrap; color: #16a34a; font-family: monospace;">
+              ${(invoice.total_discount || 0) > 0 ? `-${escapeHtml(formatCurrency(invoice.total_discount, currency))}` : '-'}
             </td>
-            <td class="text-right" style="font-weight: 700; white-space: nowrap;">
-              ${escapeHtml(formatCurrency(items.reduce((sum, item) => {
-    const b = (item.quantity || 0) * (item.rate || 0);
-    const d = b * ((item.discount_percent || 0) / 100);
-    return sum + (b - d);
-  }, 0), invoice.currency))}
-            </td>
-            ${taxType === 'gst' ? '<td></td><td></td>' : (taxType === 'igst' ? '<td></td>' : '')}
-            <td class="text-right" style="font-weight: 700; color: #0f172a; white-space: nowrap;">${escapeHtml(formatCurrency(invoice.grand_total, invoice.currency))}</td>
+            ${hasTax ? `<td class="text-right" style="font-weight: 700; color: #0f172a; white-space: nowrap; font-family: monospace;">${escapeHtml(formatCurrency(Math.max(0, (invoice.subtotal || 0) - (invoice.total_discount || 0)), currency))}</td>` : ''}
+            ${taxType === 'gst' ? `
+              <td class="text-right" style="font-weight: 700; font-family: monospace;">${escapeHtml(formatCurrency(invoice.cgst_amount, currency))}</td>
+              <td class="text-right" style="font-weight: 700; font-family: monospace;">${escapeHtml(formatCurrency(invoice.sgst_amount, currency))}</td>
+            ` : (taxType === 'igst' ? `<td class="text-right" style="font-weight: 700; font-family: monospace;">${escapeHtml(formatCurrency(invoice.igst_amount, currency))}</td>` : '')}
+            <td class="text-right" style="font-weight: 700; color: #0f172a; white-space: nowrap; font-family: monospace;">${escapeHtml(formatCurrency(invoice.grand_total, currency))}</td>
           </tr>
         </tbody>
       </table>
 
-      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 11px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-        <span style="color: #64748b; font-weight: 500;">Invoice Amount in Words:</span>
-        <strong style="color: #0f172a; text-align: right;">${escapeHtml(numberToWords(invoice.grand_total, invoice.currency))}</strong>
+      <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 10px 16px; font-size: 12px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+        <span style="color: #047857; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;">Total Amount in Words:</span>
+        <strong style="color: #065f46; text-align: right; font-size: 13px;">${escapeHtml(numberToWords(invoice.grand_total, currency))}</strong>
       </div>
         <div class="bottom-section">
           <div class="bank-details-box">
@@ -968,6 +988,20 @@ function downloadPDFFromHTML(htmlContent, filename) {
   waitForResources();
 }
 
+export async function getInvoicePDFBlob(invoice, business) {
+  const { pdf } = await import('@react-pdf/renderer');
+  const { default: InvoicePDFDocument } = await import('@/invoice/components/pdf/InvoicePDFDocument');
+
+  const businessCopy = { ...business };
+  if (businessCopy) {
+    if (businessCopy.logo_url) businessCopy.logo_url = await toBase64DataUrl(businessCopy.logo_url);
+    if (businessCopy.signature_url) businessCopy.signature_url = await toBase64DataUrl(businessCopy.signature_url);
+  }
+
+  const doc = React.createElement(InvoicePDFDocument, { invoice, business: businessCopy });
+  return await pdf(doc).toBlob();
+}
+
 export async function downloadInvoicePDF(invoice, business) {
   logDebug('[Checkpoint 1] downloadInvoicePDF started');
   const invoiceNum = (invoice.invoice_number || 'Draft').toString().replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -975,18 +1009,7 @@ export async function downloadInvoicePDF(invoice, business) {
 
   // 1. Primary: True Vector PDF using @react-pdf/renderer (Option A - Zero Chromium, crystal-clear vector quality)
   try {
-    const { pdf } = await import('@react-pdf/renderer');
-    const { default: InvoicePDFDocument } = await import('@/invoice/components/pdf/InvoicePDFDocument');
-
-    const businessCopy = { ...business };
-    if (businessCopy) {
-      if (businessCopy.logo_url) businessCopy.logo_url = await toBase64DataUrl(businessCopy.logo_url);
-      if (businessCopy.signature_url) businessCopy.signature_url = await toBase64DataUrl(businessCopy.signature_url);
-    }
-
-    const doc = React.createElement(InvoicePDFDocument, { invoice, business: businessCopy });
-    const blob = await pdf(doc).toBlob();
-
+    const blob = await getInvoicePDFBlob(invoice, business);
     if (blob) {
       const blobUrl = window.URL.createObjectURL(blob);
       Object.assign(document.createElement('a'), { href: blobUrl, download: filename }).click();
